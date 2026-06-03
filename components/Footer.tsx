@@ -1,103 +1,89 @@
 import Link from 'next/link';
-import NewsletterForm from './NewsletterForm';
-
-const shopLinks = [
-  { label: 'All Products', href: '/shop' },
-  { label: 'Sets', href: '/shop?category=sets' },
-  { label: 'Dresses', href: '/shop?category=dresses' },
-  { label: 'Jumpsuits', href: '/shop?category=jumpsuits' },
-  { label: 'Accessories', href: '/shop?category=accessories' },
-];
-
-const helpLinks = [
-  { label: 'Size Guide', href: '/size-guide' },
-  { label: 'Shipping Info', href: '/about#shipping' },
-  { label: 'Returns & Exchanges', href: '/about#returns' },
-  { label: 'Custom Orders', href: '/about#custom' },
-  { label: 'FAQ', href: '/about#faq' },
-];
-
-const companyLinks = [
-  { label: 'Our Story', href: '/about' },
-  { label: 'Contact Us', href: '/about#contact' },
-  { label: 'Instagram', href: 'https://instagram.com' },
-];
 
 export default function Footer() {
   return (
-    <footer className="bg-charcoal text-cream mt-auto">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16">
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-10">
-          {/* Brand */}
-          <div className="lg:col-span-1">
-            <p className="font-display text-xl tracking-[0.2em] font-semibold uppercase mb-3">
-              Bloomingdew
-            </p>
-            <p className="text-sm text-warm-gray leading-relaxed">
-              Handcrafted fashion for the modern woman. Every piece made with intention.
-            </p>
-          </div>
+    <footer style={{
+      backgroundColor: '#2C2C2C',
+      color: '#E8DDD3',
+      padding: '4rem 2rem 2rem',
+      marginTop: 'auto',
+    }}>
+      <div style={{
+        maxWidth: '1280px',
+        margin: '0 auto',
+        display: 'grid',
+        gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
+        gap: '3rem',
+        paddingBottom: '3rem',
+        borderBottom: '1px solid #9A8F8740',
+      }}>
 
-          {/* Shop */}
-          <div>
-            <h4 className="text-xs tracking-widest uppercase mb-4 text-cream">Shop</h4>
-            <ul className="space-y-2">
-              {shopLinks.map((link) => (
-                <li key={link.href}>
-                  <Link
-                    href={link.href}
-                    className="text-sm text-warm-gray hover:text-cream transition-colors"
-                  >
-                    {link.label}
-                  </Link>
-                </li>
-              ))}
-            </ul>
-          </div>
-
-          {/* Help */}
-          <div>
-            <h4 className="text-xs tracking-widest uppercase mb-4 text-cream">Help</h4>
-            <ul className="space-y-2">
-              {helpLinks.map((link) => (
-                <li key={link.href}>
-                  <Link
-                    href={link.href}
-                    className="text-sm text-warm-gray hover:text-cream transition-colors"
-                  >
-                    {link.label}
-                  </Link>
-                </li>
-              ))}
-            </ul>
-          </div>
-
-          {/* Newsletter */}
-          <div>
-            <h4 className="text-xs tracking-widest uppercase mb-4 text-cream">Stay in the Loop</h4>
-            <p className="text-sm text-warm-gray mb-4">
-              New arrivals, exclusive drops, and styling inspo — straight to your inbox.
-            </p>
-            <NewsletterForm dark />
-            <div className="mt-4 flex gap-4">
-              {companyLinks.map((link) => (
-                <Link
-                  key={link.href}
-                  href={link.href}
-                  className="text-xs text-warm-gray hover:text-cream transition-colors"
-                >
-                  {link.label}
-                </Link>
-              ))}
-            </div>
-          </div>
+        {/* Brand */}
+        <div>
+          <h3 style={{
+            fontFamily: "'Playfair Display', serif",
+            fontSize: '1.3rem',
+            fontWeight: 500,
+            color: '#FAF7F4',
+            marginBottom: '0.75rem',
+          }}>
+            Bloomingdew
+          </h3>
+          <p style={{ fontSize: '0.85rem', lineHeight: 1.8, color: '#9A8F87' }}>
+            Handcrafted clothing made with love. Every piece tells a story.
+          </p>
         </div>
 
-        <div className="mt-12 pt-6 border-t border-white/10 flex flex-col sm:flex-row justify-between gap-2 text-xs text-warm-gray">
-          <p>© {new Date().getFullYear()} Bloomingdew. All rights reserved.</p>
-          <p>Made with care &mdash; every stitch, every seam.</p>
+        {/* Links */}
+        <div>
+          <h4 style={footerHeading}>Explore</h4>
+          <ul style={{ listStyle: 'none', display: 'flex', flexDirection: 'column', gap: '0.6rem' }}>
+            <li><Link href="/shop" style={footerLink}>Shop All</Link></li>
+            <li><Link href="/about" style={footerLink}>About</Link></li>
+          </ul>
         </div>
+
+        {/* Contact */}
+        <div>
+          <h4 style={footerHeading}>Get in Touch</h4>
+          <ul style={{ listStyle: 'none', display: 'flex', flexDirection: 'column', gap: '0.6rem' }}>
+            <li style={{ fontSize: '0.85rem', color: '#9A8F87' }}>hello@bloomingdew.com</li>
+            <li style={{ fontSize: '0.85rem', color: '#9A8F87' }}>Instagram</li>
+          </ul>
+        </div>
+      </div>
+
+      <div style={{
+        maxWidth: '1280px',
+        margin: '0 auto',
+        paddingTop: '2rem',
+        display: 'flex',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        flexWrap: 'wrap',
+        gap: '1rem',
+        fontSize: '0.78rem',
+        color: '#9A8F87',
+      }}>
+        <span>© {new Date().getFullYear()} Bloomingdew. All rights reserved.</span>
+        <span>Made with love.</span>
       </div>
     </footer>
   );
 }
+
+const footerHeading: React.CSSProperties = {
+  fontFamily: "'Jost', sans-serif",
+  fontWeight: 500,
+  fontSize: '0.75rem',
+  letterSpacing: '0.15em',
+  textTransform: 'uppercase',
+  color: '#FAF7F4',
+  marginBottom: '1rem',
+};
+
+const footerLink: React.CSSProperties = {
+  fontSize: '0.85rem',
+  color: '#9A8F87',
+  transition: 'color 0.2s',
+};

@@ -1,193 +1,292 @@
-import Image from 'next/image';
 import Link from 'next/link';
-import { getFeaturedProducts } from '@/lib/products';
-import ProductCard from '@/components/ProductCard';
-import NewsletterForm from '@/components/NewsletterForm';
 
 const categories = [
-  {
-    name: 'Sets',
-    slug: 'sets',
-    image: 'https://images.unsplash.com/photo-1509631179647-0177331693ae?w=600&q=80',
-    desc: 'Elevated two-pieces',
-  },
-  {
-    name: 'Dresses',
-    slug: 'dresses',
-    image: 'https://images.unsplash.com/photo-1515372039744-b8f02a3ae446?w=600&q=80',
-    desc: 'From day to evening',
-  },
-  {
-    name: 'Jumpsuits',
-    slug: 'jumpsuits',
-    image: 'https://images.unsplash.com/photo-1525507119028-ed4c629a60a3?w=600&q=80',
-    desc: 'One-and-done dressing',
-  },
-  {
-    name: 'Accessories',
-    slug: 'accessories',
-    image: 'https://images.unsplash.com/photo-1434389677669-e08b4cac3105?w=600&q=80',
-    desc: 'The finishing touch',
-  },
+  { label: 'New In', slug: 'new-in' },
+  { label: 'Dresses', slug: 'dresses' },
+  { label: 'Sets', slug: 'sets' },
+  { label: 'Tops', slug: 'tops' },
 ];
 
-export default function HomePage() {
-  const featured = getFeaturedProducts();
+const featuredProducts = [
+  { id: 1, name: 'Linen Wrap Dress', price: '£120' },
+  { id: 2, name: 'Ivory Slip Set', price: '£95' },
+  { id: 3, name: 'Blush Midi Skirt', price: '£75' },
+  { id: 4, name: 'Cream Corset Top', price: '£60' },
+];
 
+export default function Home() {
   return (
-    <>
-      {/* Hero */}
-      <section className="relative min-h-[90vh] flex items-center overflow-hidden">
-        <div className="absolute inset-0">
-          <Image
-            src="https://images.unsplash.com/photo-1469334031218-e382a71b716b?w=1600&q=80"
-            alt="Bloomingdew Hero"
-            fill
-            priority
-            className="object-cover object-center"
-          />
-          <div className="absolute inset-0 bg-charcoal/40" />
-        </div>
+    <div>
 
-        <div className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-24">
-          <div className="max-w-xl">
-            <p className="text-gold text-xs tracking-[0.3em] uppercase mb-4">
-              New Collection
-            </p>
-            <h1 className="font-display text-5xl sm:text-6xl lg:text-7xl font-semibold text-cream leading-tight mb-6">
-              Wear Your
-              <br />
-              Story
-            </h1>
-            <p className="text-cream/80 text-lg mb-8 leading-relaxed">
-              Handcrafted fashion for the modern woman. Every piece made with
-              intention — available ready-to-wear or custom-made for you.
-            </p>
-            <div className="flex flex-wrap gap-4">
-              <Link
-                href="/shop"
-                className="bg-cream text-charcoal text-sm tracking-widest uppercase px-8 py-3 hover:bg-gold hover:text-cream transition-colors"
-              >
-                Shop Now
-              </Link>
-              <Link
-                href="/about#custom"
-                className="border border-cream text-cream text-sm tracking-widest uppercase px-8 py-3 hover:bg-cream hover:text-charcoal transition-colors"
-              >
-                Custom Orders
-              </Link>
-            </div>
-          </div>
+      {/* Hero */}
+      <section style={{
+        position: 'relative',
+        height: '90vh',
+        backgroundColor: '#E8DDD3',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        overflow: 'hidden',
+      }}>
+        {/* Placeholder bg texture */}
+        <div style={{
+          position: 'absolute',
+          inset: 0,
+          background: 'linear-gradient(135deg, #E8DDD3 0%, #D4C4B5 50%, #C9A882 100%)',
+          opacity: 0.6,
+        }} />
+
+        <div style={{
+          position: 'relative',
+          textAlign: 'center',
+          padding: '2rem',
+          maxWidth: '700px',
+        }}>
+          <p style={{
+            fontFamily: "'Jost', sans-serif",
+            fontSize: '0.75rem',
+            letterSpacing: '0.25em',
+            textTransform: 'uppercase',
+            color: '#9A8F87',
+            marginBottom: '1.5rem',
+          }}>
+            New Collection
+          </p>
+          <h1 style={{
+            fontFamily: "'Playfair Display', serif",
+            fontSize: 'clamp(2.5rem, 6vw, 5rem)',
+            fontWeight: 500,
+            color: '#2C2C2C',
+            lineHeight: 1.15,
+            marginBottom: '1.5rem',
+          }}>
+            Crafted with care,<br />worn with grace.
+          </h1>
+          <p style={{
+            fontFamily: "'Jost', sans-serif",
+            fontSize: '1rem',
+            fontWeight: 300,
+            color: '#5C5450',
+            marginBottom: '2.5rem',
+            lineHeight: 1.7,
+          }}>
+            Handmade clothing designed for the woman who moves with intention.
+          </p>
+          <Link href="/shop" style={{
+            display: 'inline-block',
+            backgroundColor: '#2C2C2C',
+            color: '#FAF7F4',
+            padding: '1rem 3rem',
+            fontFamily: "'Jost', sans-serif",
+            fontSize: '0.78rem',
+            letterSpacing: '0.18em',
+            textTransform: 'uppercase',
+            fontWeight: 400,
+          }}>
+            Shop Now
+          </Link>
         </div>
       </section>
 
       {/* Categories */}
-      <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-20">
-        <div className="text-center mb-12">
-          <h2 className="font-display text-3xl sm:text-4xl font-semibold mb-3">
+      <section style={{ padding: '6rem 2rem' }}>
+        <div style={{ maxWidth: '1280px', margin: '0 auto' }}>
+          <h2 style={{
+            fontFamily: "'Playfair Display', serif",
+            fontSize: '1.8rem',
+            fontWeight: 500,
+            textAlign: 'center',
+            marginBottom: '3rem',
+            color: '#2C2C2C',
+          }}>
             Shop by Category
           </h2>
-          <p className="text-warm-gray text-sm">Find your perfect look</p>
-        </div>
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-          {categories.map((cat) => (
-            <Link
-              key={cat.slug}
-              href={`/shop?category=${cat.slug}`}
-              className="group relative overflow-hidden aspect-[3/4]"
-            >
-              <Image
-                src={cat.image}
-                alt={cat.name}
-                fill
-                className="object-cover transition-transform duration-500 group-hover:scale-105"
-              />
-              <div className="absolute inset-0 bg-charcoal/30 group-hover:bg-charcoal/20 transition-colors" />
-              <div className="absolute bottom-4 left-4">
-                <p className="text-cream font-display text-xl font-semibold">{cat.name}</p>
-                <p className="text-cream/75 text-xs mt-0.5">{cat.desc}</p>
-              </div>
-            </Link>
-          ))}
+          <div style={{
+            display: 'grid',
+            gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))',
+            gap: '1rem',
+          }}>
+            {categories.map((cat) => (
+              <Link key={cat.slug} href={`/shop?category=${cat.slug}`} style={{
+                display: 'block',
+                textDecoration: 'none',
+              }}>
+                <div style={{
+                  backgroundColor: '#E8DDD3',
+                  aspectRatio: '3/4',
+                  display: 'flex',
+                  alignItems: 'flex-end',
+                  padding: '1.5rem',
+                  background: `linear-gradient(160deg, #EDE4DA, #C9A882)`,
+                  position: 'relative',
+                  overflow: 'hidden',
+                }}>
+                  {/* placeholder label in center */}
+                  <span style={{
+                    position: 'absolute',
+                    top: '50%',
+                    left: '50%',
+                    transform: 'translate(-50%, -50%)',
+                    fontFamily: "'Jost', sans-serif",
+                    fontSize: '0.7rem',
+                    letterSpacing: '0.2em',
+                    textTransform: 'uppercase',
+                    color: '#9A8F87',
+                  }}>
+                    Image coming soon
+                  </span>
+                  <span style={{
+                    fontFamily: "'Playfair Display', serif",
+                    fontSize: '1.3rem',
+                    fontWeight: 500,
+                    color: '#2C2C2C',
+                    position: 'relative',
+                    zIndex: 1,
+                  }}>
+                    {cat.label}
+                  </span>
+                </div>
+              </Link>
+            ))}
+          </div>
         </div>
       </section>
 
       {/* Featured Products */}
-      <section className="bg-white py-20">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex items-end justify-between mb-12">
-            <div>
-              <h2 className="font-display text-3xl sm:text-4xl font-semibold mb-2">
-                New Arrivals
-              </h2>
-              <p className="text-warm-gray text-sm">Our latest pieces, just in</p>
-            </div>
-            <Link
-              href="/shop"
-              className="text-sm tracking-wide text-charcoal border-b border-charcoal hover:text-gold hover:border-gold transition-colors hidden sm:block"
-            >
-              View all →
+      <section style={{ padding: '2rem 2rem 6rem', backgroundColor: '#FFFFFF' }}>
+        <div style={{ maxWidth: '1280px', margin: '0 auto' }}>
+          <div style={{
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'baseline',
+            marginBottom: '3rem',
+          }}>
+            <h2 style={{
+              fontFamily: "'Playfair Display', serif",
+              fontSize: '1.8rem',
+              fontWeight: 500,
+              color: '#2C2C2C',
+            }}>
+              Featured Pieces
+            </h2>
+            <Link href="/shop" style={{
+              fontFamily: "'Jost', sans-serif",
+              fontSize: '0.75rem',
+              letterSpacing: '0.15em',
+              textTransform: 'uppercase',
+              color: '#9A8F87',
+              borderBottom: '1px solid #9A8F87',
+              paddingBottom: '2px',
+            }}>
+              View All
             </Link>
           </div>
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-6">
-            {featured.map((product) => (
-              <ProductCard key={product.id} product={product} />
+
+          <div style={{
+            display: 'grid',
+            gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))',
+            gap: '1.5rem',
+          }}>
+            {featuredProducts.map((product) => (
+              <Link key={product.id} href={`/products/${product.id}`} style={{ textDecoration: 'none' }}>
+                <div>
+                  {/* Product image placeholder */}
+                  <div style={{
+                    backgroundColor: '#E8DDD3',
+                    aspectRatio: '3/4',
+                    marginBottom: '1rem',
+                    background: 'linear-gradient(150deg, #F0E8E0, #D4C4B5)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                  }}>
+                    <span style={{
+                      fontFamily: "'Jost', sans-serif",
+                      fontSize: '0.7rem',
+                      letterSpacing: '0.15em',
+                      textTransform: 'uppercase',
+                      color: '#9A8F87',
+                    }}>
+                      Photo coming soon
+                    </span>
+                  </div>
+                  <p style={{
+                    fontFamily: "'Jost', sans-serif",
+                    fontSize: '0.85rem',
+                    fontWeight: 400,
+                    color: '#2C2C2C',
+                    marginBottom: '0.3rem',
+                  }}>
+                    {product.name}
+                  </p>
+                  <p style={{
+                    fontFamily: "'Jost', sans-serif",
+                    fontSize: '0.85rem',
+                    fontWeight: 300,
+                    color: '#9A8F87',
+                  }}>
+                    {product.price}
+                  </p>
+                </div>
+              </Link>
             ))}
           </div>
         </div>
       </section>
 
       {/* Brand Story Teaser */}
-      <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-20">
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-0">
-          <div className="relative aspect-[4/3] lg:aspect-auto lg:min-h-[500px]">
-            <Image
-              src="https://images.unsplash.com/photo-1496747611176-843222e1e57c?w=800&q=80"
-              alt="Bloomingdew brand story"
-              fill
-              className="object-cover"
-            />
-          </div>
-          <div className="bg-charcoal text-cream px-10 py-16 flex flex-col justify-center">
-            <p className="text-gold text-xs tracking-[0.3em] uppercase mb-4">Our Story</p>
-            <h2 className="font-display text-3xl sm:text-4xl font-semibold mb-6 leading-snug">
-              Made with Intention,
-              <br />
-              Worn with Love
-            </h2>
-            <p className="text-cream/75 text-sm leading-relaxed mb-6">
-              Bloomingdew was born from a belief that every woman deserves clothing
-              that fits her perfectly — in every sense of the word. We design pieces
-              that move with you, celebrate your shape, and tell your story.
-            </p>
-            <p className="text-cream/75 text-sm leading-relaxed mb-8">
-              Each piece is handcrafted to order with premium fabrics. Not
-              mass-produced — made for you.
-            </p>
-            <Link
-              href="/about"
-              className="self-start border border-cream text-cream text-xs tracking-widest uppercase px-6 py-3 hover:bg-cream hover:text-charcoal transition-colors"
-            >
-              Our Story →
-            </Link>
-          </div>
+      <section style={{
+        padding: '7rem 2rem',
+        backgroundColor: '#2C2C2C',
+        textAlign: 'center',
+      }}>
+        <div style={{ maxWidth: '600px', margin: '0 auto' }}>
+          <p style={{
+            fontFamily: "'Jost', sans-serif",
+            fontSize: '0.75rem',
+            letterSpacing: '0.25em',
+            textTransform: 'uppercase',
+            color: '#C9A882',
+            marginBottom: '1.5rem',
+          }}>
+            Our Story
+          </p>
+          <h2 style={{
+            fontFamily: "'Playfair Display', serif",
+            fontSize: 'clamp(1.8rem, 4vw, 2.8rem)',
+            fontWeight: 500,
+            color: '#FAF7F4',
+            lineHeight: 1.3,
+            marginBottom: '1.5rem',
+          }}>
+            Every stitch is made with intention.
+          </h2>
+          <p style={{
+            fontFamily: "'Jost', sans-serif",
+            fontSize: '0.95rem',
+            fontWeight: 300,
+            color: '#9A8F87',
+            lineHeight: 1.9,
+            marginBottom: '2.5rem',
+          }}>
+            Bloomingdew was born from a love of fabric, form, and the women who wear both with ease.
+            Each piece is handcrafted — no shortcuts, no compromises.
+          </p>
+          <Link href="/about" style={{
+            display: 'inline-block',
+            border: '1px solid #C9A882',
+            color: '#C9A882',
+            padding: '0.9rem 2.5rem',
+            fontFamily: "'Jost', sans-serif",
+            fontSize: '0.75rem',
+            letterSpacing: '0.18em',
+            textTransform: 'uppercase',
+          }}>
+            Meet the Maker
+          </Link>
         </div>
       </section>
 
-      {/* Newsletter */}
-      <section className="bg-gold/10 border-y border-border py-16">
-        <div className="max-w-xl mx-auto px-4 text-center">
-          <h2 className="font-display text-2xl sm:text-3xl font-semibold mb-3">
-            Join the Community
-          </h2>
-          <p className="text-warm-gray text-sm mb-6">
-            New arrivals, styling tips, and exclusive offers — straight to your inbox.
-          </p>
-          <div className="flex flex-col sm:flex-row gap-2 max-w-sm mx-auto">
-            <NewsletterForm />
-          </div>
-        </div>
-      </section>
-    </>
+    </div>
   );
 }
