@@ -39,7 +39,11 @@ export default function Footer() {
           <h4 style={footerHeading}>Explore</h4>
           <ul style={{ listStyle: 'none', display: 'flex', flexDirection: 'column', gap: '0.6rem' }}>
             <li><Link href="/shop" style={footerLink}>Shop All</Link></li>
+            <li><Link href="/custom" style={footerLink}>Custom Orders</Link></li>
+            <li><Link href="/order-guide" style={footerLink}>Order Guide</Link></li>
+            <li><Link href="/faq" style={footerLink}>FAQ</Link></li>
             <li><Link href="/about" style={footerLink}>About</Link></li>
+            <li><Link href="/contact" style={footerLink}>Contact</Link></li>
           </ul>
         </div>
 

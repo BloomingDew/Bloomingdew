@@ -1,4 +1,8 @@
+'use client';
+
+import { useState } from 'react';
 import Link from 'next/link';
+import { useWishlist } from '../context/WishlistContext';
 
 const categories = [
   { label: 'New In', slug: 'new-in' },
@@ -188,50 +192,52 @@ export default function Home() {
             gap: '1.5rem',
           }}>
             {featuredProducts.map((product) => (
-              <Link key={product.id} href={`/products/${product.id}`} style={{ textDecoration: 'none' }}>
-                <div>
-                  {/* Product image placeholder */}
-                  <div style={{
-                    backgroundColor: '#E8DDD3',
-                    aspectRatio: '3/4',
-                    marginBottom: '1rem',
-                    background: 'linear-gradient(150deg, #F0E8E0, #D4C4B5)',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                  }}>
-                    <span style={{
-                      fontFamily: "'Jost', sans-serif",
-                      fontSize: '0.7rem',
-                      letterSpacing: '0.15em',
-                      textTransform: 'uppercase',
-                      color: '#9A8F87',
-                    }}>
-                      Photo coming soon
-                    </span>
-                  </div>
-                  <p style={{
-                    fontFamily: "'Jost', sans-serif",
-                    fontSize: '0.85rem',
-                    fontWeight: 400,
-                    color: '#2C2C2C',
-                    marginBottom: '0.3rem',
-                  }}>
-                    {product.name}
-                  </p>
-                  <p style={{
-                    fontFamily: "'Jost', sans-serif",
-                    fontSize: '0.85rem',
-                    fontWeight: 300,
-                    color: '#9A8F87',
-                  }}>
-                    {product.price}
-                  </p>
-                </div>
-              </Link>
+              <FeaturedCard key={product.id} product={product} />
             ))}
           </div>
         </div>
+      </section>
+
+      {/* Newsletter */}
+      <section style={{ padding: '5rem 2rem', backgroundColor: '#E8DDD3' }}>
+        <div style={{ maxWidth: '540px', margin: '0 auto', textAlign: 'center' }}>
+          <p style={{ fontFamily: "'Jost', sans-serif", fontSize: '0.72rem', letterSpacing: '0.25em', textTransform: 'uppercase', color: '#9A8F87', marginBottom: '1rem' }}>
+            Stay in the loop
+          </p>
+          <h2 style={{ fontFamily: "'Playfair Display', serif", fontSize: 'clamp(1.5rem, 3vw, 2rem)', fontWeight: 500, color: '#2C2C2C', marginBottom: '0.75rem' }}>
+            New pieces. First access.
+          </h2>
+          <p style={{ fontFamily: "'Jost', sans-serif", fontSize: '0.88rem', fontWeight: 300, color: '#5C5450', marginBottom: '2rem', lineHeight: 1.7 }}>
+            Sign up to hear about new collections, behind-the-scenes, and exclusive early access.
+          </p>
+          <form style={{ display: 'flex', gap: '0', maxWidth: '420px', margin: '0 auto' }} className="newsletter-form">
+            <input
+              type="email"
+              placeholder="Your email address"
+              style={{
+                flex: 1, padding: '1rem 1.2rem',
+                border: '1px solid #C9A882', borderRight: 'none',
+                backgroundColor: '#FAF7F4', color: '#2C2C2C',
+                fontFamily: "'Jost', sans-serif", fontSize: '0.85rem',
+                fontWeight: 300, outline: 'none',
+              }}
+            />
+            <button type="submit" style={{
+              padding: '1rem 1.5rem', backgroundColor: '#2C2C2C', color: '#FAF7F4',
+              border: 'none', fontFamily: "'Jost', sans-serif",
+              fontSize: '0.72rem', letterSpacing: '0.15em', textTransform: 'uppercase',
+              cursor: 'pointer', whiteSpace: 'nowrap',
+            }}>
+              Sign Up
+            </button>
+          </form>
+        </div>
+        <style>{`
+          @media (max-width: 480px) {
+            .newsletter-form { flex-direction: column; }
+            .newsletter-form input { border-right: 1px solid #C9A882 !important; border-bottom: none; }
+          }
+        `}</style>
       </section>
 
       {/* Brand Story Teaser */}
@@ -288,5 +294,53 @@ export default function Home() {
       </section>
 
     </div>
+  );
+}
+
+function FeaturedCard({ product }: { product: { id: number; name: string; price: string } }) {
+  const [hovered, setHovered] = useState(false);
+  const { addItem, removeItem, isWishlisted } = useWishlist();
+  const wishlisted = isWishlisted(product.id);
+
+  const toggleWishlist = (e: React.MouseEvent) => {
+    e.preventDefault();
+    wishlisted
+      ? removeItem(product.id)
+      : addItem({ id: product.id, name: product.name, price: product.price, category: '' });
+  };
+
+  return (
+    <Link href={`/products/${product.id}`} style={{ textDecoration: 'none' }}>
+      <div onMouseEnter={() => setHovered(true)} onMouseLeave={() => setHovered(false)}>
+        <div style={{
+          backgroundColor: '#E8DDD3', aspectRatio: '3/4', marginBottom: '1rem',
+          background: 'linear-gradient(150deg, #F0E8E0, #D4C4B5)',
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          position: 'relative', overflow: 'hidden',
+        }}>
+          <span style={{ fontFamily: "'Jost', sans-serif", fontSize: '0.7rem', letterSpacing: '0.15em', textTransform: 'uppercase', color: '#9A8F87' }}>
+            Photo coming soon
+          </span>
+
+          {/* Heart */}
+          <button onClick={toggleWishlist} style={{
+            position: 'absolute', top: '0.75rem', right: '0.75rem',
+            backgroundColor: '#FAF7F4', border: 'none', cursor: 'pointer',
+            width: '34px', height: '34px', display: 'flex', alignItems: 'center', justifyContent: 'center',
+            opacity: hovered || wishlisted ? 1 : 0, transition: 'opacity 0.2s', zIndex: 2,
+          }}>
+            <svg width="16" height="16" viewBox="0 0 24 24" fill={wishlisted ? '#C9A882' : 'none'} stroke={wishlisted ? '#C9A882' : '#2C2C2C'} strokeWidth="1.5">
+              <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/>
+            </svg>
+          </button>
+        </div>
+        <p style={{ fontFamily: "'Jost', sans-serif", fontSize: '0.85rem', fontWeight: 400, color: '#2C2C2C', marginBottom: '0.3rem' }}>
+          {product.name}
+        </p>
+        <p style={{ fontFamily: "'Jost', sans-serif", fontSize: '0.85rem', fontWeight: 300, color: '#9A8F87' }}>
+          {product.price}
+        </p>
+      </div>
+    </Link>
   );
 }
