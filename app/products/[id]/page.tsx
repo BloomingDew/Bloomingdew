@@ -92,14 +92,14 @@ export default function ProductPage({ params }: { params: Promise<{ id: string }
         <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', minWidth: 0, overflow: 'hidden' }}>
           {/* Main image */}
           <div style={{
-            width: '100%', paddingBottom: '133%', position: 'relative',
-            background: 'linear-gradient(150deg, #F0E8E0, #D4C4B5)', overflow: 'hidden',
+            width: '100%', aspectRatio: '3/4',
+            background: 'linear-gradient(150deg, #F0E8E0, #D4C4B5)',
+            overflow: 'hidden', display: 'flex', alignItems: 'center', justifyContent: 'center',
           }}>
             {product.images[activeImage] ? (
-              <Image src={product.images[activeImage].url} alt={product.images[activeImage].alt_text || product.name} fill sizes="(max-width: 768px) 100vw, 50vw" style={{ objectFit: 'cover' }} />
+              <img src={product.images[activeImage].url} alt={product.images[activeImage].alt_text || product.name} style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
             ) : (
               <span style={{
-                position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%)',
                 fontFamily: "'Jost', sans-serif", fontSize: '0.65rem', letterSpacing: '0.15em', textTransform: 'uppercase', color: '#9A8F87',
               }}>
                 Main photo coming soon
@@ -115,7 +115,7 @@ export default function ProductPage({ params }: { params: Promise<{ id: string }
                   width: '72px', height: '88px', border: `2px solid ${activeImage === i ? '#2C2C2C' : 'transparent'}`,
                   padding: 0, cursor: 'pointer', overflow: 'hidden', background: 'none',
                 }}>
-                  <Image src={img.url} alt={img.alt_text || ''} fill sizes="80px" style={{ objectFit: 'cover' }} />
+                  <img src={img.url} alt={img.alt_text || ''} style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
                 </button>
               ))}
             </div>
