@@ -89,17 +89,19 @@ export default function ProductPage({ params }: { params: Promise<{ id: string }
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '5rem', alignItems: 'start' }} className="product-grid">
 
         {/* Left — images */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', minWidth: 0 }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', minWidth: 0, overflow: 'hidden' }}>
           {/* Main image */}
           <div style={{
-            aspectRatio: '3/4', background: 'linear-gradient(150deg, #F0E8E0, #D4C4B5)',
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-            overflow: 'hidden', position: 'relative', width: '100%',
+            width: '100%', paddingBottom: '133%', position: 'relative',
+            background: 'linear-gradient(150deg, #F0E8E0, #D4C4B5)', overflow: 'hidden',
           }}>
             {product.images[activeImage] ? (
               <Image src={product.images[activeImage].url} alt={product.images[activeImage].alt_text || product.name} fill sizes="(max-width: 768px) 100vw, 50vw" style={{ objectFit: 'cover' }} />
             ) : (
-              <span style={{ fontFamily: "'Jost', sans-serif", fontSize: '0.65rem', letterSpacing: '0.15em', textTransform: 'uppercase', color: '#9A8F87' }}>
+              <span style={{
+                position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%)',
+                fontFamily: "'Jost', sans-serif", fontSize: '0.65rem', letterSpacing: '0.15em', textTransform: 'uppercase', color: '#9A8F87',
+              }}>
                 Main photo coming soon
               </span>
             )}
