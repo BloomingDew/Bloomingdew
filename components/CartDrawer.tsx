@@ -71,7 +71,7 @@ export default function CartDrawer() {
               </p>
               <button onClick={closeCart} style={{
                 fontFamily: "'Jost', sans-serif", fontSize: '0.75rem', letterSpacing: '0.15em',
-                textTransform: 'uppercase', borderBottom: '1px solid #2C2C2C', background: 'none', border: 'none',
+                textTransform: 'uppercase', background: 'none', border: 'none',
                 borderBottom: '1px solid #2C2C2C', cursor: 'pointer', paddingBottom: '2px', color: '#2C2C2C',
               }}>
                 Continue Shopping
