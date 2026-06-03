@@ -1,4 +1,5 @@
 import Link from 'next/link';
+import Image from 'next/image';
 
 export default function AboutPage() {
   return (
@@ -48,23 +49,15 @@ export default function AboutPage() {
           alignItems: 'center',
         }} className="about-grid">
 
-          {/* Image placeholder */}
-          <div style={{
-            aspectRatio: '4/5',
-            background: 'linear-gradient(150deg, #F0E8E0, #C9A882)',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-          }}>
-            <span style={{
-              fontFamily: "'Jost', sans-serif",
-              fontSize: '0.65rem',
-              letterSpacing: '0.15em',
-              textTransform: 'uppercase',
-              color: '#9A8F87',
-            }}>
-              Photo coming soon
-            </span>
+          {/* About image */}
+          <div style={{ aspectRatio: '4/5', position: 'relative', overflow: 'hidden' }}>
+            <Image
+              src="https://jcofnaozaeobahwuqzqt.supabase.co/storage/v1/object/public/product-image/DSC_0055.JPEG"
+              alt="The woman behind Bloomingdew"
+              fill
+              sizes="(max-width: 768px) 100vw, 50vw"
+              style={{ objectFit: 'cover' }}
+            />
           </div>
 
           {/* Text */}
