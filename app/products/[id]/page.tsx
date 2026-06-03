@@ -2,6 +2,7 @@
 
 import { useState, use, useEffect } from 'react';
 import Link from 'next/link';
+import Image from 'next/image';
 import { useCart } from '../../../context/CartContext';
 import { useWishlist } from '../../../context/WishlistContext';
 import { getProductById, type Product } from '../../../lib/products';
@@ -95,7 +96,7 @@ export default function ProductPage({ params }: { params: Promise<{ id: string }
             display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden', position: 'relative',
           }}>
             {product.images[activeImage] ? (
-              <img src={product.images[activeImage].url} alt={product.images[activeImage].alt_text || product.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+              <Image src={product.images[activeImage].url} alt={product.images[activeImage].alt_text || product.name} fill sizes="(max-width: 768px) 100vw, 50vw" style={{ objectFit: 'cover' }} />
             ) : (
               <span style={{ fontFamily: "'Jost', sans-serif", fontSize: '0.65rem', letterSpacing: '0.15em', textTransform: 'uppercase', color: '#9A8F87' }}>
                 Main photo coming soon
@@ -111,7 +112,7 @@ export default function ProductPage({ params }: { params: Promise<{ id: string }
                   width: '72px', height: '88px', border: `2px solid ${activeImage === i ? '#2C2C2C' : 'transparent'}`,
                   padding: 0, cursor: 'pointer', overflow: 'hidden', background: 'none',
                 }}>
-                  <img src={img.url} alt={img.alt_text || ''} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                  <Image src={img.url} alt={img.alt_text || ''} fill sizes="80px" style={{ objectFit: 'cover' }} />
                 </button>
               ))}
             </div>

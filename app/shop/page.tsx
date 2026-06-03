@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
+import Image from 'next/image';
 import { useWishlist } from '../../context/WishlistContext';
 import { getProducts, type Product } from '../../lib/products';
 
@@ -121,7 +122,7 @@ function ProductCard({ product }: { product: Product }) {
           display: 'flex', alignItems: 'center', justifyContent: 'center',
         }}>
           {mainImage ? (
-            <img src={mainImage} alt={product.name} style={{ width: '100%', height: '100%', objectFit: 'cover', position: 'absolute', inset: 0 }} />
+            <Image src={mainImage} alt={product.name} fill sizes="(max-width: 768px) 100vw, 33vw" style={{ objectFit: 'cover' }} />
           ) : (
             <span style={{ fontFamily: "'Jost', sans-serif", fontSize: '0.65rem', letterSpacing: '0.15em', textTransform: 'uppercase', color: '#9A8F87' }}>
               Photo coming soon
