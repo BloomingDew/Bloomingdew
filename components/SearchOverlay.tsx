@@ -78,7 +78,6 @@ export default function SearchOverlay({ isOpen, onClose }: Props) {
             borderBottom: '1px solid #2C2C2C',
             outline: 'none',
             padding: '0.75rem 2rem 0.75rem 0',
-            width: '100%',
           }}
         />
         <span style={{ position: 'absolute', right: 0, top: '50%', transform: 'translateY(-50%)', color: '#9A8F87' }}>
