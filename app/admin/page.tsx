@@ -63,6 +63,7 @@ export default function AdminPage() {
           <nav style={{ display: 'flex', gap: '1.5rem' }}>
             {[
               { label: 'Products', href: '/admin' },
+              { label: 'Homepage', href: '/admin/homepage' },
               { label: 'View Site', href: '/' },
             ].map(({ label, href }) => (
               <Link key={href} href={href} style={{ fontFamily: "'Jost', sans-serif", fontSize: '0.75rem', letterSpacing: '0.1em', textTransform: 'uppercase', color: '#9A8F87', textDecoration: 'none' }}>

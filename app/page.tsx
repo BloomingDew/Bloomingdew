@@ -1,24 +1,25 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useWishlist } from '../context/WishlistContext';
+import { supabase } from '../lib/supabase';
 
-const categories = [
-  { label: 'New In', slug: 'new-in' },
-  { label: 'Dresses', slug: 'dresses' },
-  { label: 'Sets', slug: 'sets' },
-  { label: 'Tops', slug: 'tops' },
-];
-
-const featuredProducts = [
-  { id: 1, name: 'Linen Wrap Dress', price: '£120' },
-  { id: 2, name: 'Ivory Slip Set', price: '£95' },
-  { id: 3, name: 'Blush Midi Skirt', price: '£75' },
-  { id: 4, name: 'Cream Corset Top', price: '£60' },
-];
+type Category = { id: number; name: string; slug: string; image_url: string | null };
+type FeaturedProduct = { id: number; name: string; price: number; product_images: { url: string }[] };
 
 export default function Home() {
+  const [categories, setCategories] = useState<Category[]>([]);
+  const [featuredProducts, setFeaturedProducts] = useState<FeaturedProduct[]>([]);
+
+  useEffect(() => {
+    supabase.from('categories').select('id, name, slug, image_url').order('name')
+      .then(({ data }) => setCategories(data || []));
+    supabase.from('products').select('id, name, price, product_images(url)')
+      .eq('featured', true).eq('available', true).limit(8)
+      .then(({ data }) => setFeaturedProducts(data || []));
+  }, []);
+
   return (
     <div>
 
@@ -111,43 +112,24 @@ export default function Home() {
             gap: '1rem',
           }}>
             {categories.map((cat) => (
-              <Link key={cat.slug} href={`/shop?category=${cat.slug}`} style={{
-                display: 'block',
-                textDecoration: 'none',
-              }}>
+              <Link key={cat.slug} href={`/shop?category=${cat.slug}`} style={{ display: 'block', textDecoration: 'none' }}>
                 <div style={{
-                  backgroundColor: '#E8DDD3',
-                  aspectRatio: '3/4',
-                  display: 'flex',
-                  alignItems: 'flex-end',
-                  padding: '1.5rem',
-                  background: `linear-gradient(160deg, #EDE4DA, #C9A882)`,
-                  position: 'relative',
-                  overflow: 'hidden',
+                  aspectRatio: '3/4', position: 'relative', overflow: 'hidden',
+                  background: 'linear-gradient(160deg, #EDE4DA, #C9A882)',
+                  display: 'flex', alignItems: 'flex-end', padding: '1.5rem',
                 }}>
-                  {/* placeholder label in center */}
-                  <span style={{
-                    position: 'absolute',
-                    top: '50%',
-                    left: '50%',
-                    transform: 'translate(-50%, -50%)',
-                    fontFamily: "'Jost', sans-serif",
-                    fontSize: '0.7rem',
-                    letterSpacing: '0.2em',
-                    textTransform: 'uppercase',
-                    color: '#9A8F87',
-                  }}>
-                    Image coming soon
-                  </span>
-                  <span style={{
-                    fontFamily: "'Playfair Display', serif",
-                    fontSize: '1.3rem',
-                    fontWeight: 500,
-                    color: '#2C2C2C',
-                    position: 'relative',
-                    zIndex: 1,
-                  }}>
-                    {cat.label}
+                  {cat.image_url && (
+                    <img src={cat.image_url} alt={cat.name} style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover' }} />
+                  )}
+                  {!cat.image_url && (
+                    <span style={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%,-50%)', fontFamily: "'Jost', sans-serif", fontSize: '0.7rem', letterSpacing: '0.2em', textTransform: 'uppercase', color: '#9A8F87' }}>
+                      Image coming soon
+                    </span>
+                  )}
+                  {/* Dark overlay for text readability */}
+                  <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(to top, rgba(0,0,0,0.4) 0%, transparent 60%)', zIndex: 1 }} />
+                  <span style={{ fontFamily: "'Playfair Display', serif", fontSize: '1.3rem', fontWeight: 500, color: cat.image_url ? '#FAF7F4' : '#2C2C2C', position: 'relative', zIndex: 2 }}>
+                    {cat.name}
                   </span>
                 </div>
               </Link>
@@ -297,30 +279,35 @@ export default function Home() {
   );
 }
 
-function FeaturedCard({ product }: { product: { id: number; name: string; price: string } }) {
+function FeaturedCard({ product }: { product: FeaturedProduct }) {
   const [hovered, setHovered] = useState(false);
   const { addItem, removeItem, isWishlisted } = useWishlist();
   const wishlisted = isWishlisted(product.id);
+  const mainImage = product.product_images?.[0]?.url;
 
   const toggleWishlist = (e: React.MouseEvent) => {
     e.preventDefault();
     wishlisted
       ? removeItem(product.id)
-      : addItem({ id: product.id, name: product.name, price: product.price, category: '' });
+      : addItem({ id: product.id, name: product.name, price: `£${product.price}`, category: '' });
   };
 
   return (
     <Link href={`/products/${product.id}`} style={{ textDecoration: 'none' }}>
       <div onMouseEnter={() => setHovered(true)} onMouseLeave={() => setHovered(false)}>
         <div style={{
-          backgroundColor: '#E8DDD3', aspectRatio: '3/4', marginBottom: '1rem',
+          aspectRatio: '3/4', marginBottom: '1rem',
           background: 'linear-gradient(150deg, #F0E8E0, #D4C4B5)',
           display: 'flex', alignItems: 'center', justifyContent: 'center',
           position: 'relative', overflow: 'hidden',
         }}>
-          <span style={{ fontFamily: "'Jost', sans-serif", fontSize: '0.7rem', letterSpacing: '0.15em', textTransform: 'uppercase', color: '#9A8F87' }}>
-            Photo coming soon
-          </span>
+          {mainImage ? (
+            <img src={mainImage} alt={product.name} style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover' }} />
+          ) : (
+            <span style={{ fontFamily: "'Jost', sans-serif", fontSize: '0.7rem', letterSpacing: '0.15em', textTransform: 'uppercase', color: '#9A8F87' }}>
+              Photo coming soon
+            </span>
+          )}
 
           {/* Heart */}
           <button onClick={toggleWishlist} style={{
@@ -338,7 +325,7 @@ function FeaturedCard({ product }: { product: { id: number; name: string; price:
           {product.name}
         </p>
         <p style={{ fontFamily: "'Jost', sans-serif", fontSize: '0.85rem', fontWeight: 300, color: '#9A8F87' }}>
-          {product.price}
+          £{product.price}
         </p>
       </div>
     </Link>
