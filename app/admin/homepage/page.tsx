@@ -23,8 +23,8 @@ export default function HomepageAdminPage() {
 
   const fetchData = async () => {
     const [{ data: cats }, { data: prods }] = await Promise.all([
-      supabase.from('categories').select('id, name, slug, image_url').order('name'),
-      supabase.from('products').select('id, name, price, featured, product_images(url)').eq('available', true).order('name'),
+      supabaseAuth.from('categories').select('id, name, slug, image_url').order('name'),
+      supabaseAuth.from('products').select('id, name, price, featured, product_images(url)').eq('available', true).order('name'),
     ]);
     setCategories(cats || []);
     setProducts(prods || []);
@@ -37,18 +37,33 @@ export default function HomepageAdminPage() {
 
     const ext = file.name.split('.').pop()?.toLowerCase();
     const fileName = `category-${categoryId}-${Date.now()}.${ext}`;
-    const { error } = await supabaseAuth.storage.from('product-image').upload(fileName, file, { upsert: true });
+    const { error: uploadError } = await supabaseAuth.storage.from('product-image').upload(fileName, file, { upsert: true });
 
-    if (!error) {
-      const { data } = supabaseAuth.storage.from('product-image').getPublicUrl(fileName);
-      await supabase.from('categories').update({ image_url: data.publicUrl }).eq('id', categoryId);
-      setCategories(prev => prev.map(c => c.id === categoryId ? { ...c, image_url: data.publicUrl } : c));
+    if (uploadError) {
+      console.error('Upload error:', uploadError.message);
+      alert(`Upload failed: ${uploadError.message}`);
+      setUploadingId(null);
+      return;
     }
+
+    const { data: urlData } = supabaseAuth.storage.from('product-image').getPublicUrl(fileName);
+    const publicUrl = urlData.publicUrl;
+
+    const { error: dbError } = await supabaseAuth.from('categories').update({ image_url: publicUrl }).eq('id', categoryId);
+
+    if (dbError) {
+      console.error('DB error:', dbError.message);
+      alert(`Saved to storage but failed to update database: ${dbError.message}`);
+      setUploadingId(null);
+      return;
+    }
+
+    setCategories(prev => prev.map(c => c.id === categoryId ? { ...c, image_url: publicUrl } : c));
     setUploadingId(null);
   };
 
   const removeCategoryImage = async (categoryId: number) => {
-    await supabase.from('categories').update({ image_url: null }).eq('id', categoryId);
+    await supabaseAuth.from('categories').update({ image_url: null }).eq('id', categoryId);
     setCategories(prev => prev.map(c => c.id === categoryId ? { ...c, image_url: null } : c));
   };
 
@@ -58,7 +73,7 @@ export default function HomepageAdminPage() {
       alert('Maximum 8 featured products. Remove one first.');
       return;
     }
-    await supabase.from('products').update({ featured: !current }).eq('id', productId);
+    await supabaseAuth.from('products').update({ featured: !current }).eq('id', productId);
     setProducts(prev => prev.map(p => p.id === productId ? { ...p, featured: !current } : p));
     setSavedMsg('Saved!');
     setTimeout(() => setSavedMsg(''), 2000);
