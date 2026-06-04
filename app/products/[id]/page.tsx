@@ -6,6 +6,7 @@ import Image from 'next/image';
 import { useCart } from '../../../context/CartContext';
 import { useWishlist } from '../../../context/WishlistContext';
 import { getProductById, type Product } from '../../../lib/products';
+import { getAvailableStock } from '../../../lib/inventory';
 
 const sizes = ['XS', 'S', 'M', 'L', 'XL'];
 
@@ -16,6 +17,8 @@ export default function ProductPage({ params }: { params: Promise<{ id: string }
   const [selectedSize, setSelectedSize] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<'details' | 'care'>('details');
   const [addedMsg, setAddedMsg] = useState(false);
+  const [stockError, setStockError] = useState('');
+  const [availableStock, setAvailableStock] = useState<number | null>(null);
   const [activeImage, setActiveImage] = useState(0);
   const { addItem } = useCart();
   const { addItem: wishlistAdd, removeItem: wishlistRemove, isWishlisted } = useWishlist();
@@ -24,11 +27,31 @@ export default function ProductPage({ params }: { params: Promise<{ id: string }
     getProductById(Number(id)).then((data) => { setProduct(data); setLoading(false); });
   }, [id]);
 
-  const handleAddToCart = () => {
+  // Fetch stock when size is selected
+  useEffect(() => {
+    if (!product || !selectedSize) return;
+    if (product.made_to_order) { setAvailableStock(null); return; }
+    getAvailableStock(product.id, selectedSize).then(setAvailableStock);
+  }, [selectedSize, product]);
+
+  const handleAddToCart = async () => {
     if (!product) return;
-    addItem({ id: product.id, name: product.name, price: `£${product.price}`, size: selectedSize || 'M', quantity: 1 });
+    setStockError('');
+    const result = await addItem({
+      id: product.id, name: product.name,
+      price: `£${product.price}`, size: selectedSize || 'M',
+      quantity: 1, madeToOrder: product.made_to_order,
+    });
+    if (!result.success) {
+      setStockError(result.message || 'Item unavailable.');
+      return;
+    }
     setAddedMsg(true);
     setTimeout(() => setAddedMsg(false), 2000);
+    // Refresh stock
+    if (!product.made_to_order && selectedSize) {
+      getAvailableStock(product.id, selectedSize).then(setAvailableStock);
+    }
   };
 
   const handleWishlist = () => {
@@ -174,14 +197,44 @@ export default function ProductPage({ params }: { params: Promise<{ id: string }
             </div>
           </div>
 
-          <button onClick={handleAddToCart} style={{
-            width: '100%', padding: '1.1rem',
-            backgroundColor: addedMsg ? '#C9A882' : '#2C2C2C',
-            color: '#FAF7F4', fontFamily: "'Jost', sans-serif",
-            fontSize: '0.8rem', letterSpacing: '0.18em', textTransform: 'uppercase',
-            border: 'none', cursor: 'pointer', marginBottom: '1rem', transition: 'background-color 0.3s',
-          }}>
-            {addedMsg ? 'Added to Bag ✓' : 'Add to Bag'}
+          {/* Stock indicator */}
+          {!product.made_to_order && selectedSize && availableStock !== null && (
+            <div style={{ marginBottom: '1rem' }}>
+              {availableStock === 0 ? (
+                <p style={{ fontFamily: "'Jost', sans-serif", fontSize: '0.78rem', color: '#C0392B', letterSpacing: '0.1em', textTransform: 'uppercase' }}>
+                  Sold Out in this size
+                </p>
+              ) : availableStock <= 3 ? (
+                <p style={{ fontFamily: "'Jost', sans-serif", fontSize: '0.78rem', color: '#E65100', letterSpacing: '0.1em' }}>
+                  Only {availableStock} left
+                </p>
+              ) : (
+                <p style={{ fontFamily: "'Jost', sans-serif", fontSize: '0.78rem', color: '#2E7D32', letterSpacing: '0.1em' }}>
+                  In stock
+                </p>
+              )}
+            </div>
+          )}
+
+          {stockError && (
+            <p style={{ fontFamily: "'Jost', sans-serif", fontSize: '0.82rem', color: '#C0392B', marginBottom: '1rem' }}>
+              {stockError}
+            </p>
+          )}
+
+          <button
+            onClick={handleAddToCart}
+            disabled={!product.made_to_order && availableStock === 0}
+            style={{
+              width: '100%', padding: '1.1rem',
+              backgroundColor: availableStock === 0 && !product.made_to_order ? '#E8DDD3' : addedMsg ? '#C9A882' : '#2C2C2C',
+              color: availableStock === 0 && !product.made_to_order ? '#9A8F87' : '#FAF7F4',
+              fontFamily: "'Jost', sans-serif", fontSize: '0.8rem',
+              letterSpacing: '0.18em', textTransform: 'uppercase',
+              border: 'none', cursor: availableStock === 0 && !product.made_to_order ? 'not-allowed' : 'pointer',
+              marginBottom: '1rem', transition: 'background-color 0.3s',
+            }}>
+            {availableStock === 0 && !product.made_to_order ? 'Sold Out' : addedMsg ? 'Added to Bag ✓' : 'Add to Bag'}
           </button>
 
           <button onClick={handleWishlist} style={{

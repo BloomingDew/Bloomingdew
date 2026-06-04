@@ -23,6 +23,7 @@ export default function EditProductPage({ params }: { params: Promise<{ id: stri
     name: '', price: '', category_id: '',
     description: '', fabric: '', care_instructions: '',
     available: true, made_to_order: true, lead_time: '2–4 weeks',
+    stock_quantity: '',
   });
 
   useEffect(() => {
@@ -45,6 +46,7 @@ export default function EditProductPage({ params }: { params: Promise<{ id: stri
         care_instructions: data.care_instructions || '',
         available: data.available, made_to_order: data.made_to_order,
         lead_time: data.lead_time || '2–4 weeks',
+        stock_quantity: data.stock_quantity?.toString() || '',
       });
       setImages(data.product_images || []);
     }
@@ -91,6 +93,7 @@ export default function EditProductPage({ params }: { params: Promise<{ id: stri
       available: form.available,
       made_to_order: form.made_to_order,
       lead_time: form.lead_time,
+      stock_quantity: form.made_to_order ? null : (form.stock_quantity ? parseInt(form.stock_quantity) : null),
     }).eq('id', id);
 
     if (error) { setError(error.message); setLoading(false); return; }
@@ -207,8 +210,8 @@ export default function EditProductPage({ params }: { params: Promise<{ id: stri
           </div>
 
           <div style={card}>
-            <h3 style={cardHeading}>Availability</h3>
-            <div style={{ display: 'flex', gap: '2rem' }}>
+            <h3 style={cardHeading}>Availability & Stock</h3>
+            <div style={{ display: 'flex', gap: '2rem', marginBottom: '1.5rem' }}>
               <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer', fontFamily: "'Jost', sans-serif", fontSize: '0.85rem', color: '#2C2C2C' }}>
                 <input type="checkbox" checked={form.available} onChange={e => setForm({ ...form, available: e.target.checked })} />
                 Visible on site
@@ -218,6 +221,20 @@ export default function EditProductPage({ params }: { params: Promise<{ id: stri
                 Made to order
               </label>
             </div>
+            {!form.made_to_order && (
+              <div>
+                <label style={labelStyle}>Stock Quantity (Ready to Wear)</label>
+                <input
+                  type="number" min="0" style={{ ...inputStyle, maxWidth: '160px' }}
+                  value={form.stock_quantity}
+                  onChange={e => setForm({ ...form, stock_quantity: e.target.value })}
+                  placeholder="e.g. 10"
+                />
+                <p style={{ fontFamily: "'Jost', sans-serif", fontSize: '0.72rem', color: '#9A8F87', marginTop: '0.5rem' }}>
+                  Leave blank for made-to-order. Set a number for ready-to-wear items.
+                </p>
+              </div>
+            )}
           </div>
 
           {error && <p style={{ fontFamily: "'Jost', sans-serif", fontSize: '0.82rem', color: '#C0392B' }}>{error}</p>}

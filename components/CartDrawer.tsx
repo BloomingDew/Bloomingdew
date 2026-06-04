@@ -3,6 +3,36 @@
 import { useCart } from '../context/CartContext';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
+import { useState, useEffect } from 'react';
+
+function CountdownTimer({ expiresAt }: { expiresAt: Date }) {
+  const [timeLeft, setTimeLeft] = useState('');
+
+  useEffect(() => {
+    const update = () => {
+      const diff = expiresAt.getTime() - Date.now();
+      if (diff <= 0) { setTimeLeft('Expired'); return; }
+      const mins = Math.floor(diff / 60000);
+      const secs = Math.floor((diff % 60000) / 1000);
+      setTimeLeft(`${mins}:${secs.toString().padStart(2, '0')}`);
+    };
+    update();
+    const interval = setInterval(update, 1000);
+    return () => clearInterval(interval);
+  }, [expiresAt]);
+
+  const isUrgent = expiresAt.getTime() - Date.now() < 5 * 60 * 1000;
+
+  return (
+    <span style={{
+      fontFamily: "'Jost', sans-serif", fontSize: '0.68rem',
+      color: isUrgent ? '#C0392B' : '#9A8F87',
+      display: 'flex', alignItems: 'center', gap: '0.3rem',
+    }}>
+      ⏱ Reserved for {timeLeft}
+    </span>
+  );
+}
 
 export default function CartDrawer() {
   const { items, isOpen, closeCart, removeItem, updateQuantity, totalPrice, totalItems } = useCart();
@@ -100,9 +130,19 @@ export default function CartDrawer() {
                     <p style={{ fontFamily: "'Jost', sans-serif", fontSize: '0.88rem', fontWeight: 400, color: '#2C2C2C', marginBottom: '0.25rem' }}>
                       {item.name}
                     </p>
-                    <p style={{ fontFamily: "'Jost', sans-serif", fontSize: '0.78rem', fontWeight: 300, color: '#9A8F87', marginBottom: '0.75rem' }}>
+                    <p style={{ fontFamily: "'Jost', sans-serif", fontSize: '0.78rem', fontWeight: 300, color: '#9A8F87', marginBottom: '0.4rem' }}>
                       Size: {item.size}
                     </p>
+                    {item.expiresAt && !item.madeToOrder && (
+                      <div style={{ marginBottom: '0.75rem' }}>
+                        <CountdownTimer expiresAt={item.expiresAt} />
+                      </div>
+                    )}
+                    {item.madeToOrder && (
+                      <p style={{ fontFamily: "'Jost', sans-serif", fontSize: '0.68rem', color: '#9A8F87', marginBottom: '0.75rem' }}>
+                        Made to order
+                      </p>
+                    )}
 
                     {/* Quantity + remove */}
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
