@@ -89,15 +89,10 @@ export default function HomepageAdminPage() {
     const { data: urlData } = supabaseAuth.storage.from('product-image').getPublicUrl(fileName);
     const publicUrl = urlData.publicUrl;
 
-    const res = await fetch('/api/admin/site-settings', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ key: 'about_image_url', value: publicUrl }),
-    });
+    const { error: dbError } = await supabaseAuth.from('site_settings').update({ value: publicUrl }).eq('key', 'about_image_url');
 
-    if (!res.ok) {
-      const { error } = await res.json();
-      alert(`Saved to storage but failed to update database: ${error}`);
+    if (dbError) {
+      alert(`Saved to storage but failed to update database: ${dbError.message}`);
       setUploadingAbout(false);
       return;
     }
@@ -109,11 +104,7 @@ export default function HomepageAdminPage() {
   };
 
   const removeAboutImage = async () => {
-    await fetch('/api/admin/site-settings', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ key: 'about_image_url', value: null }),
-    });
+    await supabaseAuth.from('site_settings').update({ value: null }).eq('key', 'about_image_url');
     setAboutImage(null);
   };
 
