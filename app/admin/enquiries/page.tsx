@@ -50,6 +50,11 @@ export default function EnquiriesPage() {
     setEnquiries(prev => prev.map(e => e.id === id ? { ...e, status: 'replied' } : e));
   };
 
+  const markAccepted = async (id: string) => {
+    await supabase.from('enquiries').update({ status: 'accepted' }).eq('id', id);
+    setEnquiries(prev => prev.map(e => e.id === id ? { ...e, status: 'accepted' } : e));
+  };
+
   const filtered = enquiries.filter(e => filter === 'all' || e.type === filter);
   const unread = enquiries.filter(e => e.status === 'unread').length;
 
@@ -102,7 +107,7 @@ export default function EnquiriesPage() {
             <div key={enquiry.id} style={{
               backgroundColor: '#FFFFFF',
               border: `1px solid ${enquiry.status === 'unread' ? '#C9A882' : '#E8DDD3'}`,
-              borderLeft: `4px solid ${enquiry.status === 'unread' ? '#C9A882' : enquiry.status === 'replied' ? '#2E7D32' : '#E8DDD3'}`,
+              borderLeft: `4px solid ${enquiry.status === 'unread' ? '#C9A882' : enquiry.status === 'accepted' ? '#1565C0' : enquiry.status === 'replied' ? '#2E7D32' : '#E8DDD3'}`,
             }}>
               {/* Header */}
               <div style={{ padding: '1.2rem 1.5rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center', cursor: 'pointer', flexWrap: 'wrap', gap: '1rem' }}
@@ -135,8 +140,8 @@ export default function EnquiriesPage() {
                   <span style={{
                     padding: '0.2rem 0.6rem', fontSize: '0.65rem', letterSpacing: '0.1em', textTransform: 'uppercase',
                     fontFamily: "'Jost', sans-serif",
-                    backgroundColor: enquiry.status === 'unread' ? '#FFF3E0' : enquiry.status === 'replied' ? '#E8F5E9' : '#F5F5F5',
-                    color: enquiry.status === 'unread' ? '#E65100' : enquiry.status === 'replied' ? '#2E7D32' : '#9A8F87',
+                    backgroundColor: enquiry.status === 'unread' ? '#FFF3E0' : enquiry.status === 'accepted' ? '#E3F2FD' : enquiry.status === 'replied' ? '#E8F5E9' : '#F5F5F5',
+                    color: enquiry.status === 'unread' ? '#E65100' : enquiry.status === 'accepted' ? '#1565C0' : enquiry.status === 'replied' ? '#2E7D32' : '#9A8F87',
                   }}>
                     {enquiry.status}
                   </span>
@@ -178,7 +183,16 @@ export default function EnquiriesPage() {
                     }}>
                       Reply via Email
                     </a>
-                    {enquiry.status !== 'replied' && (
+                    {enquiry.status !== 'accepted' && (
+                      <button onClick={() => markAccepted(enquiry.id)} style={{
+                        padding: '0.7rem 1.2rem', backgroundColor: '#1565C0', color: '#FFFFFF',
+                        border: 'none', fontFamily: "'Jost', sans-serif",
+                        fontSize: '0.72rem', letterSpacing: '0.12em', textTransform: 'uppercase', cursor: 'pointer',
+                      }}>
+                        Accept
+                      </button>
+                    )}
+                    {enquiry.status !== 'replied' && enquiry.status !== 'accepted' && (
                       <button onClick={() => markReplied(enquiry.id)} style={{
                         padding: '0.7rem 1.2rem', backgroundColor: 'transparent', color: '#2E7D32',
                         border: '1px solid #2E7D32', fontFamily: "'Jost', sans-serif",
