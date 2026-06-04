@@ -2,9 +2,11 @@
 
 import { useCart } from '../context/CartContext';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 
 export default function CartDrawer() {
   const { items, isOpen, closeCart, removeItem, updateQuantity, totalPrice, totalItems } = useCart();
+  const router = useRouter();
 
   return (
     <>
@@ -157,7 +159,7 @@ export default function CartDrawer() {
               fontFamily: "'Jost', sans-serif", fontSize: '0.78rem',
               letterSpacing: '0.18em', textTransform: 'uppercase',
               border: 'none', cursor: 'pointer', marginBottom: '0.75rem',
-            }}>
+            }} onClick={() => { closeCart(); router.push('/checkout'); }}>
               Checkout
             </button>
             <button onClick={closeCart} style={{
