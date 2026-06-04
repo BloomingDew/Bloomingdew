@@ -1,4 +1,29 @@
+'use client';
+
+import { useState } from 'react';
+import { supabase } from '../../lib/supabase';
+
 export default function ContactPage() {
+  const [form, setForm] = useState({ firstName: '', lastName: '', email: '', subject: '', message: '' });
+  const [loading, setLoading] = useState(false);
+  const [sent, setSent] = useState(false);
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setLoading(true);
+    await supabase.from('enquiries').insert({
+      type: 'contact',
+      first_name: form.firstName,
+      last_name: form.lastName,
+      email: form.email,
+      subject: form.subject,
+      message: form.message,
+      status: 'unread',
+    });
+    setSent(true);
+    setLoading(false);
+  };
+
   return (
     <div>
       {/* Hero */}
@@ -49,24 +74,30 @@ export default function ContactPage() {
           <h2 style={{ fontFamily: "'Playfair Display', serif", fontSize: '1.4rem', fontWeight: 500, color: '#2C2C2C', marginBottom: '2rem' }}>
             Send a Message
           </h2>
-          <form style={{ display: 'flex', flexDirection: 'column', gap: '1.2rem' }}>
+          {sent ? (
+            <div style={{ padding: '2rem', backgroundColor: '#FAF7F4', border: '1px solid #E8DDD3', textAlign: 'center' }}>
+              <p style={{ fontFamily: "'Playfair Display', serif", fontSize: '1.2rem', color: '#2C2C2C', marginBottom: '0.5rem' }}>Message sent.</p>
+              <p style={{ fontFamily: "'Jost', sans-serif", fontSize: '0.85rem', fontWeight: 300, color: '#9A8F87' }}>We'll be in touch within 48 hours.</p>
+            </div>
+          ) : (
+          <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '1.2rem' }}>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1.2rem' }} className="form-row">
               <div>
                 <label style={labelStyle}>First Name</label>
-                <input style={inputStyle} type="text" placeholder="Jane" />
+                <input required style={inputStyle} type="text" placeholder="Jane" value={form.firstName} onChange={e => setForm({...form, firstName: e.target.value})} />
               </div>
               <div>
                 <label style={labelStyle}>Last Name</label>
-                <input style={inputStyle} type="text" placeholder="Doe" />
+                <input style={inputStyle} type="text" placeholder="Doe" value={form.lastName} onChange={e => setForm({...form, lastName: e.target.value})} />
               </div>
             </div>
             <div>
               <label style={labelStyle}>Email</label>
-              <input style={inputStyle} type="email" placeholder="jane@example.com" />
+              <input required style={inputStyle} type="email" placeholder="jane@example.com" value={form.email} onChange={e => setForm({...form, email: e.target.value})} />
             </div>
             <div>
               <label style={labelStyle}>Subject</label>
-              <select style={inputStyle}>
+              <select style={inputStyle} value={form.subject} onChange={e => setForm({...form, subject: e.target.value})}>
                 <option value="">Select a subject</option>
                 <option>Order Enquiry</option>
                 <option>Custom Order</option>
@@ -77,17 +108,18 @@ export default function ContactPage() {
             </div>
             <div>
               <label style={labelStyle}>Message</label>
-              <textarea style={{ ...inputStyle, minHeight: '140px', resize: 'vertical' }} placeholder="How can we help?" />
+              <textarea required style={{ ...inputStyle, minHeight: '140px', resize: 'vertical' }} placeholder="How can we help?" value={form.message} onChange={e => setForm({...form, message: e.target.value})} />
             </div>
-            <button type="submit" style={{
+            <button type="submit" disabled={loading} style={{
               padding: '1.1rem', backgroundColor: '#2C2C2C', color: '#FAF7F4',
               fontFamily: "'Jost', sans-serif", fontSize: '0.78rem',
               letterSpacing: '0.18em', textTransform: 'uppercase',
-              border: 'none', cursor: 'pointer', marginTop: '0.5rem',
+              border: 'none', cursor: 'pointer', marginTop: '0.5rem', opacity: loading ? 0.7 : 1,
             }}>
-              Send Message
+              {loading ? 'Sending...' : 'Send Message'}
             </button>
           </form>
+          )}
         </div>
       </div>
 

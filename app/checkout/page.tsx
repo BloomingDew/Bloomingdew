@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { useCart } from '../../context/CartContext';
+import { supabase } from '../../lib/supabase';
 
 export default function CheckoutPage() {
   const { items, totalPrice, clearCart } = useCart();
@@ -24,7 +25,23 @@ export default function CheckoutPage() {
 
   const handlePlaceOrder = async () => {
     setLoading(true);
-    await new Promise((res) => setTimeout(res, 1500));
+    await supabase.from('orders').insert({
+      customer_name: `${shipping.firstName} ${shipping.lastName}`,
+      customer_email: shipping.email,
+      customer_phone: shipping.phone,
+      shipping_address: {
+        address: shipping.address,
+        apartment: shipping.apartment,
+        city: shipping.city,
+        postcode: shipping.postcode,
+        country: shipping.country,
+      },
+      items: items.map(i => ({ id: i.id, name: i.name, size: i.size, quantity: i.quantity, price: i.price })),
+      subtotal: totalPrice,
+      shipping_cost: shippingCost,
+      total: orderTotal,
+      status: 'pending',
+    });
     clearCart();
     router.push('/order-confirmation');
   };

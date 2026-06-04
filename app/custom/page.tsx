@@ -1,4 +1,8 @@
+'use client';
+
+import { useState } from 'react';
 import Link from 'next/link';
+import { supabase } from '../../lib/supabase';
 
 const steps = [
   {
@@ -24,6 +28,31 @@ const steps = [
 ];
 
 export default function CustomPage() {
+  const [loading, setLoading] = useState(false);
+  const [sent, setSent] = useState(false);
+  const [form, setForm] = useState({
+    firstName: '', lastName: '', email: '', occasion: '', vision: '', budget: '',
+    bust: '', waist: '', hips: '', height: '', shoulder: '', inseam: '',
+  });
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setLoading(true);
+    await supabase.from('enquiries').insert({
+      type: 'custom',
+      first_name: form.firstName,
+      last_name: form.lastName,
+      email: form.email,
+      occasion: form.occasion,
+      message: form.vision,
+      budget: form.budget,
+      measurements: { bust: form.bust, waist: form.waist, hips: form.hips, height: form.height, shoulder: form.shoulder, inseam: form.inseam },
+      status: 'unread',
+    });
+    setSent(true);
+    setLoading(false);
+  };
+
   return (
     <div>
 
@@ -154,26 +183,32 @@ export default function CustomPage() {
             Custom Enquiry
           </h2>
 
-          <form style={{ display: 'flex', flexDirection: 'column', gap: '1.2rem' }}>
+          {sent ? (
+            <div style={{ padding: '2rem', backgroundColor: 'rgba(250,247,244,0.1)', border: '1px solid #9A8F8740', textAlign: 'center' }}>
+              <p style={{ fontFamily: "'Playfair Display', serif", fontSize: '1.2rem', color: '#FAF7F4', marginBottom: '0.5rem' }}>Enquiry received.</p>
+              <p style={{ fontFamily: "'Jost', sans-serif", fontSize: '0.85rem', fontWeight: 300, color: '#9A8F87' }}>{"We'll be in touch within 48 hours."}</p>
+            </div>
+          ) : (
+          <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '1.2rem' }}>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1.2rem' }} className="form-row">
               <div>
                 <label style={labelStyle}>First Name</label>
-                <input style={inputStyle} type="text" placeholder="Jane" />
+                <input required style={inputStyle} type="text" placeholder="Jane" value={form.firstName} onChange={e => setForm({...form, firstName: e.target.value})} />
               </div>
               <div>
                 <label style={labelStyle}>Last Name</label>
-                <input style={inputStyle} type="text" placeholder="Doe" />
+                <input style={inputStyle} type="text" placeholder="Doe" value={form.lastName} onChange={e => setForm({...form, lastName: e.target.value})} />
               </div>
             </div>
 
             <div>
               <label style={labelStyle}>Email</label>
-              <input style={inputStyle} type="email" placeholder="jane@example.com" />
+              <input required style={inputStyle} type="email" placeholder="jane@example.com" value={form.email} onChange={e => setForm({...form, email: e.target.value})} />
             </div>
 
             <div>
               <label style={labelStyle}>Occasion</label>
-              <select style={inputStyle}>
+              <select style={inputStyle} value={form.occasion} onChange={e => setForm({...form, occasion: e.target.value})}>
                 <option value="">Select an occasion</option>
                 <option>Wedding / Bridal</option>
                 <option>Event / Gala</option>
@@ -186,70 +221,36 @@ export default function CustomPage() {
             <div>
               <label style={labelStyle}>Tell us about your vision</label>
               <textarea
-                style={{ ...inputStyle, minHeight: '140px', resize: 'vertical' }}
+                required style={{ ...inputStyle, minHeight: '140px', resize: 'vertical' }}
                 placeholder="Describe the piece you have in mind — silhouette, colours, fabrics, anything that inspires you..."
+                value={form.vision} onChange={e => setForm({...form, vision: e.target.value})}
               />
             </div>
 
             {/* Measurements */}
             <div style={{ paddingTop: '0.5rem' }}>
-              <p style={{
-                fontFamily: "'Jost', sans-serif",
-                fontSize: '0.72rem',
-                letterSpacing: '0.18em',
-                textTransform: 'uppercase',
-                color: '#C9A882',
-                marginBottom: '1rem',
-                borderBottom: '1px solid #9A8F8730',
-                paddingBottom: '0.75rem',
-              }}>
+              <p style={{ fontFamily: "'Jost', sans-serif", fontSize: '0.72rem', letterSpacing: '0.18em', textTransform: 'uppercase', color: '#C9A882', marginBottom: '1rem', borderBottom: '1px solid #9A8F8730', paddingBottom: '0.75rem' }}>
                 Your Measurements (cm)
               </p>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1.2rem' }} className="form-row">
-                <div>
-                  <label style={labelStyle}>Bust</label>
-                  <input style={inputStyle} type="text" placeholder="e.g. 88" />
-                </div>
-                <div>
-                  <label style={labelStyle}>Waist</label>
-                  <input style={inputStyle} type="text" placeholder="e.g. 70" />
-                </div>
-                <div>
-                  <label style={labelStyle}>Hips</label>
-                  <input style={inputStyle} type="text" placeholder="e.g. 96" />
-                </div>
-                <div>
-                  <label style={labelStyle}>Height</label>
-                  <input style={inputStyle} type="text" placeholder="e.g. 165" />
-                </div>
-                <div>
-                  <label style={labelStyle}>Shoulder Width</label>
-                  <input style={inputStyle} type="text" placeholder="e.g. 38" />
-                </div>
-                <div>
-                  <label style={labelStyle}>Inseam (if applicable)</label>
-                  <input style={inputStyle} type="text" placeholder="e.g. 74" />
-                </div>
+                <div><label style={labelStyle}>Bust</label><input style={inputStyle} type="text" placeholder="e.g. 88" value={form.bust} onChange={e => setForm({...form, bust: e.target.value})} /></div>
+                <div><label style={labelStyle}>Waist</label><input style={inputStyle} type="text" placeholder="e.g. 70" value={form.waist} onChange={e => setForm({...form, waist: e.target.value})} /></div>
+                <div><label style={labelStyle}>Hips</label><input style={inputStyle} type="text" placeholder="e.g. 96" value={form.hips} onChange={e => setForm({...form, hips: e.target.value})} /></div>
+                <div><label style={labelStyle}>Height</label><input style={inputStyle} type="text" placeholder="e.g. 165" value={form.height} onChange={e => setForm({...form, height: e.target.value})} /></div>
+                <div><label style={labelStyle}>Shoulder Width</label><input style={inputStyle} type="text" placeholder="e.g. 38" value={form.shoulder} onChange={e => setForm({...form, shoulder: e.target.value})} /></div>
+                <div><label style={labelStyle}>Inseam (if applicable)</label><input style={inputStyle} type="text" placeholder="e.g. 74" value={form.inseam} onChange={e => setForm({...form, inseam: e.target.value})} /></div>
               </div>
-              <p style={{
-                fontFamily: "'Jost', sans-serif",
-                fontSize: '0.75rem',
-                fontWeight: 300,
-                color: '#9A8F87',
-                marginTop: '0.75rem',
-                lineHeight: 1.7,
-              }}>
-                Not sure how to measure? See our{' '}
-                <a href="/order-guide" style={{ color: '#C9A882', borderBottom: '1px solid #C9A882' }}>Order Guide</a>.
+              <p style={{ fontFamily: "'Jost', sans-serif", fontSize: '0.75rem', fontWeight: 300, color: '#9A8F87', marginTop: '0.75rem', lineHeight: 1.7 }}>
+                Not sure how to measure? See our <a href="/order-guide" style={{ color: '#C9A882', borderBottom: '1px solid #C9A882' }}>Order Guide</a>.
               </p>
             </div>
 
             <div>
               <label style={labelStyle}>Budget (optional)</label>
-              <input style={inputStyle} type="text" placeholder="e.g. £150–£250" />
+              <input style={inputStyle} type="text" placeholder="e.g. £150–£250" value={form.budget} onChange={e => setForm({...form, budget: e.target.value})} />
             </div>
 
-            <button type="submit" style={{
+            <button type="submit" disabled={loading} style={{
               marginTop: '0.5rem',
               padding: '1.1rem',
               backgroundColor: '#C9A882',
@@ -261,10 +262,12 @@ export default function CustomPage() {
               border: 'none',
               cursor: 'pointer',
               fontWeight: 400,
+              opacity: loading ? 0.7 : 1,
             }}>
-              Send Enquiry
+              {loading ? 'Sending...' : 'Send Enquiry'}
             </button>
           </form>
+          )}
         </div>
       </section>
 
