@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { getSession } from '../../../lib/supabase-admin';
+import { getSession, supabaseAuth } from '../../../lib/supabase-admin';
 import { supabase } from '../../../lib/supabase';
 
 type Category = { id: number; name: string; slug: string; image_url: string | null };
@@ -37,10 +37,10 @@ export default function HomepageAdminPage() {
 
     const ext = file.name.split('.').pop()?.toLowerCase();
     const fileName = `category-${categoryId}-${Date.now()}.${ext}`;
-    const { error } = await supabase.storage.from('product-image').upload(fileName, file, { upsert: true });
+    const { error } = await supabaseAuth.storage.from('product-image').upload(fileName, file, { upsert: true });
 
     if (!error) {
-      const { data } = supabase.storage.from('product-image').getPublicUrl(fileName);
+      const { data } = supabaseAuth.storage.from('product-image').getPublicUrl(fileName);
       await supabase.from('categories').update({ image_url: data.publicUrl }).eq('id', categoryId);
       setCategories(prev => prev.map(c => c.id === categoryId ? { ...c, image_url: data.publicUrl } : c));
     }

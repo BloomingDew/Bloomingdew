@@ -3,7 +3,7 @@
 import { useState, useEffect, use } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { getSession } from '../../../../lib/supabase-admin';
+import { getSession, supabaseAuth } from '../../../../lib/supabase-admin';
 import { supabase } from '../../../../lib/supabase';
 
 type Category = { id: number; name: string };
@@ -78,9 +78,9 @@ export default function EditProductPage({ params }: { params: Promise<{ id: stri
       if (images.length >= MAX_IMAGES) break;
       const ext = file.name.split('.').pop()?.toLowerCase();
       const fileName = `${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`;
-      const { error } = await supabase.storage.from('product-image').upload(fileName, file);
+      const { error } = await supabaseAuth.storage.from('product-image').upload(fileName, file);
       if (!error) {
-        const { data } = supabase.storage.from('product-image').getPublicUrl(fileName);
+        const { data } = supabaseAuth.storage.from('product-image').getPublicUrl(fileName);
         const { data: imgData } = await supabase.from('product_images').insert({
           product_id: parseInt(id), url: data.publicUrl,
           alt_text: form.name, position: images.length,
