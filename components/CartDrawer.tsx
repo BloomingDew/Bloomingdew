@@ -187,7 +187,7 @@ export default function CartDrawer() {
                 Subtotal
               </span>
               <span style={{ fontFamily: "'Jost', sans-serif", fontSize: '0.95rem', fontWeight: 400, color: '#2C2C2C' }}>
-                £{totalPrice}
+                ₦{totalPrice}
               </span>
             </div>
             <p style={{ fontFamily: "'Jost', sans-serif", fontSize: '0.75rem', fontWeight: 300, color: '#9A8F87', marginBottom: '1.2rem', textAlign: 'center' }}>

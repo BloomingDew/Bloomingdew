@@ -289,7 +289,7 @@ function FeaturedCard({ product }: { product: FeaturedProduct }) {
     e.preventDefault();
     wishlisted
       ? removeItem(product.id)
-      : addItem({ id: product.id, name: product.name, price: `£${product.price}`, category: '' });
+      : addItem({ id: product.id, name: product.name, price: `₦${product.price}`, category: '' });
   };
 
   return (
@@ -325,7 +325,7 @@ function FeaturedCard({ product }: { product: FeaturedProduct }) {
           {product.name}
         </p>
         <p style={{ fontFamily: "'Jost', sans-serif", fontSize: '0.85rem', fontWeight: 300, color: '#9A8F87' }}>
-          £{product.price}
+          ₦{product.price}
         </p>
       </div>
     </Link>

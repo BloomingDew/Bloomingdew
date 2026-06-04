@@ -330,7 +330,7 @@ export default function HomepageAdminPage() {
                   <p style={{ fontFamily: "'Jost', sans-serif", fontSize: '0.82rem', color: '#2C2C2C', marginBottom: '0.2rem', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                     {product.name}
                   </p>
-                  <p style={{ fontFamily: "'Jost', sans-serif", fontSize: '0.75rem', color: '#9A8F87' }}>£{product.price}</p>
+                  <p style={{ fontFamily: "'Jost', sans-serif", fontSize: '0.75rem', color: '#9A8F87' }}>₦{product.price}</p>
                 </div>
                 <div style={{
                   width: '20px', height: '20px', flexShrink: 0, borderRadius: '50%',

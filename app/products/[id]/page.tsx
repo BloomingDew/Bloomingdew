@@ -39,7 +39,7 @@ export default function ProductPage({ params }: { params: Promise<{ id: string }
     setStockError('');
     const result = await addItem({
       id: product.id, name: product.name,
-      price: `£${product.price}`, size: selectedSize || 'M',
+      price: `₦${product.price}`, size: selectedSize || 'M',
       quantity: 1, madeToOrder: product.made_to_order,
     });
     if (!result.success) {
@@ -58,7 +58,7 @@ export default function ProductPage({ params }: { params: Promise<{ id: string }
     if (!product) return;
     isWishlisted(product.id)
       ? wishlistRemove(product.id)
-      : wishlistAdd({ id: product.id, name: product.name, price: `£${product.price}`, category: product.category });
+      : wishlistAdd({ id: product.id, name: product.name, price: `₦${product.price}`, category: product.category });
   };
 
   if (loading) return (
@@ -165,7 +165,7 @@ export default function ProductPage({ params }: { params: Promise<{ id: string }
             {product.name}
           </h1>
           <p style={{ fontFamily: "'Jost', sans-serif", fontSize: '1.1rem', fontWeight: 300, color: '#2C2C2C', marginBottom: '2rem' }}>
-            £{product.price}
+            ₦{product.price}
           </p>
           <p style={{ fontFamily: "'Jost', sans-serif", fontSize: '0.9rem', fontWeight: 300, color: '#5C5450', lineHeight: 1.8, marginBottom: '2.5rem' }}>
             {product.description}

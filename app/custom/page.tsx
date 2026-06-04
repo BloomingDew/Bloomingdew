@@ -247,7 +247,7 @@ export default function CustomPage() {
 
             <div>
               <label style={labelStyle}>Budget (optional)</label>
-              <input style={inputStyle} type="text" placeholder="e.g. £150–£250" value={form.budget} onChange={e => setForm({...form, budget: e.target.value})} />
+              <input style={inputStyle} type="text" placeholder="e.g. ₦80,000–₦150,000" value={form.budget} onChange={e => setForm({...form, budget: e.target.value})} />
             </div>
 
             <button type="submit" disabled={loading} style={{

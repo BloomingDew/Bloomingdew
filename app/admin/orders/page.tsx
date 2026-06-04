@@ -130,7 +130,7 @@ export default function OrdersPage() {
                     <p style={{ fontFamily: "'Jost', sans-serif", fontSize: '0.75rem', color: '#9A8F87' }}>
                       {new Date(order.created_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}
                     </p>
-                    <p style={{ fontFamily: "'Jost', sans-serif", fontSize: '0.88rem', color: '#2C2C2C' }}>£{order.total?.toFixed(2)}</p>
+                    <p style={{ fontFamily: "'Jost', sans-serif", fontSize: '0.88rem', color: '#2C2C2C' }}>₦{order.total?.toFixed(2)}</p>
                   </div>
                   <div>
                     <p style={{ fontFamily: "'Jost', sans-serif", fontSize: '0.75rem', color: '#9A8F87' }}>{order.items?.length} item{order.items?.length !== 1 ? 's' : ''}</p>
@@ -167,15 +167,15 @@ export default function OrdersPage() {
                     <div style={{ marginTop: '1rem', display: 'flex', flexDirection: 'column', gap: '0.3rem' }}>
                       <div style={{ display: 'flex', justifyContent: 'space-between' }}>
                         <span style={{ fontFamily: "'Jost', sans-serif", fontSize: '0.78rem', color: '#9A8F87' }}>Subtotal</span>
-                        <span style={{ fontFamily: "'Jost', sans-serif", fontSize: '0.78rem', color: '#2C2C2C' }}>£{order.subtotal?.toFixed(2)}</span>
+                        <span style={{ fontFamily: "'Jost', sans-serif", fontSize: '0.78rem', color: '#2C2C2C' }}>₦{order.subtotal?.toFixed(2)}</span>
                       </div>
                       <div style={{ display: 'flex', justifyContent: 'space-between' }}>
                         <span style={{ fontFamily: "'Jost', sans-serif", fontSize: '0.78rem', color: '#9A8F87' }}>Shipping</span>
-                        <span style={{ fontFamily: "'Jost', sans-serif", fontSize: '0.78rem', color: '#2C2C2C' }}>{order.shipping_cost === 0 ? 'Free' : `£${order.shipping_cost?.toFixed(2)}`}</span>
+                        <span style={{ fontFamily: "'Jost', sans-serif", fontSize: '0.78rem', color: '#2C2C2C' }}>{order.shipping_cost === 0 ? 'Free' : `₦${order.shipping_cost?.toFixed(2)}`}</span>
                       </div>
                       <div style={{ display: 'flex', justifyContent: 'space-between', borderTop: '1px solid #E8DDD3', paddingTop: '0.3rem' }}>
                         <span style={{ fontFamily: "'Jost', sans-serif", fontSize: '0.85rem', fontWeight: 500, color: '#2C2C2C' }}>Total</span>
-                        <span style={{ fontFamily: "'Jost', sans-serif", fontSize: '0.85rem', fontWeight: 500, color: '#2C2C2C' }}>£{order.total?.toFixed(2)}</span>
+                        <span style={{ fontFamily: "'Jost', sans-serif", fontSize: '0.85rem', fontWeight: 500, color: '#2C2C2C' }}>₦{order.total?.toFixed(2)}</span>
                       </div>
                     </div>
                   </div>

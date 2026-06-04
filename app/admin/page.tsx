@@ -234,7 +234,7 @@ export default function AdminPage() {
                       <p style={{ fontFamily: "'Jost', sans-serif", fontSize: '0.82rem', color: '#9A8F87' }}>{product.categories?.[0]?.name || '—'}</p>
                     </td>
                     <td style={{ padding: '1rem 1.2rem' }}>
-                      <p style={{ fontFamily: "'Jost', sans-serif", fontSize: '0.88rem', color: '#2C2C2C' }}>£{product.price}</p>
+                      <p style={{ fontFamily: "'Jost', sans-serif", fontSize: '0.88rem', color: '#2C2C2C' }}>₦{product.price}</p>
                     </td>
                     <td style={{ padding: '1rem 1.2rem' }}>
                       {product.made_to_order ? (

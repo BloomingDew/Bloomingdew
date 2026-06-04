@@ -4,15 +4,15 @@ import { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
 
 const allProducts = [
-  { id: 1, name: 'Linen Wrap Dress', price: '£120', category: 'Dresses' },
-  { id: 2, name: 'Ivory Slip Set', price: '£95', category: 'Sets' },
-  { id: 3, name: 'Blush Midi Skirt', price: '£75', category: 'Skirts' },
-  { id: 4, name: 'Cream Corset Top', price: '£60', category: 'Tops' },
-  { id: 5, name: 'Champagne Maxi Dress', price: '£145', category: 'Dresses' },
-  { id: 6, name: 'Nude Linen Set', price: '£110', category: 'Sets' },
-  { id: 7, name: 'Dusty Rose Blouse', price: '£65', category: 'Tops' },
-  { id: 8, name: 'Satin Slip Dress', price: '£130', category: 'New In' },
-  { id: 9, name: 'Tailored Wide Trousers', price: '£85', category: 'New In' },
+  { id: 1, name: 'Linen Wrap Dress', price: '₦120', category: 'Dresses' },
+  { id: 2, name: 'Ivory Slip Set', price: '₦95', category: 'Sets' },
+  { id: 3, name: 'Blush Midi Skirt', price: '₦75', category: 'Skirts' },
+  { id: 4, name: 'Cream Corset Top', price: '₦60', category: 'Tops' },
+  { id: 5, name: 'Champagne Maxi Dress', price: '₦145', category: 'Dresses' },
+  { id: 6, name: 'Nude Linen Set', price: '₦110', category: 'Sets' },
+  { id: 7, name: 'Dusty Rose Blouse', price: '₦65', category: 'Tops' },
+  { id: 8, name: 'Satin Slip Dress', price: '₦130', category: 'New In' },
+  { id: 9, name: 'Tailored Wide Trousers', price: '₦85', category: 'New In' },
 ];
 
 type Props = { isOpen: boolean; onClose: () => void };

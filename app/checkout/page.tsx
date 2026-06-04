@@ -46,7 +46,7 @@ export default function CheckoutPage() {
     router.push('/order-confirmation');
   };
 
-  const shippingCost = totalPrice >= 100 ? 0 : 5.95;
+  const shippingCost = totalPrice >= 50000 ? 0 : 3500;
   const orderTotal = totalPrice + shippingCost;
 
   if (items.length === 0 && !loading) {
@@ -202,7 +202,7 @@ export default function CheckoutPage() {
               </p>
 
               <button onClick={handlePlaceOrder} disabled={loading} style={{ ...primaryBtn, opacity: loading ? 0.7 : 1 }}>
-                {loading ? 'Placing Order...' : `Place Order — £${orderTotal.toFixed(2)}`}
+                {loading ? 'Placing Order...' : `Place Order — ₦${orderTotal.toFixed(2)}`}
               </button>
             </div>
           )}
@@ -244,20 +244,20 @@ export default function CheckoutPage() {
           <div style={{ borderTop: '1px solid #E8DDD3', paddingTop: '1.2rem', display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between' }}>
               <span style={summaryLabel}>Subtotal</span>
-              <span style={summaryValue}>£{totalPrice.toFixed(2)}</span>
+              <span style={summaryValue}>₦{totalPrice.toFixed(2)}</span>
             </div>
             <div style={{ display: 'flex', justifyContent: 'space-between' }}>
               <span style={summaryLabel}>Shipping</span>
-              <span style={summaryValue}>{shippingCost === 0 ? 'Free' : `£${shippingCost.toFixed(2)}`}</span>
+              <span style={summaryValue}>{shippingCost === 0 ? 'Free' : `₦${shippingCost.toFixed(2)}`}</span>
             </div>
             {shippingCost === 0 && (
               <p style={{ fontFamily: "'Jost', sans-serif", fontSize: '0.72rem', color: '#C9A882' }}>
-                Free shipping on orders over £100 ✓
+                Free shipping on orders over ₦50,000 ✓
               </p>
             )}
             <div style={{ borderTop: '1px solid #E8DDD3', paddingTop: '0.75rem', display: 'flex', justifyContent: 'space-between' }}>
               <span style={{ fontFamily: "'Jost', sans-serif", fontSize: '0.88rem', fontWeight: 500, color: '#2C2C2C' }}>Total</span>
-              <span style={{ fontFamily: "'Jost', sans-serif", fontSize: '0.95rem', fontWeight: 500, color: '#2C2C2C' }}>£{orderTotal.toFixed(2)}</span>
+              <span style={{ fontFamily: "'Jost', sans-serif", fontSize: '0.95rem', fontWeight: 500, color: '#2C2C2C' }}>₦{orderTotal.toFixed(2)}</span>
             </div>
           </div>
         </div>

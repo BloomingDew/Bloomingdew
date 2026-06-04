@@ -118,10 +118,10 @@ export default function OrderGuidePage() {
           <h2 style={sectionHeading}>Shipping</h2>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem', marginTop: '1.5rem' }}>
             {[
-              { label: 'UK Standard', value: '3–5 business days after dispatch · Free over £100' },
-              { label: 'UK Express', value: '1–2 business days after dispatch · £8.95' },
-              { label: 'Europe', value: '5–10 business days after dispatch · £12.95' },
-              { label: 'International', value: '7–14 business days after dispatch · £18.95' },
+              { label: 'Lagos & Abuja', value: '2–4 business days after dispatch · Free over ₦50,000' },
+              { label: 'Other States', value: '3–6 business days after dispatch · ₦3,500' },
+              { label: 'West Africa', value: '7–10 business days after dispatch · ₦15,000' },
+              { label: 'International', value: '10–14 business days after dispatch · ₦25,000' },
             ].map(({ label, value }) => (
               <div key={label} style={{
                 display: 'flex',

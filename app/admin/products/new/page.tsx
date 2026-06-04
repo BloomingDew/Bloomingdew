@@ -141,7 +141,7 @@ export default function NewProductPage() {
                 <input required style={inputStyle} value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} placeholder="e.g. Linen Wrap Dress" />
               </div>
               <div>
-                <label style={labelStyle}>Price (£) *</label>
+                <label style={labelStyle}>Price (₦) *</label>
                 <input required type="number" step="0.01" style={inputStyle} value={form.price} onChange={e => setForm({ ...form, price: e.target.value })} placeholder="120.00" />
               </div>
               <div>

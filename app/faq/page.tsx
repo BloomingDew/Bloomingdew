@@ -31,7 +31,7 @@ const faqs = [
     category: 'Custom Orders',
     questions: [
       { q: 'How does the custom service work?', a: 'Fill in the enquiry form on our Custom page with your vision — occasion, silhouette, fabric preferences, and budget. We\'ll be in touch within 48 hours to discuss details and agree on a design before anything is made.' },
-      { q: 'How much does a custom piece cost?', a: 'Pricing depends on the complexity of the garment, fabric choice, and timeline. Most custom pieces start from £80. Once we understand your vision, we\'ll provide a quote before you commit to anything.' },
+      { q: 'How much does a custom piece cost?', a: 'Pricing depends on the complexity of the garment, fabric choice, and timeline. Most custom pieces start from ₦50,000. Once we understand your vision, we\'ll provide a quote before you commit to anything.' },
       { q: 'Can I request a specific fabric or colour?', a: 'Absolutely. We work with a range of natural and luxury fabrics. Share your preferences in your enquiry and we\'ll let you know what\'s available and suggest alternatives if needed.' },
     ],
   },
