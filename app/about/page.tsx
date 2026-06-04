@@ -1,16 +1,18 @@
+'use client';
+
 import Link from 'next/link';
 import Image from 'next/image';
+import { useState, useEffect } from 'react';
 import { supabase } from '../../lib/supabase';
 
-export const revalidate = 60;
+export default function AboutPage() {
+  const [aboutImage, setAboutImage] = useState<string | null>(null);
 
-async function getAboutImage(): Promise<string | null> {
-  const { data } = await supabase.from('site_settings').select('value').eq('key', 'about_image_url').single();
-  return data?.value ?? null;
-}
+  useEffect(() => {
+    supabase.from('site_settings').select('value').eq('key', 'about_image_url').single()
+      .then(({ data }) => setAboutImage(data?.value ?? null));
+  }, []);
 
-export default async function AboutPage() {
-  const aboutImage = await getAboutImage();
   return (
     <div>
 
