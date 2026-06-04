@@ -71,6 +71,16 @@ export default function Footer() {
       }}>
         <span>© {new Date().getFullYear()} Bloomingdew. All rights reserved.</span>
         <span>Made with love.</span>
+        <Link href="/admin/login" style={{
+          fontFamily: "'Jost', sans-serif",
+          fontSize: '0.68rem',
+          color: '#5C5450',
+          textDecoration: 'none',
+          letterSpacing: '0.08em',
+          opacity: 0.5,
+        }}>
+          Admin
+        </Link>
       </div>
     </footer>
   );
