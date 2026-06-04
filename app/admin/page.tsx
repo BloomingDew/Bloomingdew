@@ -11,6 +11,8 @@ type Product = {
   name: string;
   price: number;
   available: boolean;
+  made_to_order: boolean;
+  stock_quantity: number | null;
   categories: { name: string }[] | null;
   product_images: { url: string }[];
 };
@@ -31,7 +33,7 @@ export default function AdminPage() {
   const fetchProducts = async () => {
     const { data } = await supabase
       .from('products')
-      .select('id, name, price, available, categories(name), product_images(url)')
+      .select('id, name, price, available, made_to_order, stock_quantity, categories(name), product_images(url)')
       .order('created_at', { ascending: false });
     setProducts(data || []);
     setLoading(false);
@@ -124,7 +126,7 @@ export default function AdminPage() {
             <table style={{ width: '100%', borderCollapse: 'collapse' }}>
               <thead>
                 <tr style={{ borderBottom: '2px solid #E8DDD3' }}>
-                  {['Image', 'Product', 'Category', 'Price', 'Status', 'Actions'].map(h => (
+                  {['Image', 'Product', 'Category', 'Price', 'Stock', 'Status', 'Actions'].map(h => (
                     <th key={h} style={{ padding: '1rem 1.2rem', textAlign: 'left', fontFamily: "'Jost', sans-serif", fontSize: '0.7rem', letterSpacing: '0.12em', textTransform: 'uppercase', color: '#9A8F87', fontWeight: 400 }}>
                       {h}
                     </th>
@@ -149,6 +151,20 @@ export default function AdminPage() {
                     </td>
                     <td style={{ padding: '1rem 1.2rem' }}>
                       <p style={{ fontFamily: "'Jost', sans-serif", fontSize: '0.88rem', color: '#2C2C2C' }}>£{product.price}</p>
+                    </td>
+                    <td style={{ padding: '1rem 1.2rem' }}>
+                      {product.made_to_order ? (
+                        <span style={{ fontFamily: "'Jost', sans-serif", fontSize: '0.78rem', color: '#9A8F87' }}>MTO</span>
+                      ) : product.stock_quantity === null ? (
+                        <span style={{ fontFamily: "'Jost', sans-serif", fontSize: '0.78rem', color: '#9A8F87' }}>—</span>
+                      ) : (
+                        <span style={{
+                          fontFamily: "'Jost', sans-serif", fontSize: '0.88rem', fontWeight: 500,
+                          color: product.stock_quantity === 0 ? '#C0392B' : product.stock_quantity <= 3 ? '#E65100' : '#2E7D32',
+                        }}>
+                          {product.stock_quantity === 0 ? 'Sold Out' : product.stock_quantity}
+                        </span>
+                      )}
                     </td>
                     <td style={{ padding: '1rem 1.2rem' }}>
                       <button onClick={() => toggleAvailable(product.id, product.available)} style={{
