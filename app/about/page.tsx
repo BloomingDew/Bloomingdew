@@ -1,7 +1,16 @@
 import Link from 'next/link';
 import Image from 'next/image';
+import { supabase } from '../../lib/supabase';
 
-export default function AboutPage() {
+export const revalidate = 60;
+
+async function getAboutImage(): Promise<string | null> {
+  const { data } = await supabase.from('site_settings').select('value').eq('key', 'about_image_url').single();
+  return data?.value ?? null;
+}
+
+export default async function AboutPage() {
+  const aboutImage = await getAboutImage();
   return (
     <div>
 
@@ -50,14 +59,16 @@ export default function AboutPage() {
         }} className="about-grid">
 
           {/* About image */}
-          <div style={{ aspectRatio: '4/5', position: 'relative', overflow: 'hidden' }}>
-            <Image
-              src="https://jcofnaozaeobahwuqzqt.supabase.co/storage/v1/object/public/product-image/DSC_0055.JPEG"
-              alt="The woman behind Bloomingdew"
-              fill
-              sizes="(max-width: 768px) 100vw, 50vw"
-              style={{ objectFit: 'cover' }}
-            />
+          <div style={{ aspectRatio: '4/5', position: 'relative', overflow: 'hidden', background: 'linear-gradient(150deg, #F0E8E0, #D4C4B5)' }}>
+            {aboutImage && (
+              <Image
+                src={aboutImage}
+                alt="The woman behind Bloomingdew"
+                fill
+                sizes="(max-width: 768px) 100vw, 50vw"
+                style={{ objectFit: 'cover' }}
+              />
+            )}
           </div>
 
           {/* Text */}
