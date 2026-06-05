@@ -31,6 +31,28 @@ const CartContext = createContext<CartContextType | null>(null);
 export function CartProvider({ children }: { children: ReactNode }) {
   const [items, setItems] = useState<CartItem[]>([]);
   const [isOpen, setIsOpen] = useState(false);
+  const [hydrated, setHydrated] = useState(false);
+
+  // Load from localStorage on mount
+  useEffect(() => {
+    try {
+      const stored = localStorage.getItem('bloomingdew_cart');
+      if (stored) {
+        const parsed: CartItem[] = JSON.parse(stored);
+        // Filter out expired reservations
+        const now = new Date();
+        const valid = parsed.filter(i => i.madeToOrder || !i.expiresAt || new Date(i.expiresAt) > now);
+        setItems(valid);
+      }
+    } catch {}
+    setHydrated(true);
+  }, []);
+
+  // Persist to localStorage whenever items change
+  useEffect(() => {
+    if (!hydrated) return;
+    localStorage.setItem('bloomingdew_cart', JSON.stringify(items));
+  }, [items, hydrated]);
 
   // Check for expired reservations every minute
   useEffect(() => {
@@ -97,6 +119,7 @@ export function CartProvider({ children }: { children: ReactNode }) {
   const clearCart = () => {
     clearAllReservations();
     setItems([]);
+    localStorage.removeItem('bloomingdew_cart');
   };
 
   const totalItems = items.reduce((sum, i) => sum + i.quantity, 0);
