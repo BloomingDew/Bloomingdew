@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { useCart } from '../../../context/CartContext';
 import { useWishlist } from '../../../context/WishlistContext';
 import { getProductById, type Product } from '../../../lib/products';
-import { getAvailableStock } from '../../../lib/inventory';
+import { getAvailableStock, getAllSizesStock } from '../../../lib/inventory';
 
 const sizes = ['6', '8', '10', '12', '14', '16', '18', '20'];
 
@@ -32,6 +32,7 @@ export default function ProductPage({ params }: { params: Promise<{ id: string }
   const [activeImage, setActiveImage] = useState(0);
   const [sizeGuideOpen, setSizeGuideOpen] = useState(false);
   const [sizeDropdownOpen, setSizeDropdownOpen] = useState(false);
+  const [allStock, setAllStock] = useState<Record<string, number>>({});
   const { addItem } = useCart();
   const { addItem: wishlistAdd, removeItem: wishlistRemove, isWishlisted } = useWishlist();
 
@@ -46,6 +47,13 @@ export default function ProductPage({ params }: { params: Promise<{ id: string }
     document.addEventListener('click', handler);
     return () => document.removeEventListener('click', handler);
   }, [sizeDropdownOpen]);
+
+  // Fetch all sizes stock when product loads
+  useEffect(() => {
+    if (!product || product.made_to_order) return;
+    const productSizes = product.sizes || sizes;
+    getAllSizesStock(product.id, productSizes).then(setAllStock);
+  }, [product]);
 
   // Fetch stock when size is selected
   useEffect(() => {
@@ -249,27 +257,38 @@ export default function ProductPage({ params }: { params: Promise<{ id: string }
                   borderLeft: '1px solid #2C2C2C', borderRight: '1px solid #2C2C2C', borderBottom: '1px solid #2C2C2C', borderTop: 'none',
                   backgroundColor: '#FFFFFF', boxShadow: '0 4px 12px rgba(0,0,0,0.08)',
                 }}>
-                  {(product.sizes || sizes).map((size) => (
-                    <button
-                      key={size}
-                      onClick={() => { setSelectedSize(size); setSizeDropdownOpen(false); }}
-                      style={{
-                        width: '100%', padding: '0.85rem 1.2rem',
-                        display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-                        backgroundColor: selectedSize === size ? '#F9F6F3' : '#FFFFFF',
-                        borderTop: 'none', borderLeft: 'none', borderRight: 'none', borderBottom: '1px solid #F0EBE5',
-                        cursor: 'pointer', fontFamily: "'Jost', sans-serif", fontSize: '0.88rem',
-                        textAlign: 'left',
-                      }}
-                    >
-                      <span style={{ color: '#2C2C2C', fontWeight: selectedSize === size ? 500 : 300 }}>
-                        {size}
-                      </span>
-                      <span style={{ fontFamily: "'Jost', sans-serif", fontSize: '0.85rem', fontWeight: 300, color: '#2C2C2C' }}>
-                        ₦{product.price?.toLocaleString()}
-                      </span>
-                    </button>
-                  ))}
+                  {(product.sizes || sizes).map((size) => {
+                    const stock = product.made_to_order ? null : (allStock[size] ?? null);
+                    const soldOut = stock !== null && stock === 0;
+                    const lastOne = stock !== null && stock > 0 && stock <= 3;
+                    const salePrice = product.discount > 0
+                      ? Math.round(product.price * (1 - product.discount / 100))
+                      : product.price;
+                    return (
+                      <button
+                        key={size}
+                        onClick={() => { if (!soldOut) { setSelectedSize(size); setSizeDropdownOpen(false); } }}
+                        style={{
+                          width: '100%', padding: '0.85rem 1.2rem',
+                          display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+                          backgroundColor: selectedSize === size ? '#F9F6F3' : '#FFFFFF',
+                          borderTop: 'none', borderLeft: 'none', borderRight: 'none', borderBottom: '1px solid #F0EBE5',
+                          cursor: soldOut ? 'not-allowed' : 'pointer',
+                          fontFamily: "'Jost', sans-serif", fontSize: '0.88rem',
+                          textAlign: 'left', opacity: soldOut ? 0.45 : 1,
+                        }}
+                      >
+                        <span style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
+                          <span style={{ color: '#2C2C2C', fontWeight: selectedSize === size ? 500 : 300 }}>{size}</span>
+                          {soldOut && <span style={{ fontSize: '0.7rem', color: '#9A8F87', letterSpacing: '0.08em' }}>Sold out</span>}
+                          {lastOne && <span style={{ fontSize: '0.7rem', color: '#C0392B', letterSpacing: '0.08em' }}>Last {stock} left</span>}
+                        </span>
+                        <span style={{ fontFamily: "'Jost', sans-serif", fontSize: '0.85rem', fontWeight: 300, color: soldOut ? '#9A8F87' : '#2C2C2C' }}>
+                          ₦{salePrice?.toLocaleString()}
+                        </span>
+                      </button>
+                    );
+                  })}
                 </div>
               )}
             </div>

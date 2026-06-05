@@ -3,6 +3,15 @@ import { getSessionId } from './session';
 
 const RESERVATION_MINUTES = 30;
 
+export async function getAllSizesStock(productId: number, sizes: string[]): Promise<Record<string, number>> {
+  const results: Record<string, number> = {};
+  await Promise.all(sizes.map(async size => {
+    const { data } = await supabase.rpc('get_available_stock', { p_product_id: productId, p_size: size });
+    results[size] = data ?? 0;
+  }));
+  return results;
+}
+
 export async function getAvailableStock(productId: number, size: string): Promise<number | null> {
   const { data, error } = await supabase.rpc('get_available_stock', {
     p_product_id: productId,
