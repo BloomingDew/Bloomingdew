@@ -214,7 +214,7 @@ export default function ProductPage({ params }: { params: Promise<{ id: string }
               <span style={{ fontFamily: "'Jost', sans-serif", fontSize: '0.75rem', letterSpacing: '0.12em', textTransform: 'uppercase', color: '#2C2C2C' }}>
                 Size
               </span>
-              <button onClick={() => setSizeGuideOpen(true)} style={{ fontFamily: "'Jost', sans-serif", fontSize: '0.72rem', color: '#9A8F87', borderBottom: '1px solid #9A8F87', background: 'none', border: 'none', borderBottom: '1px solid #9A8F87', cursor: 'pointer', padding: 0 }}>
+              <button onClick={() => setSizeGuideOpen(true)} style={{ fontFamily: "'Jost', sans-serif", fontSize: '0.72rem', color: '#9A8F87', background: 'none', border: 'none', borderBottom: '1px solid #9A8F87', cursor: 'pointer', padding: 0 }}>
                 Size Guide
               </button>
             </div>
