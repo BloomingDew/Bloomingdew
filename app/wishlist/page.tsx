@@ -3,7 +3,8 @@
 import { useWishlist } from '../../context/WishlistContext';
 import { useCart } from '../../context/CartContext';
 import Link from 'next/link';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { supabase } from '../../lib/supabase';
 
 export default function WishlistPage() {
   const { items, removeItem } = useWishlist();
@@ -58,19 +59,29 @@ function WishlistCard({ item, onRemove, onAddToCart }: {
   onAddToCart: () => void;
 }) {
   const [hovered, setHovered] = useState(false);
+  const [imageUrl, setImageUrl] = useState<string | null>(null);
+
+  useEffect(() => {
+    supabase.from('product_images').select('url').eq('product_id', item.id).order('position').limit(1).single()
+      .then(({ data }) => setImageUrl(data?.url ?? null));
+  }, [item.id]);
 
   return (
     <div onMouseEnter={() => setHovered(true)} onMouseLeave={() => setHovered(false)}>
       <div style={{ position: 'relative', marginBottom: '1rem' }}>
         <Link href={`/products/${item.id}`}>
           <div style={{
-            aspectRatio: '3/4',
+            aspectRatio: '3/4', position: 'relative', overflow: 'hidden',
             background: 'linear-gradient(150deg, #F0E8E0, #D4C4B5)',
             display: 'flex', alignItems: 'center', justifyContent: 'center',
           }}>
-            <span style={{ fontFamily: "'Jost', sans-serif", fontSize: '0.65rem', letterSpacing: '0.15em', textTransform: 'uppercase', color: '#9A8F87' }}>
-              Photo coming soon
-            </span>
+            {imageUrl ? (
+              <img src={imageUrl} alt={item.name} style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} onError={e => { (e.target as HTMLImageElement).style.display = 'none'; }} />
+            ) : (
+              <span style={{ fontFamily: "'Jost', sans-serif", fontSize: '0.65rem', letterSpacing: '0.15em', textTransform: 'uppercase', color: '#9A8F87' }}>
+                Photo coming soon
+              </span>
+            )}
           </div>
         </Link>
         <button onClick={onRemove} style={{
