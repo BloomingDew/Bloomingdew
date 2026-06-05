@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { useUser } from '../../../context/UserContext';
+import PasswordInput from '../../../components/PasswordInput';
 
 export default function SignupPage() {
   const { signUp } = useUser();
@@ -55,11 +56,11 @@ export default function SignupPage() {
         </div>
         <div>
           <label style={labelStyle}>Password</label>
-          <input required type="password" style={inputStyle} value={form.password} onChange={e => setForm({ ...form, password: e.target.value })} placeholder="Min. 6 characters" />
+          <PasswordInput required style={inputStyle} value={form.password} onChange={e => setForm({ ...form, password: e.target.value })} placeholder="Min. 6 characters" />
         </div>
         <div>
           <label style={labelStyle}>Confirm Password</label>
-          <input required type="password" style={inputStyle} value={form.confirm} onChange={e => setForm({ ...form, confirm: e.target.value })} placeholder="••••••••" />
+          <PasswordInput required style={inputStyle} value={form.confirm} onChange={e => setForm({ ...form, confirm: e.target.value })} placeholder="••••••••" />
         </div>
 
         {error && <p style={{ fontFamily: "'Jost', sans-serif", fontSize: '0.82rem', color: '#C0392B', textAlign: 'center' }}>{error}</p>}

@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { signIn } from '../../../lib/supabase-admin';
+import PasswordInput from '../../../components/PasswordInput';
 
 export default function AdminLoginPage() {
   const router = useRouter();
@@ -52,11 +53,7 @@ export default function AdminLoginPage() {
           </div>
           <div>
             <label style={labelStyle}>Password</label>
-            <input
-              type="password" required value={password}
-              onChange={e => setPassword(e.target.value)}
-              style={inputStyle} placeholder="••••••••"
-            />
+            <PasswordInput required value={password} onChange={e => setPassword(e.target.value)} style={inputStyle} placeholder="••••••••" />
           </div>
 
           {error && (

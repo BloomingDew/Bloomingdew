@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { useUser } from '../../../context/UserContext';
+import PasswordInput from '../../../components/PasswordInput';
 
 export default function LoginPage() {
   const { signIn } = useUser();
@@ -49,7 +50,7 @@ export default function LoginPage() {
               Forgot password?
             </Link>
           </div>
-          <input required type="password" value={password} onChange={e => setPassword(e.target.value)} style={input} placeholder="••••••••" />
+          <PasswordInput required value={password} onChange={e => setPassword(e.target.value)} style={input} placeholder="••••••••" />
         </div>
 
         {error && <p style={{ fontFamily: "'Jost', sans-serif", fontSize: '0.82rem', color: '#C0392B', textAlign: 'center' }}>{error}</p>}
