@@ -80,6 +80,17 @@ export default function AdminPage() {
     setSelected([]);
   };
 
+  const bulkDelete = async () => {
+    if (!confirm(`Delete ${selected.length} product${selected.length !== 1 ? 's' : ''}? This cannot be undone.`)) return;
+    for (const id of selected) {
+      await supabase.from('product_images').delete().eq('product_id', id);
+      await supabase.from('product_size_inventory').delete().eq('product_id', id);
+      await supabase.from('products').delete().eq('id', id);
+    }
+    setProducts(prev => prev.filter(p => !selected.includes(p.id)));
+    setSelected([]);
+  };
+
   const handleSignOut = async () => {
     await signOut();
     router.push('/admin/login');
@@ -183,6 +194,9 @@ export default function AdminPage() {
             </button>
             <button onClick={() => bulkSetAvailable(false)} style={{ fontFamily: "'Jost', sans-serif", fontSize: '0.72rem', letterSpacing: '0.1em', textTransform: 'uppercase', color: '#9A8F87', background: 'none', border: '1px solid #9A8F87', padding: '0.3rem 0.8rem', cursor: 'pointer' }}>
               Set Hidden
+            </button>
+            <button onClick={bulkDelete} style={{ fontFamily: "'Jost', sans-serif", fontSize: '0.72rem', letterSpacing: '0.1em', textTransform: 'uppercase', color: '#C0392B', background: 'none', border: '1px solid #C0392B', padding: '0.3rem 0.8rem', cursor: 'pointer' }}>
+              Delete
             </button>
             <button onClick={clearSelection} style={{ fontFamily: "'Jost', sans-serif", fontSize: '0.72rem', color: '#9A8F87', background: 'none', border: 'none', cursor: 'pointer', marginLeft: 'auto' }}>
               Clear
