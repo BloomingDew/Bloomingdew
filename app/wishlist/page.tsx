@@ -10,8 +10,8 @@ export default function WishlistPage() {
   const { items, removeItem } = useWishlist();
   const { addItem, openCart } = useCart();
 
-  const handleAddToCart = (item: { id: number; name: string; price: string }) => {
-    addItem({ id: item.id, name: item.name, price: item.price, size: 'M', quantity: 1 });
+  const handleAddToCart = (item: { id: number; name: string; price: string; originalPrice?: string }) => {
+    addItem({ id: item.id, name: item.name, price: item.price, originalPrice: item.originalPrice, size: 'M', quantity: 1 });
   };
 
   return (
@@ -45,7 +45,7 @@ export default function WishlistPage() {
       ) : (
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))', gap: '2rem' }}>
           {items.map((item) => (
-            <WishlistCard key={item.id} item={item} onRemove={() => removeItem(item.id)} onAddToCart={() => handleAddToCart(item)} />
+            <WishlistCard key={item.id} item={item} onRemove={() => removeItem(item.id)} onAddToCart={() => handleAddToCart({ id: item.id, name: item.name, price: item.price, originalPrice: item.originalPrice })} />
           ))}
         </div>
       )}
@@ -54,7 +54,7 @@ export default function WishlistPage() {
 }
 
 function WishlistCard({ item, onRemove, onAddToCart }: {
-  item: { id: number; name: string; price: string; category: string };
+  item: { id: number; name: string; price: string; originalPrice?: string; category: string };
   onRemove: () => void;
   onAddToCart: () => void;
 }) {
@@ -96,7 +96,12 @@ function WishlistCard({ item, onRemove, onAddToCart }: {
           <p style={{ fontFamily: "'Jost', sans-serif", fontSize: '0.88rem', fontWeight: 400, color: '#2C2C2C', marginBottom: '0.2rem' }}>{item.name}</p>
           <p style={{ fontFamily: "'Jost', sans-serif", fontSize: '0.75rem', color: '#9A8F87', textTransform: 'uppercase', letterSpacing: '0.08em' }}>{item.category}</p>
         </div>
-        <span style={{ fontFamily: "'Jost', sans-serif", fontSize: '0.88rem', color: '#2C2C2C' }}>{item.price}</span>
+        <div style={{ textAlign: 'right' }}>
+          {item.originalPrice && (
+            <p style={{ fontFamily: "'Jost', sans-serif", fontSize: '0.75rem', color: '#B0A8A0', textDecoration: 'line-through', marginBottom: '0.1rem' }}>{item.originalPrice}</p>
+          )}
+          <span style={{ fontFamily: "'Jost', sans-serif", fontSize: '0.88rem', color: item.originalPrice ? '#C0392B' : '#2C2C2C', fontWeight: item.originalPrice ? 500 : 400 }}>{item.price}</span>
+        </div>
       </div>
       <button onClick={onAddToCart} style={{
         width: '100%', padding: '0.85rem',

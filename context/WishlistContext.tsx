@@ -7,6 +7,7 @@ export type WishlistItem = {
   id: number;
   name: string;
   price: string;
+  originalPrice?: string;
   category: string;
 };
 
@@ -56,15 +57,21 @@ export function WishlistProvider({ children }: { children: ReactNode }) {
   const syncFromDB = async (uid: string) => {
     const { data } = await supabase
       .from('wishlists')
-      .select('product_id, products(id, name, price, categories(name))')
+      .select('product_id, products(id, name, price, discount, categories(name))')
       .eq('user_id', uid);
     if (!data) return;
-    const dbItems: WishlistItem[] = data.map((row: any) => ({
-      id: row.product_id,
-      name: row.products?.name || '',
-      price: `₦${row.products?.price || 0}`,
-      category: row.products?.categories?.name || '',
-    }));
+    const dbItems: WishlistItem[] = data.map((row: any) => {
+      const rawPrice = row.products?.price || 0;
+      const discount = row.products?.discount || 0;
+      const salePrice = discount > 0 ? Math.round(rawPrice * (1 - discount / 100)) : rawPrice;
+      return {
+        id: row.product_id,
+        name: row.products?.name || '',
+        price: `₦${salePrice}`,
+        originalPrice: discount > 0 ? `₦${rawPrice}` : undefined,
+        category: row.products?.categories?.name || '',
+      };
+    });
     setItems(dbItems);
     localStorage.setItem('bloomingdew_wishlist', JSON.stringify(dbItems));
   };
