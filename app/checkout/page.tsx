@@ -4,10 +4,12 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { useCart } from '../../context/CartContext';
+import { useUser } from '../../context/UserContext';
 import { supabase } from '../../lib/supabase';
 
 export default function CheckoutPage() {
   const { items, totalPrice, clearCart } = useCart();
+  const { user, profile } = useUser();
   const router = useRouter();
   const [step, setStep] = useState<'shipping' | 'payment'>('shipping');
   const [loading, setLoading] = useState(false);
@@ -46,6 +48,19 @@ export default function CheckoutPage() {
     address: '', apartment: '', city: '', postcode: '', country: 'Nigeria',
   });
 
+  // Pre-fill from profile when logged in
+  useEffect(() => {
+    if (profile || user) {
+      setShipping(prev => ({
+        ...prev,
+        firstName: profile?.first_name || prev.firstName,
+        lastName: profile?.last_name || prev.lastName,
+        email: user?.email || prev.email,
+        phone: profile?.phone || prev.phone,
+      }));
+    }
+  }, [profile, user]);
+
   const handleShippingSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     setStep('payment');
@@ -58,6 +73,7 @@ export default function CheckoutPage() {
       customer_name: `${shipping.firstName} ${shipping.lastName}`,
       customer_email: shipping.email,
       customer_phone: shipping.phone,
+      user_id: user?.id ?? null,
       shipping_address: {
         address: shipping.address,
         apartment: shipping.apartment,
@@ -71,6 +87,24 @@ export default function CheckoutPage() {
       total: orderTotal,
       status: 'pending',
     });
+
+    // Save address for logged-in users
+    if (user) {
+      await supabase.from('addresses').insert({
+        user_id: user.id,
+        label: 'Shipping',
+        first_name: shipping.firstName,
+        last_name: shipping.lastName,
+        address: shipping.address,
+        apartment: shipping.apartment,
+        city: shipping.city,
+        postcode: shipping.postcode,
+        country: shipping.country,
+        phone: shipping.phone,
+        is_default: false,
+      });
+    }
+
     clearCart();
     router.push('/order-confirmation');
   };
