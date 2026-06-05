@@ -12,6 +12,23 @@ export default function CheckoutPage() {
   const [step, setStep] = useState<'shipping' | 'payment'>('shipping');
   const [loading, setLoading] = useState(false);
   const [itemImages, setItemImages] = useState<Record<number, string>>({});
+  const [timeLeft, setTimeLeft] = useState<string | null>(null);
+
+  useEffect(() => {
+    const reservedItems = items.filter(i => !i.madeToOrder && i.expiresAt);
+    if (reservedItems.length === 0) { setTimeLeft(null); return; }
+    const earliest = new Date(Math.min(...reservedItems.map(i => new Date(i.expiresAt!).getTime())));
+    const tick = () => {
+      const diff = earliest.getTime() - Date.now();
+      if (diff <= 0) { setTimeLeft(null); return; }
+      const m = Math.floor(diff / 60000);
+      const s = Math.floor((diff % 60000) / 1000);
+      setTimeLeft(`${m}:${s.toString().padStart(2, '0')}`);
+    };
+    tick();
+    const interval = setInterval(tick, 1000);
+    return () => clearInterval(interval);
+  }, [items]);
 
   useEffect(() => {
     if (items.length === 0) return;
@@ -108,6 +125,22 @@ export default function CheckoutPage() {
           </div>
         ))}
       </div>
+
+      {/* Reservation timer */}
+      {timeLeft && (
+        <div style={{
+          backgroundColor: '#FFF8F0', border: '1px solid #C9A882',
+          padding: '0.75rem 1.5rem', marginBottom: '2rem',
+          display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.75rem',
+        }}>
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#C9A882" strokeWidth="1.5" strokeLinecap="round">
+            <circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>
+          </svg>
+          <p style={{ fontFamily: "'Jost', sans-serif", fontSize: '0.82rem', color: '#5C5450', fontWeight: 300 }}>
+            Your items are reserved for <span style={{ fontFamily: "'Jost', sans-serif", fontWeight: 500, color: '#2C2C2C' }}>{timeLeft}</span> — complete your order before they're released.
+          </p>
+        </div>
+      )}
 
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 420px', gap: '4rem', alignItems: 'start' }} className="checkout-grid">
 
