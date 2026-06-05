@@ -2,7 +2,6 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import Link from 'next/link';
 import { getSession, supabaseAuth } from '../../../lib/supabase-admin';
 import { supabase } from '../../../lib/supabase';
 
@@ -123,22 +122,7 @@ export default function HomepageAdminPage() {
   const featuredProducts = products.filter(p => p.featured);
 
   return (
-    <div style={{ minHeight: '100vh', backgroundColor: '#F5F5F5' }}>
-      {/* Topbar */}
-      <div style={{ backgroundColor: '#2C2C2C', padding: '1rem 2rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-        <h1 style={{ fontFamily: "'Playfair Display', serif", fontSize: '1.2rem', color: '#FAF7F4', fontWeight: 500 }}>
-          Bloomingdew Admin
-        </h1>
-        <div style={{ display: 'flex', gap: '1.5rem', alignItems: 'center' }}>
-          <Link href="/admin" style={{ fontFamily: "'Jost', sans-serif", fontSize: '0.75rem', letterSpacing: '0.1em', textTransform: 'uppercase', color: '#9A8F87', textDecoration: 'none' }}>
-            ← Products
-          </Link>
-          <Link href="/" target="_blank" style={{ fontFamily: "'Jost', sans-serif", fontSize: '0.75rem', letterSpacing: '0.1em', textTransform: 'uppercase', color: '#9A8F87', textDecoration: 'none' }}>
-            View Site
-          </Link>
-        </div>
-      </div>
-
+    <div>
       <div style={{ maxWidth: '1100px', margin: '0 auto', padding: '3rem 2rem' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2.5rem' }}>
           <h2 style={{ fontFamily: "'Playfair Display', serif", fontSize: '1.6rem', fontWeight: 500, color: '#2C2C2C' }}>

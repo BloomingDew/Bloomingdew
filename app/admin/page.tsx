@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { getSession, signOut } from '../../lib/supabase-admin';
+import { getSession } from '../../lib/supabase-admin';
 import { supabase } from '../../lib/supabase';
 
 type Product = {
@@ -28,6 +28,7 @@ export default function AdminPage() {
   const [lowStock, setLowStock] = useState<LowStockItem[]>([]);
   const [unreadEnquiries, setUnreadEnquiries] = useState(0);
   const [pendingOrders, setPendingOrders] = useState(0);
+  const [completedRevenue, setCompletedRevenue] = useState<number | null>(null);
 
   useEffect(() => {
     getSession().then((session) => {
@@ -47,14 +48,17 @@ export default function AdminPage() {
   };
 
   const fetchAlerts = async () => {
-    const [{ data: stock }, { count: enquiries }, { count: orders }] = await Promise.all([
+    const [{ data: stock }, { count: enquiries }, { count: orders }, { data: delivered }] = await Promise.all([
       supabase.from('product_size_inventory').select('product_id, size, quantity, products(name)').lte('quantity', 3).gt('quantity', 0),
       supabase.from('enquiries').select('*', { count: 'exact', head: true }).eq('status', 'unread'),
       supabase.from('orders').select('*', { count: 'exact', head: true }).eq('status', 'pending'),
+      supabase.from('orders').select('total').eq('status', 'delivered'),
     ]);
     setLowStock(stock || []);
     setUnreadEnquiries(enquiries || 0);
     setPendingOrders(orders || 0);
+    const revenue = (delivered || []).reduce((sum, o) => sum + (o.total || 0), 0);
+    setCompletedRevenue(revenue);
   };
 
   const toggleAvailable = async (id: number, current: boolean) => {
@@ -91,45 +95,11 @@ export default function AdminPage() {
     setSelected([]);
   };
 
-  const handleSignOut = async () => {
-    await signOut();
-    router.push('/admin/login');
-  };
 
   const filtered = products.filter(p => p.name.toLowerCase().includes(search.toLowerCase()));
 
   return (
-    <div style={{ minHeight: '100vh', backgroundColor: '#F5F5F5' }}>
-
-      {/* Topbar */}
-      <div style={{ backgroundColor: '#2C2C2C', padding: '1rem 2rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '2rem' }}>
-          <h1 style={{ fontFamily: "'Playfair Display', serif", fontSize: '1.2rem', color: '#FAF7F4', fontWeight: 500 }}>
-            Bloomingdew Admin
-          </h1>
-          <nav style={{ display: 'flex', gap: '1.5rem' }}>
-            {[
-              { label: 'Products', href: '/admin' },
-              { label: `Orders${pendingOrders > 0 ? ` (${pendingOrders})` : ''}`, href: '/admin/orders' },
-              { label: `Enquiries${unreadEnquiries > 0 ? ` (${unreadEnquiries})` : ''}`, href: '/admin/enquiries' },
-              { label: 'Homepage', href: '/admin/homepage' },
-              { label: 'View Site', href: '/' },
-            ].map(({ label, href }) => (
-              <Link key={href} href={href} style={{
-                fontFamily: "'Jost', sans-serif", fontSize: '0.75rem', letterSpacing: '0.1em',
-                textTransform: 'uppercase', textDecoration: 'none',
-                color: (label.includes('Orders') && pendingOrders > 0) || (label.includes('Enquiries') && unreadEnquiries > 0) ? '#C9A882' : '#9A8F87',
-              }}>
-                {label}
-              </Link>
-            ))}
-          </nav>
-        </div>
-        <button onClick={handleSignOut} style={{ fontFamily: "'Jost', sans-serif", fontSize: '0.72rem', letterSpacing: '0.1em', textTransform: 'uppercase', color: '#9A8F87', background: 'none', border: 'none', cursor: 'pointer' }}>
-          Sign Out
-        </button>
-      </div>
-
+    <div>
       <div style={{ maxWidth: '1200px', margin: '0 auto', padding: '3rem 2rem' }}>
 
         {/* Low stock alerts */}
@@ -164,6 +134,15 @@ export default function AdminPage() {
               <p style={{ fontFamily: "'Playfair Display', serif", fontSize: '2rem', fontWeight: 500, color: '#2C2C2C' }}>{value}</p>
             </div>
           ))}
+          {/* Revenue card */}
+          <div style={{ backgroundColor: '#2C2C2C', padding: '1.5rem', border: '1px solid #2C2C2C' }}>
+            <p style={{ fontFamily: "'Jost', sans-serif", fontSize: '0.7rem', letterSpacing: '0.12em', textTransform: 'uppercase', color: '#C9A882', marginBottom: '0.5rem' }}>
+              Revenue (Delivered)
+            </p>
+            <p style={{ fontFamily: "'Playfair Display', serif", fontSize: '2rem', fontWeight: 500, color: '#FAF7F4' }}>
+              {completedRevenue === null ? '—' : `₦${completedRevenue.toLocaleString()}`}
+            </p>
+          </div>
         </div>
 
         {/* Header + actions */}

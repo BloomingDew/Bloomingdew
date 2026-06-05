@@ -2,7 +2,6 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import Link from 'next/link';
 import { getSession } from '../../../lib/supabase-admin';
 import { supabase } from '../../../lib/supabase';
 
@@ -64,16 +63,7 @@ export default function OrdersPage() {
   const filtered = filterStatus === 'all' ? orders : orders.filter(o => o.status === filterStatus);
 
   return (
-    <div style={{ minHeight: '100vh', backgroundColor: '#F5F5F5' }}>
-      <div style={{ backgroundColor: '#2C2C2C', padding: '1rem 2rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-        <h1 style={{ fontFamily: "'Playfair Display', serif", fontSize: '1.2rem', color: '#FAF7F4', fontWeight: 500 }}>Bloomingdew Admin</h1>
-        <div style={{ display: 'flex', gap: '1.5rem' }}>
-          {[{ label: 'Products', href: '/admin' }, { label: 'Orders', href: '/admin/orders' }, { label: 'Enquiries', href: '/admin/enquiries' }, { label: 'Homepage', href: '/admin/homepage' }].map(({ label, href }) => (
-            <Link key={href} href={href} style={{ fontFamily: "'Jost', sans-serif", fontSize: '0.75rem', letterSpacing: '0.1em', textTransform: 'uppercase', color: href === '/admin/orders' ? '#C9A882' : '#9A8F87', textDecoration: 'none' }}>{label}</Link>
-          ))}
-        </div>
-      </div>
-
+    <div>
       <div style={{ maxWidth: '1200px', margin: '0 auto', padding: '3rem 2rem' }}>
 
         {/* Stats */}

@@ -161,15 +161,7 @@ export default function EditProductPage({ params }: { params: Promise<{ id: stri
   const totalStock = sizeInventory.reduce((sum, s) => sum + s.quantity, 0);
 
   return (
-    <div style={{ minHeight: '100vh', backgroundColor: '#F5F5F5' }}>
-      <div style={{ backgroundColor: '#2C2C2C', padding: '1rem 2rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-        <h1 style={{ fontFamily: "'Playfair Display', serif", fontSize: '1.2rem', color: '#FAF7F4', fontWeight: 500 }}>Bloomingdew Admin</h1>
-        <div style={{ display: 'flex', gap: '1.5rem' }}>
-          <Link href="/admin/homepage" style={navLink}>Homepage</Link>
-          <Link href="/admin" style={navLink}>← Products</Link>
-        </div>
-      </div>
-
+    <div>
       <div style={{ maxWidth: '860px', margin: '0 auto', padding: '3rem 2rem' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2.5rem' }}>
           <h2 style={{ fontFamily: "'Playfair Display', serif", fontSize: '1.6rem', fontWeight: 500, color: '#2C2C2C' }}>Edit Product</h2>
@@ -362,4 +354,3 @@ const card: React.CSSProperties = { backgroundColor: '#FFFFFF', padding: '2rem',
 const cardHeading: React.CSSProperties = { fontFamily: "'Playfair Display', serif", fontSize: '1rem', fontWeight: 500, color: '#2C2C2C', marginBottom: '1.5rem' };
 const labelStyle: React.CSSProperties = { display: 'block', fontFamily: "'Jost', sans-serif", fontSize: '0.72rem', letterSpacing: '0.12em', textTransform: 'uppercase', color: '#9A8F87', marginBottom: '0.5rem' };
 const inputStyle: React.CSSProperties = { width: '100%', padding: '0.85rem 1rem', backgroundColor: '#FFFFFF', border: '1px solid #E8DDD3', color: '#2C2C2C', fontFamily: "'Jost', sans-serif", fontSize: '0.88rem', fontWeight: 300, outline: 'none', appearance: 'none' };
-const navLink: React.CSSProperties = { fontFamily: "'Jost', sans-serif", fontSize: '0.75rem', letterSpacing: '0.1em', textTransform: 'uppercase', color: '#9A8F87', textDecoration: 'none' };

@@ -1,10 +1,15 @@
 import type { Metadata } from 'next';
+import AdminTopbar from '../../components/AdminTopbar';
 
 export const metadata: Metadata = {
   title: 'Bloomingdew Admin',
 };
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
-  // Completely bypass the root layout (no navbar/footer)
-  return children;
+  return (
+    <div style={{ minHeight: '100vh', backgroundColor: '#F5F5F5' }}>
+      <AdminTopbar />
+      {children}
+    </div>
+  );
 }
