@@ -20,7 +20,9 @@ export default function AdminLoginPage() {
       setError('Invalid email or password.');
       setLoading(false);
     } else {
-      router.push('/admin');
+      // Use window.location for a hard redirect so the middleware
+      // picks up the new session cookie on a fresh request
+      window.location.href = '/admin';
     }
   };
 
