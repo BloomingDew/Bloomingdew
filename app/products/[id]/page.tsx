@@ -242,7 +242,7 @@ export default function ProductPage({ params }: { params: Promise<{ id: string }
               {sizeDropdownOpen && (
                 <div style={{
                   position: 'absolute', top: '100%', left: 0, right: 0, zIndex: 50,
-                  border: '1px solid #2C2C2C', borderTop: 'none',
+                  borderLeft: '1px solid #2C2C2C', borderRight: '1px solid #2C2C2C', borderBottom: '1px solid #2C2C2C', borderTop: 'none',
                   backgroundColor: '#FFFFFF', boxShadow: '0 4px 12px rgba(0,0,0,0.08)',
                 }}>
                   {(product.sizes || sizes).map((size) => (
@@ -253,7 +253,7 @@ export default function ProductPage({ params }: { params: Promise<{ id: string }
                         width: '100%', padding: '0.85rem 1.2rem',
                         display: 'flex', justifyContent: 'space-between', alignItems: 'center',
                         backgroundColor: selectedSize === size ? '#F9F6F3' : '#FFFFFF',
-                        border: 'none', borderBottom: '1px solid #F0EBE5',
+                        borderTop: 'none', borderLeft: 'none', borderRight: 'none', borderBottom: '1px solid #F0EBE5',
                         cursor: 'pointer', fontFamily: "'Jost', sans-serif", fontSize: '0.88rem',
                         textAlign: 'left',
                       }}
@@ -330,7 +330,7 @@ export default function ProductPage({ params }: { params: Promise<{ id: string }
                   flex: 1, padding: '1rem',
                   fontFamily: "'Jost', sans-serif", fontSize: '0.72rem', letterSpacing: '0.14em', textTransform: 'uppercase',
                   color: activeTab === tab ? '#2C2C2C' : '#9A8F87', backgroundColor: 'transparent',
-                  border: 'none', borderBottom: `2px solid ${activeTab === tab ? '#2C2C2C' : 'transparent'}`,
+                  borderTop: 'none', borderLeft: 'none', borderRight: 'none', borderBottom: `2px solid ${activeTab === tab ? '#2C2C2C' : 'transparent'}`,
                   cursor: 'pointer', transition: 'all 0.2s',
                 }}>
                   {tab === 'details' ? 'Product Details' : 'Care & Fabric'}
