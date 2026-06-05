@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { useCart } from '../../context/CartContext';
@@ -11,6 +11,18 @@ export default function CheckoutPage() {
   const router = useRouter();
   const [step, setStep] = useState<'shipping' | 'payment'>('shipping');
   const [loading, setLoading] = useState(false);
+  const [itemImages, setItemImages] = useState<Record<number, string>>({});
+
+  useEffect(() => {
+    if (items.length === 0) return;
+    const ids = [...new Set(items.map(i => i.id))];
+    supabase.from('product_images').select('product_id, url').in('product_id', ids).order('position')
+      .then(({ data }) => {
+        const map: Record<number, string> = {};
+        (data || []).forEach(row => { if (!map[row.product_id]) map[row.product_id] = row.url; });
+        setItemImages(map);
+      });
+  }, [items]);
 
   const [shipping, setShipping] = useState({
     firstName: '', lastName: '', email: '', phone: '',
@@ -220,8 +232,11 @@ export default function CheckoutPage() {
                 <div style={{
                   width: '64px', height: '80px', flexShrink: 0,
                   background: 'linear-gradient(150deg, #F0E8E0, #D4C4B5)',
-                  position: 'relative',
+                  position: 'relative', overflow: 'hidden',
                 }}>
+                  {itemImages[item.id] && (
+                    <img src={itemImages[item.id]} alt={item.name} style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} onError={e => { (e.target as HTMLImageElement).style.display = 'none'; }} />
+                  )}
                   <span style={{
                     position: 'absolute', top: '-8px', right: '-8px',
                     backgroundColor: '#2C2C2C', color: '#FAF7F4',
