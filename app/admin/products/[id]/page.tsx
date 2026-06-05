@@ -10,7 +10,7 @@ type Category = { id: number; name: string };
 type ProductImage = { id: number; url: string; alt_text: string; position: number };
 type SizeInventory = { size: string; quantity: number };
 
-const DEFAULT_SIZES = ['XS', 'S', 'M', 'L', 'XL'];
+const DEFAULT_SIZES = ['6', '8', '10', '12', '14', '16', '18', '20'];
 const MAX_IMAGES = 4;
 
 export default function EditProductPage({ params }: { params: Promise<{ id: string }> }) {
@@ -310,7 +310,7 @@ export default function EditProductPage({ params }: { params: Promise<{ id: stri
                     Total: {totalStock} units
                   </span>
                 </div>
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: '0.75rem' }}>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(8, 1fr)', gap: '0.75rem' }}>
                   {sizeInventory.map(({ size, quantity }) => (
                     <div key={size} style={{ textAlign: 'center' }}>
                       <label style={{ ...labelStyle, textAlign: 'center', marginBottom: '0.4rem' }}>{size}</label>

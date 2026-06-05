@@ -8,7 +8,18 @@ import { useWishlist } from '../../../context/WishlistContext';
 import { getProductById, type Product } from '../../../lib/products';
 import { getAvailableStock } from '../../../lib/inventory';
 
-const sizes = ['XS', 'S', 'M', 'L', 'XL'];
+const sizes = ['6', '8', '10', '12', '14', '16', '18', '20'];
+
+const SIZE_GUIDE = [
+  { size: '6',  bust: 34, waist: 26, hip: 36 },
+  { size: '8',  bust: 36, waist: 28, hip: 38 },
+  { size: '10', bust: 38, waist: 30, hip: 40 },
+  { size: '12', bust: 40, waist: 32, hip: 42 },
+  { size: '14', bust: 42, waist: 34, hip: 44 },
+  { size: '16', bust: 44, waist: 36, hip: 46 },
+  { size: '18', bust: 46, waist: 38, hip: 48 },
+  { size: '20', bust: 48, waist: 40, hip: 50 },
+];
 
 export default function ProductPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
@@ -20,6 +31,7 @@ export default function ProductPage({ params }: { params: Promise<{ id: string }
   const [stockError, setStockError] = useState('');
   const [availableStock, setAvailableStock] = useState<number | null>(null);
   const [activeImage, setActiveImage] = useState(0);
+  const [sizeGuideOpen, setSizeGuideOpen] = useState(false);
   const { addItem } = useCart();
   const { addItem: wishlistAdd, removeItem: wishlistRemove, isWishlisted } = useWishlist();
 
@@ -177,14 +189,14 @@ export default function ProductPage({ params }: { params: Promise<{ id: string }
               <span style={{ fontFamily: "'Jost', sans-serif", fontSize: '0.75rem', letterSpacing: '0.12em', textTransform: 'uppercase', color: '#2C2C2C' }}>
                 Size {selectedSize && `— ${selectedSize}`}
               </span>
-              <Link href="/order-guide" style={{ fontFamily: "'Jost', sans-serif", fontSize: '0.72rem', color: '#9A8F87', borderBottom: '1px solid #9A8F87' }}>
+              <button onClick={() => setSizeGuideOpen(true)} style={{ fontFamily: "'Jost', sans-serif", fontSize: '0.72rem', color: '#9A8F87', borderBottom: '1px solid #9A8F87', background: 'none', border: 'none', borderBottom: '1px solid #9A8F87', cursor: 'pointer', padding: 0 }}>
                 Size Guide
-              </Link>
+              </button>
             </div>
-            <div style={{ display: 'flex', gap: '0.5rem' }}>
+            <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
               {(product.sizes || sizes).map((size) => (
                 <button key={size} onClick={() => setSelectedSize(size)} style={{
-                  width: '48px', height: '48px', border: '1px solid',
+                  minWidth: '48px', height: '48px', padding: '0 0.75rem', border: '1px solid',
                   borderColor: selectedSize === size ? '#2C2C2C' : '#E8DDD3',
                   backgroundColor: selectedSize === size ? '#2C2C2C' : 'transparent',
                   color: selectedSize === size ? '#FAF7F4' : '#2C2C2C',
@@ -273,6 +285,61 @@ export default function ProductPage({ params }: { params: Promise<{ id: string }
           </div>
         </div>
       </div>
+
+      {/* Size Guide Modal */}
+      {sizeGuideOpen && (
+        <div onClick={() => setSizeGuideOpen(false)} style={{
+          position: 'fixed', inset: 0, backgroundColor: 'rgba(0,0,0,0.5)',
+          zIndex: 200, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '1rem',
+        }}>
+          <div onClick={e => e.stopPropagation()} style={{
+            backgroundColor: '#FAF7F4', maxWidth: '520px', width: '100%',
+            padding: '2.5rem', position: 'relative', maxHeight: '90vh', overflowY: 'auto',
+          }}>
+            <button onClick={() => setSizeGuideOpen(false)} style={{
+              position: 'absolute', top: '1.2rem', right: '1.2rem',
+              background: 'none', border: 'none', cursor: 'pointer',
+              fontSize: '1.1rem', color: '#9A8F87',
+            }}>✕</button>
+
+            <p style={{ fontFamily: "'Jost', sans-serif", fontSize: '0.7rem', letterSpacing: '0.2em', textTransform: 'uppercase', color: '#C9A882', marginBottom: '0.5rem' }}>
+              Bloomingdew
+            </p>
+            <h2 style={{ fontFamily: "'Playfair Display', serif", fontSize: '1.3rem', fontWeight: 500, color: '#2C2C2C', marginBottom: '0.5rem' }}>
+              Size Guide
+            </h2>
+            <p style={{ fontFamily: "'Jost', sans-serif", fontSize: '0.8rem', fontWeight: 300, color: '#9A8F87', marginBottom: '2rem' }}>
+              All measurements are in inches.
+            </p>
+
+            <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+              <thead>
+                <tr style={{ borderBottom: '2px solid #E8DDD3' }}>
+                  {['Size', 'Bust', 'Waist', 'Hip'].map(h => (
+                    <th key={h} style={{ fontFamily: "'Jost', sans-serif", fontSize: '0.72rem', letterSpacing: '0.12em', textTransform: 'uppercase', color: '#9A8F87', padding: '0.75rem 1rem', textAlign: 'left', fontWeight: 400 }}>
+                      {h}
+                    </th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {SIZE_GUIDE.map((row, i) => (
+                  <tr key={row.size} style={{ backgroundColor: i % 2 === 0 ? '#FFFFFF' : '#F9F6F3', borderBottom: '1px solid #E8DDD3' }}>
+                    <td style={{ fontFamily: "'Jost', sans-serif", fontSize: '0.88rem', fontWeight: 500, color: '#2C2C2C', padding: '0.85rem 1rem' }}>{row.size}</td>
+                    <td style={{ fontFamily: "'Jost', sans-serif", fontSize: '0.88rem', fontWeight: 300, color: '#5C5450', padding: '0.85rem 1rem' }}>{row.bust}"</td>
+                    <td style={{ fontFamily: "'Jost', sans-serif", fontSize: '0.88rem', fontWeight: 300, color: '#5C5450', padding: '0.85rem 1rem' }}>{row.waist}"</td>
+                    <td style={{ fontFamily: "'Jost', sans-serif", fontSize: '0.88rem', fontWeight: 300, color: '#5C5450', padding: '0.85rem 1rem' }}>{row.hip}"</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+
+            <p style={{ fontFamily: "'Jost', sans-serif", fontSize: '0.78rem', fontWeight: 300, color: '#9A8F87', marginTop: '1.5rem', lineHeight: 1.7 }}>
+              Between sizes? We recommend sizing up. For custom fit, visit our <a href="/custom" style={{ color: '#C9A882', borderBottom: '1px solid #C9A882' }}>Custom page</a>.
+            </p>
+          </div>
+        </div>
+      )}
 
       <style>{`
         @media (max-width: 768px) {

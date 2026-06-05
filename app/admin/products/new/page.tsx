@@ -8,7 +8,7 @@ import { supabase } from '../../../../lib/supabase';
 
 type Category = { id: number; name: string };
 
-const DEFAULT_SIZES = ['XS', 'S', 'M', 'L', 'XL'];
+const DEFAULT_SIZES = ['6', '8', '10', '12', '14', '16', '18', '20'];
 const MAX_IMAGES = 4;
 
 export default function NewProductPage() {
@@ -262,7 +262,7 @@ export default function NewProductPage() {
                     Total: {totalStock} units
                   </span>
                 </div>
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: '0.75rem' }}>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(8, 1fr)', gap: '0.75rem' }}>
                   {sizeInventory.map(({ size, quantity }) => (
                     <div key={size} style={{ textAlign: 'center' }}>
                       <label style={{ ...labelStyle, textAlign: 'center', marginBottom: '0.4rem' }}>{size}</label>
