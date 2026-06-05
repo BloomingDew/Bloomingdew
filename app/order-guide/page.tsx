@@ -47,28 +47,31 @@ export default function OrderGuidePage() {
         <div style={{ marginBottom: '5rem' }}>
           <h2 style={sectionHeading}>Size Guide</h2>
           <p style={bodyText}>
-            All our pieces are designed with a relaxed, inclusive fit. We recommend measuring yourself and comparing to the chart below. If you're between sizes, size up — or reach out for a custom fit.
+            All our pieces are designed with a relaxed, inclusive fit. We recommend measuring yourself and comparing to the chart below. Measurements are in inches. If you're between sizes, size up — or reach out for a custom fit.
           </p>
 
           <div style={{ overflowX: 'auto', marginTop: '2rem' }}>
             <table style={{ width: '100%', borderCollapse: 'collapse', fontFamily: "'Jost', sans-serif", fontSize: '0.85rem' }}>
               <thead>
                 <tr style={{ borderBottom: '2px solid #E8DDD3' }}>
-                  {['Size', 'Bust (cm)', 'Waist (cm)', 'Hips (cm)'].map((h) => (
+                  {['Size', 'Burst', 'Waist', 'Hip'].map((h) => (
                     <th key={h} style={{ padding: '0.75rem 1rem', textAlign: 'left', fontWeight: 500, color: '#2C2C2C', letterSpacing: '0.08em', textTransform: 'uppercase', fontSize: '0.72rem' }}>{h}</th>
                   ))}
                 </tr>
               </thead>
               <tbody>
                 {[
-                  ['XS', '80–83', '62–65', '88–91'],
-                  ['S', '84–87', '66–69', '92–95'],
-                  ['M', '88–92', '70–74', '96–100'],
-                  ['L', '93–98', '75–80', '101–106'],
-                  ['XL', '99–104', '81–86', '107–112'],
-                ].map(([size, bust, waist, hips], i) => (
+                  ['6',  '34', '26', '36'],
+                  ['8',  '36', '28', '38'],
+                  ['10', '38', '30', '40'],
+                  ['12', '40', '32', '42'],
+                  ['14', '42', '34', '44'],
+                  ['16', '44', '36', '46'],
+                  ['18', '46', '38', '48'],
+                  ['20', '48', '40', '50'],
+                ].map(([size, burst, waist, hip], i) => (
                   <tr key={size} style={{ backgroundColor: i % 2 === 0 ? '#FFFFFF' : '#FAF7F4', borderBottom: '1px solid #E8DDD3' }}>
-                    {[size, bust, waist, hips].map((val, j) => (
+                    {[size, burst, waist, hip].map((val, j) => (
                       <td key={j} style={{ padding: '0.85rem 1rem', color: j === 0 ? '#2C2C2C' : '#9A8F87', fontWeight: j === 0 ? 500 : 300 }}>{val}</td>
                     ))}
                   </tr>
