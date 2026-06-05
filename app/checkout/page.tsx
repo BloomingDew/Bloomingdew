@@ -135,7 +135,7 @@ export default function CheckoutPage() {
 
               <div style={{ marginBottom: '1rem' }}>
                 <label style={labelStyle}>Phone</label>
-                <input style={inputStyle} value={shipping.phone} onChange={e => setShipping({ ...shipping, phone: e.target.value })} placeholder="+44 7700 000000" />
+                <input style={inputStyle} value={shipping.phone} onChange={e => setShipping({ ...shipping, phone: e.target.value })} placeholder="+234 801 234 5678" />
               </div>
 
               <div style={{ marginBottom: '1rem' }}>
