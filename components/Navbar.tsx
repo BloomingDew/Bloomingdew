@@ -10,7 +10,7 @@ import SearchOverlay from './SearchOverlay';
 export default function Navbar() {
   const [menuOpen, setMenuOpen] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
-  const [profileHover, setProfileHover] = useState(false);
+  const [profileOpen, setProfileOpen] = useState(false);
   const profileTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const { openCart, totalItems } = useCart();
   const { totalItems: wishlistCount } = useWishlist();
@@ -19,6 +19,7 @@ export default function Navbar() {
   return (
     <>
       <SearchOverlay isOpen={searchOpen} onClose={() => setSearchOpen(false)} />
+
 
       <header style={{
         position: 'sticky', top: 0, zIndex: 100,
@@ -56,80 +57,95 @@ export default function Navbar() {
               </svg>
             </button>
 
-            <div
-              style={{ position: 'relative' }}
-              onMouseEnter={() => {
-                if (profileTimer.current) clearTimeout(profileTimer.current);
-                setProfileHover(true);
-              }}
-              onMouseLeave={() => {
-                profileTimer.current = setTimeout(() => setProfileHover(false), 150);
-              }}
-            >
-              <Link href={user ? '/account' : '#'} aria-label="Account" style={{ ...iconBtn, textDecoration: 'none', position: 'relative' }}>
+            {user ? (
+              <Link href="/account" aria-label="Account" style={{ ...iconBtn, textDecoration: 'none', position: 'relative' }}>
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
                   <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/>
                 </svg>
-                {user && <span style={{ position: 'absolute', top: '-4px', right: '-4px', width: '8px', height: '8px', backgroundColor: '#C9A882', borderRadius: '50%' }} />}
+                <span style={{ position: 'absolute', top: '-4px', right: '-4px', width: '8px', height: '8px', backgroundColor: '#C9A882', borderRadius: '50%' }} />
               </Link>
+            ) : (
+              <div
+                style={{ position: 'relative' }}
+                onMouseEnter={() => {
+                  if (profileTimer.current) clearTimeout(profileTimer.current);
+                  setProfileOpen(true);
+                }}
+                onMouseLeave={() => {
+                  profileTimer.current = setTimeout(() => setProfileOpen(false), 200);
+                }}
+              >
+                <Link href="/account/login" aria-label="Account" style={{ ...iconBtn, textDecoration: 'none', position: 'relative' }}>
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/>
+                  </svg>
+                </Link>
 
-              {/* Dropdown — only shown when not logged in */}
-              {!user && profileHover && (
-                <div style={{
-                  position: 'absolute', top: 'calc(100% + 12px)', right: 0,
-                  width: '280px', backgroundColor: '#FAF7F4',
-                  border: '1px solid #E8DDD3', boxShadow: '0 8px 32px rgba(44,44,44,0.12)',
-                  padding: '1.5rem', zIndex: 300,
-                }}>
-                  {/* Arrow */}
-                  <div style={{
-                    position: 'absolute', top: '-6px', right: '12px',
-                    width: '10px', height: '10px',
-                    backgroundColor: '#FAF7F4', border: '1px solid #E8DDD3',
-                    borderBottom: 'none', borderRight: 'none',
-                    transform: 'rotate(45deg)',
-                  }} />
-
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '1rem' }}>
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#2C2C2C" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-                      <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/>
-                    </svg>
-                    <span style={{ fontFamily: "'Playfair Display', serif", fontSize: '1rem', fontWeight: 500, color: '#2C2C2C' }}>
-                      Sign in / Sign up
-                    </span>
-                  </div>
-
-                  <p style={{ fontFamily: "'Jost', sans-serif", fontSize: '0.78rem', fontWeight: 500, color: '#2C2C2C', marginBottom: '0.3rem' }}>
-                    Already a member?
-                  </p>
-                  <p style={{ fontFamily: "'Jost', sans-serif", fontSize: '0.75rem', fontWeight: 300, color: '#9A8F87', lineHeight: 1.7, marginBottom: '1rem' }}>
-                    Sign in for a personalised experience and access to all your benefits and rewards.
-                  </p>
-
-                  <Link href="/account/login" style={{
-                    display: 'block', width: '100%', padding: '0.85rem',
-                    backgroundColor: '#2C2C2C', color: '#FAF7F4',
-                    fontFamily: "'Jost', sans-serif", fontSize: '0.72rem',
-                    letterSpacing: '0.18em', textTransform: 'uppercase',
-                    textAlign: 'center', textDecoration: 'none', marginBottom: '1rem',
-                  }}>
-                    Log In
-                  </Link>
-
-                  <div style={{ borderTop: '1px solid #E8DDD3', paddingTop: '1rem' }}>
-                    <Link href="/account/signup" style={{
-                      fontFamily: "'Jost', sans-serif", fontSize: '0.78rem',
-                      fontWeight: 300, color: '#2C2C2C', textDecoration: 'none',
+                {profileOpen && (
+                  <div
+                    onMouseEnter={() => {
+                      if (profileTimer.current) clearTimeout(profileTimer.current);
+                    }}
+                    onMouseLeave={() => {
+                      profileTimer.current = setTimeout(() => setProfileOpen(false), 200);
+                    }}
+                    style={{
+                      position: 'absolute', top: 'calc(100% + 8px)', right: 0,
+                      width: '320px', backgroundColor: '#FAF7F4',
+                      border: '1px solid #E8DDD3',
+                      boxShadow: '0 8px 32px rgba(44,44,44,0.12)',
+                      padding: '1.8rem', zIndex: 300,
                     }}>
-                      Not a member yet?{' '}
-                      <span style={{ color: '#C9A882', borderBottom: '1px solid #C9A882' }}>
-                        Create an account
+                    {/* Arrow */}
+                    <div style={{
+                      position: 'absolute', top: '-6px', right: '10px',
+                      width: '10px', height: '10px',
+                      backgroundColor: '#FAF7F4', border: '1px solid #E8DDD3',
+                      borderBottom: 'none', borderRight: 'none',
+                      transform: 'rotate(45deg)',
+                    }} />
+
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', marginBottom: '1.2rem' }}>
+                      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#2C2C2C" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                        <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/>
+                      </svg>
+                      <span style={{ fontFamily: "'Playfair Display', serif", fontSize: '1.1rem', fontWeight: 500, color: '#2C2C2C' }}>
+                        Sign in / Sign up
                       </span>
+                    </div>
+
+                    <p style={{ fontFamily: "'Jost', sans-serif", fontSize: '0.85rem', fontWeight: 500, color: '#2C2C2C', marginBottom: '0.4rem' }}>
+                      Already a member?
+                    </p>
+                    <p style={{ fontFamily: "'Jost', sans-serif", fontSize: '0.82rem', fontWeight: 300, color: '#9A8F87', lineHeight: 1.8, marginBottom: '1.2rem' }}>
+                      Sign in for a personalised experience and access to all your benefits and rewards.
+                    </p>
+
+                    <Link href="/account/login" style={{
+                      display: 'block', padding: '1rem',
+                      backgroundColor: '#2C2C2C', color: '#FAF7F4',
+                      fontFamily: "'Jost', sans-serif", fontSize: '0.72rem',
+                      letterSpacing: '0.18em', textTransform: 'uppercase',
+                      textAlign: 'center', textDecoration: 'none', marginBottom: '1.2rem',
+                    }}>
+                      Log In
                     </Link>
+
+                    <div style={{ borderTop: '1px solid #E8DDD3', paddingTop: '1.2rem' }}>
+                      <Link href="/account/signup" style={{
+                        fontFamily: "'Jost', sans-serif", fontSize: '0.82rem',
+                        fontWeight: 300, color: '#2C2C2C', textDecoration: 'none',
+                      }}>
+                        Not a member yet?{' '}
+                        <span style={{ color: '#C9A882', borderBottom: '1px solid #C9A882' }}>
+                          Create an account
+                        </span>
+                      </Link>
+                    </div>
                   </div>
-                </div>
-              )}
-            </div>
+                )}
+              </div>
+            )}
 
             <Link href="/wishlist" aria-label="Wishlist" style={{ ...iconBtn, position: 'relative', textDecoration: 'none' }}>
               <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
