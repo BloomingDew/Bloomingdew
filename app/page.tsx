@@ -289,7 +289,7 @@ function FeaturedCard({ product }: { product: FeaturedProduct }) {
     e.preventDefault();
     wishlisted
       ? removeItem(product.id)
-      : addItem({ id: product.id, name: product.name, price: `₦${product.discount > 0 ? Math.round(product.price * (1 - product.discount / 100)) : product.price}`, originalPrice: product.discount > 0 ? `₦${product.price}` : undefined, category: '' });
+      : addItem({ id: product.id, name: product.name, price: `₦${(product.discount > 0 ? Math.round(product.price * (1 - product.discount / 100)) : product.price).toLocaleString()}`, originalPrice: product.discount > 0 ? `₦${product.price.toLocaleString()}` : undefined, category: '' });
   };
 
   return (

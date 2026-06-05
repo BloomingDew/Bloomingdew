@@ -68,8 +68,8 @@ export default function ProductPage({ params }: { params: Promise<{ id: string }
     const salePrice = product.discount > 0 ? Math.round(product.price * (1 - product.discount / 100)) : product.price;
     const result = await addItem({
       id: product.id, name: product.name,
-      price: `₦${salePrice}`,
-      originalPrice: product.discount > 0 ? `₦${product.price}` : undefined,
+      price: `₦${salePrice.toLocaleString()}`,
+      originalPrice: product.discount > 0 ? `₦${product.price.toLocaleString()}` : undefined,
       size: selectedSize || 'M',
       quantity: 1, madeToOrder: product.made_to_order,
     });
@@ -89,7 +89,7 @@ export default function ProductPage({ params }: { params: Promise<{ id: string }
     if (!product) return;
     isWishlisted(product.id)
       ? wishlistRemove(product.id)
-      : wishlistAdd({ id: product.id, name: product.name, price: `₦${product.discount > 0 ? Math.round(product.price * (1 - product.discount / 100)) : product.price}`, category: product.category });
+      : wishlistAdd({ id: product.id, name: product.name, price: `₦${(product.discount > 0 ? Math.round(product.price * (1 - product.discount / 100)) : product.price).toLocaleString()}`, originalPrice: product.discount > 0 ? `₦${product.price.toLocaleString()}` : undefined, category: product.category });
   };
 
   if (loading) return (

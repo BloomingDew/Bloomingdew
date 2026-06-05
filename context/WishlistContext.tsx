@@ -67,8 +67,8 @@ export function WishlistProvider({ children }: { children: ReactNode }) {
       return {
         id: row.product_id,
         name: row.products?.name || '',
-        price: `₦${salePrice}`,
-        originalPrice: discount > 0 ? `₦${rawPrice}` : undefined,
+        price: `₦${salePrice.toLocaleString()}`,
+        originalPrice: discount > 0 ? `₦${rawPrice.toLocaleString()}` : undefined,
         category: row.products?.categories?.name || '',
       };
     });
