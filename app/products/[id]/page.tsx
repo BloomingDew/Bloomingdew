@@ -187,26 +187,31 @@ export default function ProductPage({ params }: { params: Promise<{ id: string }
           <div style={{ marginBottom: '2rem' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: '1rem' }}>
               <span style={{ fontFamily: "'Jost', sans-serif", fontSize: '0.75rem', letterSpacing: '0.12em', textTransform: 'uppercase', color: '#2C2C2C' }}>
-                Size {selectedSize && `— ${selectedSize}`}
+                Size
               </span>
               <button onClick={() => setSizeGuideOpen(true)} style={{ fontFamily: "'Jost', sans-serif", fontSize: '0.72rem', color: '#9A8F87', borderBottom: '1px solid #9A8F87', background: 'none', border: 'none', borderBottom: '1px solid #9A8F87', cursor: 'pointer', padding: 0 }}>
                 Size Guide
               </button>
             </div>
-            <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
+            <select
+              value={selectedSize || ''}
+              onChange={e => setSelectedSize(e.target.value || null)}
+              style={{
+                width: '100%', padding: '1rem 1.2rem',
+                border: `1px solid ${selectedSize ? '#2C2C2C' : '#E8DDD3'}`,
+                backgroundColor: '#FFFFFF', color: selectedSize ? '#2C2C2C' : '#9A8F87',
+                fontFamily: "'Jost', sans-serif", fontSize: '0.88rem', fontWeight: 300,
+                cursor: 'pointer', appearance: 'none',
+                backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%239A8F87' stroke-width='1.5' fill='none' stroke-linecap='round'/%3E%3C/svg%3E")`,
+                backgroundRepeat: 'no-repeat', backgroundPosition: 'right 1.2rem center',
+                outline: 'none',
+              }}
+            >
+              <option value="">Select a size</option>
               {(product.sizes || sizes).map((size) => (
-                <button key={size} onClick={() => setSelectedSize(size)} style={{
-                  minWidth: '48px', height: '48px', padding: '0 0.75rem', border: '1px solid',
-                  borderColor: selectedSize === size ? '#2C2C2C' : '#E8DDD3',
-                  backgroundColor: selectedSize === size ? '#2C2C2C' : 'transparent',
-                  color: selectedSize === size ? '#FAF7F4' : '#2C2C2C',
-                  fontFamily: "'Jost', sans-serif", fontSize: '0.78rem',
-                  cursor: 'pointer', transition: 'all 0.2s',
-                }}>
-                  {size}
-                </button>
+                <option key={size} value={size}>{size}</option>
               ))}
-            </div>
+            </select>
           </div>
 
           {/* Stock indicator */}
