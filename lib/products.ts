@@ -84,7 +84,7 @@ function normalise(data: any): Product {
     lead_time: data.lead_time,
     fabric: data.fabric || '',
     care_instructions: data.care_instructions || '',
-    sizes: data.sizes || ['XS', 'S', 'M', 'L', 'XL'],
+    sizes: data.sizes || ['6', '8', '10', '12', '14', '16', '18', '20'],
     images: (data.product_images || []).sort((a: any, b: any) => a.position - b.position),
   };
 }

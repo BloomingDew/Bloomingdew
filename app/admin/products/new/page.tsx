@@ -81,6 +81,7 @@ export default function NewProductPage() {
         name: form.name, slug,
         price: parseFloat(form.price),
         discount: parseInt(form.discount) || 0,
+        sizes: DEFAULT_SIZES,
         category_id: form.category_id ? parseInt(form.category_id) : null,
         description: form.description,
         fabric: form.fabric,

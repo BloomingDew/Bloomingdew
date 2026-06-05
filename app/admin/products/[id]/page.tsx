@@ -133,6 +133,7 @@ export default function EditProductPage({ params }: { params: Promise<{ id: stri
       name: form.name,
       price: parseFloat(form.price),
       discount: parseInt(form.discount) || 0,
+      sizes: DEFAULT_SIZES,
       category_id: form.category_id ? parseInt(form.category_id) : null,
       description: form.description,
       fabric: form.fabric,
