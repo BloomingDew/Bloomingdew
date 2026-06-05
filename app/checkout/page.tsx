@@ -6,6 +6,7 @@ import Link from 'next/link';
 import { useCart } from '../../context/CartContext';
 import { useUser } from '../../context/UserContext';
 import { supabase } from '../../lib/supabase';
+import StripePaymentForm from '../../components/StripePaymentForm';
 
 export default function CheckoutPage() {
   const { items, totalPrice, clearCart } = useCart();
@@ -67,8 +68,9 @@ export default function CheckoutPage() {
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
-  const handlePlaceOrder = async () => {
-    setLoading(true);
+  const [paymentError, setPaymentError] = useState('');
+
+  const saveOrderAndRedirect = async (paymentIntentId: string) => {
     await supabase.from('orders').insert({
       customer_name: `${shipping.firstName} ${shipping.lastName}`,
       customer_email: shipping.email,
@@ -85,10 +87,11 @@ export default function CheckoutPage() {
       subtotal: totalPrice,
       shipping_cost: shippingCost,
       total: orderTotal,
-      status: 'pending',
+      status: 'paid',
+      payment_intent_id: paymentIntentId,
+      payment_method: 'stripe',
     });
 
-    // Save address for logged-in users
     if (user) {
       await supabase.from('addresses').insert({
         user_id: user.id,
@@ -262,27 +265,25 @@ export default function CheckoutPage() {
 
               <h2 style={sectionHeading}>Payment</h2>
 
-              {/* Payment placeholder */}
-              <div style={{
-                padding: '2rem', border: '2px dashed #E8DDD3', borderRadius: '2px',
-                textAlign: 'center', marginBottom: '2rem', backgroundColor: '#FAFAFA',
-              }}>
-                <p style={{ fontFamily: "'Playfair Display', serif", fontSize: '1.1rem', color: '#2C2C2C', marginBottom: '0.5rem' }}>
-                  Payment coming soon
+              {/* Stripe payment form */}
+              <StripePaymentForm
+                amount={orderTotal}
+                loading={loading}
+                setLoading={setLoading}
+                onSuccess={saveOrderAndRedirect}
+                onError={(msg) => { setPaymentError(msg); setLoading(false); }}
+              />
+
+              {paymentError && (
+                <p style={{ fontFamily: "'Jost', sans-serif", fontSize: '0.82rem', color: '#C0392B', marginTop: '1rem' }}>
+                  {paymentError}
                 </p>
-                <p style={{ fontFamily: "'Jost', sans-serif", fontSize: '0.82rem', fontWeight: 300, color: '#9A8F87', lineHeight: 1.7 }}>
-                  Stripe payment integration will be added here. For now, place your order and we'll be in touch to arrange payment.
-                </p>
-              </div>
+              )}
 
               {/* Terms */}
-              <p style={{ fontFamily: "'Jost', sans-serif", fontSize: '0.78rem', fontWeight: 300, color: '#9A8F87', lineHeight: 1.7, marginBottom: '2rem' }}>
+              <p style={{ fontFamily: "'Jost', sans-serif", fontSize: '0.78rem', fontWeight: 300, color: '#9A8F87', lineHeight: 1.7, marginTop: '1.5rem' }}>
                 By placing your order you agree to our terms of service. All pieces are made to order — please allow 2–4 weeks for production.
               </p>
-
-              <button onClick={handlePlaceOrder} disabled={loading} style={{ ...primaryBtn, opacity: loading ? 0.7 : 1 }}>
-                {loading ? 'Placing Order...' : `Place Order — ₦${orderTotal.toFixed(2)}`}
-              </button>
             </div>
           )}
         </div>
