@@ -2,7 +2,6 @@
 
 import { useState, use, useEffect } from 'react';
 import Link from 'next/link';
-import Image from 'next/image';
 import { useCart } from '../../../context/CartContext';
 import { useWishlist } from '../../../context/WishlistContext';
 import { getProductById, type Product } from '../../../lib/products';
