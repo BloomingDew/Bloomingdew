@@ -112,8 +112,8 @@ export default function CheckoutPage() {
     router.push('/order-confirmation');
   };
 
-  const shippingCost = totalPrice >= 50000 ? 0 : 3500;
-  const orderTotal = totalPrice + shippingCost;
+  const shippingCost = 0;
+  const orderTotal = totalPrice;
 
   if (items.length === 0 && !loading) {
     return (
@@ -331,13 +331,8 @@ export default function CheckoutPage() {
             </div>
             <div style={{ display: 'flex', justifyContent: 'space-between' }}>
               <span style={summaryLabel}>Shipping</span>
-              <span style={summaryValue}>{shippingCost === 0 ? 'Free' : `₦${shippingCost.toFixed(2)}`}</span>
+              <span style={{ ...summaryValue, color: '#C9A882' }}>TBD</span>
             </div>
-            {shippingCost === 0 && (
-              <p style={{ fontFamily: "'Jost', sans-serif", fontSize: '0.72rem', color: '#C9A882' }}>
-                Free shipping on orders over ₦50,000 ✓
-              </p>
-            )}
             <div style={{ borderTop: '1px solid #E8DDD3', paddingTop: '0.75rem', display: 'flex', justifyContent: 'space-between' }}>
               <span style={{ fontFamily: "'Jost', sans-serif", fontSize: '0.88rem', fontWeight: 500, color: '#2C2C2C' }}>Total</span>
               <span style={{ fontFamily: "'Jost', sans-serif", fontSize: '0.95rem', fontWeight: 500, color: '#2C2C2C' }}>₦{orderTotal.toFixed(2)}</span>

@@ -198,7 +198,7 @@ export default function CartDrawer() {
               </span>
             </div>
             <p style={{ fontFamily: "'Jost', sans-serif", fontSize: '0.75rem', fontWeight: 300, color: '#9A8F87', marginBottom: '1.2rem', textAlign: 'center' }}>
-              Shipping calculated at checkout
+              Shipping to be confirmed
             </p>
             <button style={{
               width: '100%', padding: '1.1rem',
