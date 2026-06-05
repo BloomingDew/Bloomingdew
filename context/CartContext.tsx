@@ -7,6 +7,7 @@ export type CartItem = {
   id: number;
   name: string;
   price: string;
+  originalPrice?: string;
   size: string;
   quantity: number;
   expiresAt?: Date;

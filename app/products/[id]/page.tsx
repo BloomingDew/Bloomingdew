@@ -65,9 +65,12 @@ export default function ProductPage({ params }: { params: Promise<{ id: string }
   const handleAddToCart = async () => {
     if (!product) return;
     setStockError('');
+    const salePrice = product.discount > 0 ? Math.round(product.price * (1 - product.discount / 100)) : product.price;
     const result = await addItem({
       id: product.id, name: product.name,
-      price: `₦${product.discount > 0 ? Math.round(product.price * (1 - product.discount / 100)) : product.price}`, size: selectedSize || 'M',
+      price: `₦${salePrice}`,
+      originalPrice: product.discount > 0 ? `₦${product.price}` : undefined,
+      size: selectedSize || 'M',
       quantity: 1, madeToOrder: product.made_to_order,
     });
     if (!result.success) {

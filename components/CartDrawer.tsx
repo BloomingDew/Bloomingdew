@@ -162,9 +162,16 @@ export default function CartDrawer() {
                         </button>
                       </div>
                       <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
-                        <span style={{ fontFamily: "'Jost', sans-serif", fontSize: '0.88rem', color: '#2C2C2C' }}>
-                          {item.price}
-                        </span>
+                        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '0.1rem' }}>
+                          {item.originalPrice && (
+                            <span style={{ fontFamily: "'Jost', sans-serif", fontSize: '0.75rem', color: '#B0A8A0', textDecoration: 'line-through' }}>
+                              {item.originalPrice}
+                            </span>
+                          )}
+                          <span style={{ fontFamily: "'Jost', sans-serif", fontSize: '0.88rem', color: item.originalPrice ? '#C0392B' : '#2C2C2C', fontWeight: item.originalPrice ? 500 : 400 }}>
+                            {item.price}
+                          </span>
+                        </div>
                         <button
                           onClick={() => removeItem(item.id, item.size)}
                           style={{ fontFamily: "'Jost', sans-serif", fontSize: '0.72rem', color: '#9A8F87', background: 'none', border: 'none', cursor: 'pointer', letterSpacing: '0.08em' }}>
