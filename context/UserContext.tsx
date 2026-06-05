@@ -8,6 +8,7 @@ type Profile = {
   first_name: string | null;
   last_name: string | null;
   phone: string | null;
+  birthday: string | null;
 };
 
 type UserContextType = {
@@ -48,7 +49,7 @@ export function UserProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const fetchProfile = async (userId: string) => {
-    const { data } = await supabase.from('profiles').select('first_name, last_name, phone').eq('id', userId).single();
+    const { data } = await supabase.from('profiles').select('first_name, last_name, phone, birthday').eq('id', userId).single();
     setProfile(data ?? null);
   };
 

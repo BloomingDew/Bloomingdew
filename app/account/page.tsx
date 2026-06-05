@@ -33,10 +33,13 @@ function AccountPageInner() {
   const [orders, setOrders] = useState<Order[]>([]);
   const [addresses, setAddresses] = useState<Address[]>([]);
   const [editProfile, setEditProfile] = useState(false);
-  const [profileForm, setProfileForm] = useState({ first_name: '', last_name: '', phone: '' });
+  const [profileForm, setProfileForm] = useState({ first_name: '', last_name: '', phone: '', birthday: '' });
   const [saving, setSaving] = useState(false);
   const [saveMsg, setSaveMsg] = useState('');
   const [showWelcome, setShowWelcome] = useState(false);
+  const [showAddAddress, setShowAddAddress] = useState(false);
+  const [addressForm, setAddressForm] = useState({ label: 'Home', first_name: '', last_name: '', address: '', apartment: '', city: '', postcode: '', country: 'Nigeria', phone: '' });
+  const [savingAddress, setSavingAddress] = useState(false);
 
   useEffect(() => {
     if (!loading && !user) router.push('/account/login');
@@ -47,7 +50,7 @@ function AccountPageInner() {
   }, [searchParams]);
 
   useEffect(() => {
-    if (profile) setProfileForm({ first_name: profile.first_name || '', last_name: profile.last_name || '', phone: profile.phone || '' });
+    if (profile) setProfileForm({ first_name: profile.first_name || '', last_name: profile.last_name || '', phone: profile.phone || '', birthday: profile.birthday || '' });
   }, [profile]);
 
   useEffect(() => {
@@ -63,6 +66,16 @@ function AccountPageInner() {
     const { error } = await updateProfile(profileForm);
     if (!error) { setSaveMsg('Saved!'); setTimeout(() => setSaveMsg(''), 2000); setEditProfile(false); }
     setSaving(false);
+  };
+
+  const handleSaveAddress = async () => {
+    if (!user) return;
+    setSavingAddress(true);
+    const { data } = await supabase.from('addresses').insert({ ...addressForm, user_id: user.id, is_default: addresses.length === 0 }).select().single();
+    if (data) setAddresses(prev => [...prev, data]);
+    setShowAddAddress(false);
+    setAddressForm({ label: 'Home', first_name: '', last_name: '', address: '', apartment: '', city: '', postcode: '', country: 'Nigeria', phone: '' });
+    setSavingAddress(false);
   };
 
   const deleteAddress = async (id: string) => {
@@ -199,6 +212,7 @@ function AccountPageInner() {
                 { label: 'Name', value: `${profile?.first_name || ''} ${profile?.last_name || ''}`.trim() || '—' },
                 { label: 'Email', value: user.email || '—' },
                 { label: 'Phone', value: profile?.phone || '—' },
+                { label: 'Birthday', value: profile?.birthday ? new Date(profile.birthday).toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' }) : '—' },
               ].map(({ label, value }) => (
                 <div key={label} style={{ marginBottom: '1rem', paddingBottom: '1rem', borderBottom: '1px solid #F5F5F5' }}>
                   <p style={{ fontFamily: "'Jost', sans-serif", fontSize: '0.7rem', letterSpacing: '0.12em', textTransform: 'uppercase', color: '#9A8F87', marginBottom: '0.3rem' }}>{label}</p>
@@ -224,6 +238,10 @@ function AccountPageInner() {
                   <label style={fieldLabel}>Phone</label>
                   <input style={fieldInput} value={profileForm.phone} onChange={e => setProfileForm({ ...profileForm, phone: e.target.value })} placeholder="+234 801 234 5678" />
                 </div>
+                <div>
+                  <label style={fieldLabel}>Birthday</label>
+                  <input type="date" style={fieldInput} value={profileForm.birthday} onChange={e => setProfileForm({ ...profileForm, birthday: e.target.value })} />
+                </div>
                 {saveMsg && <p style={{ fontFamily: "'Jost', sans-serif", fontSize: '0.82rem', color: '#2E7D32' }}>{saveMsg}</p>}
                 <div style={{ display: 'flex', gap: '1rem' }}>
                   <button onClick={handleSaveProfile} disabled={saving} style={{ flex: 1, padding: '0.9rem', backgroundColor: '#2C2C2C', color: '#FAF7F4', fontFamily: "'Jost', sans-serif", fontSize: '0.75rem', letterSpacing: '0.15em', textTransform: 'uppercase', border: 'none', cursor: 'pointer' }}>
@@ -242,6 +260,76 @@ function AccountPageInner() {
       {/* Addresses */}
       {tab === 'addresses' && (
         <div>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
+            <p style={{ fontFamily: "'Jost', sans-serif", fontSize: '0.82rem', fontWeight: 300, color: '#9A8F87' }}>
+              {addresses.length} saved address{addresses.length !== 1 ? 'es' : ''}
+            </p>
+            <button onClick={() => setShowAddAddress(!showAddAddress)} style={{
+              fontFamily: "'Jost', sans-serif", fontSize: '0.72rem', letterSpacing: '0.12em',
+              textTransform: 'uppercase', padding: '0.6rem 1.2rem',
+              backgroundColor: showAddAddress ? 'transparent' : '#2C2C2C',
+              color: showAddAddress ? '#9A8F87' : '#FAF7F4',
+              border: '1px solid #2C2C2C', cursor: 'pointer',
+            }}>
+              {showAddAddress ? 'Cancel' : '+ Add Address'}
+            </button>
+          </div>
+
+          {/* Add address form */}
+          {showAddAddress && (
+            <div style={{ border: '1px solid #E8DDD3', padding: '2rem', backgroundColor: '#FFFFFF', marginBottom: '1.5rem' }}>
+              <h3 style={{ fontFamily: "'Playfair Display', serif", fontSize: '1.1rem', fontWeight: 500, color: '#2C2C2C', marginBottom: '1.5rem' }}>New Address</h3>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+                <div>
+                  <label style={fieldLabel}>Label</label>
+                  <select style={fieldInput} value={addressForm.label} onChange={e => setAddressForm({ ...addressForm, label: e.target.value })}>
+                    {['Home', 'Work', 'Other'].map(l => <option key={l}>{l}</option>)}
+                  </select>
+                </div>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+                  <div>
+                    <label style={fieldLabel}>First Name</label>
+                    <input style={fieldInput} value={addressForm.first_name} onChange={e => setAddressForm({ ...addressForm, first_name: e.target.value })} />
+                  </div>
+                  <div>
+                    <label style={fieldLabel}>Last Name</label>
+                    <input style={fieldInput} value={addressForm.last_name} onChange={e => setAddressForm({ ...addressForm, last_name: e.target.value })} />
+                  </div>
+                </div>
+                <div>
+                  <label style={fieldLabel}>Address</label>
+                  <input style={fieldInput} value={addressForm.address} onChange={e => setAddressForm({ ...addressForm, address: e.target.value })} placeholder="123 Example Street" />
+                </div>
+                <div>
+                  <label style={fieldLabel}>Apartment / Suite (optional)</label>
+                  <input style={fieldInput} value={addressForm.apartment} onChange={e => setAddressForm({ ...addressForm, apartment: e.target.value })} />
+                </div>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+                  <div>
+                    <label style={fieldLabel}>City</label>
+                    <input style={fieldInput} value={addressForm.city} onChange={e => setAddressForm({ ...addressForm, city: e.target.value })} placeholder="Lagos" />
+                  </div>
+                  <div>
+                    <label style={fieldLabel}>Postal Code</label>
+                    <input style={fieldInput} value={addressForm.postcode} onChange={e => setAddressForm({ ...addressForm, postcode: e.target.value })} placeholder="100001" />
+                  </div>
+                </div>
+                <div>
+                  <label style={fieldLabel}>Phone</label>
+                  <input style={fieldInput} value={addressForm.phone} onChange={e => setAddressForm({ ...addressForm, phone: e.target.value })} placeholder="+234 801 234 5678" />
+                </div>
+                <button onClick={handleSaveAddress} disabled={savingAddress || !addressForm.address || !addressForm.city} style={{
+                  padding: '0.9rem', backgroundColor: '#2C2C2C', color: '#FAF7F4',
+                  fontFamily: "'Jost', sans-serif", fontSize: '0.75rem',
+                  letterSpacing: '0.15em', textTransform: 'uppercase',
+                  border: 'none', cursor: 'pointer', opacity: savingAddress ? 0.7 : 1,
+                }}>
+                  {savingAddress ? 'Saving...' : 'Save Address'}
+                </button>
+              </div>
+            </div>
+          )}
+
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: '1rem' }}>
             {addresses.map(addr => (
               <div key={addr.id} style={{ border: `1px solid ${addr.is_default ? '#C9A882' : '#E8DDD3'}`, padding: '1.5rem', backgroundColor: '#FFFFFF', position: 'relative' }}>
