@@ -32,12 +32,21 @@ export default function ProductPage({ params }: { params: Promise<{ id: string }
   const [availableStock, setAvailableStock] = useState<number | null>(null);
   const [activeImage, setActiveImage] = useState(0);
   const [sizeGuideOpen, setSizeGuideOpen] = useState(false);
+  const [sizeDropdownOpen, setSizeDropdownOpen] = useState(false);
   const { addItem } = useCart();
   const { addItem: wishlistAdd, removeItem: wishlistRemove, isWishlisted } = useWishlist();
 
   useEffect(() => {
     getProductById(Number(id)).then((data) => { setProduct(data); setLoading(false); });
   }, [id]);
+
+  // Close size dropdown on outside click
+  useEffect(() => {
+    if (!sizeDropdownOpen) return;
+    const handler = () => setSizeDropdownOpen(false);
+    document.addEventListener('click', handler);
+    return () => document.removeEventListener('click', handler);
+  }, [sizeDropdownOpen]);
 
   // Fetch stock when size is selected
   useEffect(() => {
@@ -193,25 +202,57 @@ export default function ProductPage({ params }: { params: Promise<{ id: string }
                 Size Guide
               </button>
             </div>
-            <select
-              value={selectedSize || ''}
-              onChange={e => setSelectedSize(e.target.value || null)}
-              style={{
-                width: '100%', padding: '1rem 1.2rem',
-                border: `1px solid ${selectedSize ? '#2C2C2C' : '#E8DDD3'}`,
-                backgroundColor: '#FFFFFF', color: selectedSize ? '#2C2C2C' : '#9A8F87',
-                fontFamily: "'Jost', sans-serif", fontSize: '0.88rem', fontWeight: 300,
-                cursor: 'pointer', appearance: 'none',
-                backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%239A8F87' stroke-width='1.5' fill='none' stroke-linecap='round'/%3E%3C/svg%3E")`,
-                backgroundRepeat: 'no-repeat', backgroundPosition: 'right 1.2rem center',
-                outline: 'none',
-              }}
-            >
-              <option value="">Select a size</option>
-              {(product.sizes || sizes).map((size) => (
-                <option key={size} value={size}>{size}</option>
-              ))}
-            </select>
+            <div style={{ position: 'relative' }}>
+              {/* Trigger */}
+              <button
+                onClick={() => setSizeDropdownOpen(o => !o)}
+                style={{
+                  width: '100%', padding: '1rem 1.2rem',
+                  border: '1px solid #2C2C2C',
+                  backgroundColor: '#FFFFFF',
+                  display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+                  cursor: 'pointer', fontFamily: "'Jost', sans-serif",
+                  fontSize: '0.88rem', fontWeight: 300,
+                  color: selectedSize ? '#2C2C2C' : '#9A8F87',
+                }}
+              >
+                <span>{selectedSize || 'Select a size'}</span>
+                <svg width="12" height="8" viewBox="0 0 12 8" fill="none" stroke="#9A8F87" strokeWidth="1.5" strokeLinecap="round">
+                  <path d={sizeDropdownOpen ? 'M1 7l5-5 5 5' : 'M1 1l5 5 5-5'} />
+                </svg>
+              </button>
+
+              {/* Dropdown list */}
+              {sizeDropdownOpen && (
+                <div style={{
+                  position: 'absolute', top: '100%', left: 0, right: 0, zIndex: 50,
+                  border: '1px solid #2C2C2C', borderTop: 'none',
+                  backgroundColor: '#FFFFFF', boxShadow: '0 4px 12px rgba(0,0,0,0.08)',
+                }}>
+                  {(product.sizes || sizes).map((size) => (
+                    <button
+                      key={size}
+                      onClick={() => { setSelectedSize(size); setSizeDropdownOpen(false); }}
+                      style={{
+                        width: '100%', padding: '0.85rem 1.2rem',
+                        display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+                        backgroundColor: selectedSize === size ? '#F9F6F3' : '#FFFFFF',
+                        border: 'none', borderBottom: '1px solid #F0EBE5',
+                        cursor: 'pointer', fontFamily: "'Jost', sans-serif", fontSize: '0.88rem',
+                        textAlign: 'left',
+                      }}
+                    >
+                      <span style={{ color: '#2C2C2C', fontWeight: selectedSize === size ? 500 : 300 }}>
+                        {size}
+                      </span>
+                      <span style={{ fontFamily: "'Jost', sans-serif", fontSize: '0.85rem', fontWeight: 300, color: '#2C2C2C' }}>
+                        ₦{product.price?.toLocaleString()}
+                      </span>
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
           </div>
 
           {/* Stock indicator */}
