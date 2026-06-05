@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { useUser } from '../../context/UserContext';
@@ -25,7 +25,7 @@ type Address = {
   is_default: boolean;
 };
 
-export default function AccountPage() {
+function AccountPageInner() {
   const { user, profile, loading, signOut, updateProfile } = useUser();
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -276,6 +276,14 @@ export default function AccountPage() {
         </div>
       )}
     </div>
+  );
+}
+
+export default function AccountPage() {
+  return (
+    <Suspense>
+      <AccountPageInner />
+    </Suspense>
   );
 }
 
