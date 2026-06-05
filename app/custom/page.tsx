@@ -2,7 +2,6 @@
 
 import { useState } from 'react';
 import Link from 'next/link';
-import { supabase } from '../../lib/supabase';
 
 const steps = [
   {
@@ -38,16 +37,10 @@ export default function CustomPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
-    await supabase.from('enquiries').insert({
-      type: 'custom',
-      first_name: form.firstName,
-      last_name: form.lastName,
-      email: form.email,
-      occasion: form.occasion,
-      message: form.vision,
-      budget: form.budget,
-      measurements: { bust: form.bust, waist: form.waist, hips: form.hips, height: form.height, shoulder: form.shoulder, inseam: form.inseam },
-      status: 'unread',
+    await fetch('/api/enquiry', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ type: 'custom', first_name: form.firstName, last_name: form.lastName, email: form.email, occasion: form.occasion, message: form.vision, budget: form.budget, measurements: { bust: form.bust, waist: form.waist, hips: form.hips, height: form.height, shoulder: form.shoulder, inseam: form.inseam } }),
     });
     setSent(true);
     setLoading(false);

@@ -1,7 +1,6 @@
 'use client';
 
 import { useState } from 'react';
-import { supabase } from '../../lib/supabase';
 
 export default function ContactPage() {
   const [form, setForm] = useState({ firstName: '', lastName: '', email: '', subject: '', message: '' });
@@ -11,14 +10,10 @@ export default function ContactPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
-    await supabase.from('enquiries').insert({
-      type: 'contact',
-      first_name: form.firstName,
-      last_name: form.lastName,
-      email: form.email,
-      subject: form.subject,
-      message: form.message,
-      status: 'unread',
+    await fetch('/api/enquiry', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ type: 'contact', first_name: form.firstName, last_name: form.lastName, email: form.email, subject: form.subject, message: form.message }),
     });
     setSent(true);
     setLoading(false);
