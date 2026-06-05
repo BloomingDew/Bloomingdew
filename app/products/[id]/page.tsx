@@ -140,12 +140,17 @@ export default function ProductPage({ params }: { params: Promise<{ id: string }
             overflow: 'hidden', display: 'flex', alignItems: 'center', justifyContent: 'center',
           }}>
             {product.images[activeImage] ? (
-              <img src={product.images[activeImage].url} alt={product.images[activeImage].alt_text || product.name} style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
+              <img
+                src={product.images[activeImage].url}
+                alt={product.images[activeImage].alt_text || product.name}
+                style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
+                onError={e => { (e.target as HTMLImageElement).style.display = 'none'; }}
+              />
             ) : (
               <span style={{
                 fontFamily: "'Jost', sans-serif", fontSize: '0.65rem', letterSpacing: '0.15em', textTransform: 'uppercase', color: '#9A8F87',
               }}>
-                Main photo coming soon
+                Photo coming soon
               </span>
             )}
           </div>
