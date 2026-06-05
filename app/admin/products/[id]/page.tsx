@@ -27,7 +27,7 @@ export default function EditProductPage({ params }: { params: Promise<{ id: stri
   const [success, setSuccess] = useState('');
 
   const [form, setForm] = useState({
-    name: '', price: '', category_id: '',
+    name: '', price: '', category_id: '', discount: '0',
     description: '', fabric: '', care_instructions: '',
     available: true, made_to_order: true, lead_time: '2–4 weeks',
   });
@@ -46,7 +46,7 @@ export default function EditProductPage({ params }: { params: Promise<{ id: stri
 
     if (data) {
       setForm({
-        name: data.name, price: data.price.toString(),
+        name: data.name, price: data.price.toString(), discount: (data.discount || 0).toString(),
         category_id: data.category_id?.toString() || '',
         description: data.description || '', fabric: data.fabric || '',
         care_instructions: data.care_instructions || '',
@@ -132,6 +132,7 @@ export default function EditProductPage({ params }: { params: Promise<{ id: stri
     const { error } = await supabase.from('products').update({
       name: form.name,
       price: parseFloat(form.price),
+      discount: parseInt(form.discount) || 0,
       category_id: form.category_id ? parseInt(form.category_id) : null,
       description: form.description,
       fabric: form.fabric,
@@ -189,6 +190,15 @@ export default function EditProductPage({ params }: { params: Promise<{ id: stri
               <div>
                 <label style={labelStyle}>Price (₦) *</label>
                 <input required type="number" step="0.01" style={inputStyle} value={form.price} onChange={e => setForm({ ...form, price: e.target.value })} />
+              </div>
+              <div>
+                <label style={labelStyle}>Discount (%)</label>
+                <input type="number" min="0" max="100" style={inputStyle} value={form.discount} onChange={e => setForm({ ...form, discount: e.target.value })} placeholder="0" />
+                {parseInt(form.discount) > 0 && form.price && (
+                  <p style={{ fontFamily: "'Jost', sans-serif", fontSize: '0.72rem', color: '#C0392B', marginTop: '0.4rem' }}>
+                    Sale price: ₦{Math.round(parseFloat(form.price) * (1 - parseInt(form.discount) / 100)).toLocaleString()}
+                  </p>
+                )}
               </div>
               <div>
                 <label style={labelStyle}>Category</label>

@@ -6,6 +6,7 @@ export type Product = {
   slug: string;
   description: string;
   price: number;
+  discount: number;
   category: string;
   category_slug: string;
   available: boolean;
@@ -75,6 +76,7 @@ function normalise(data: any): Product {
     slug: data.slug,
     description: data.description || '',
     price: data.price,
+    discount: data.discount || 0,
     category: data.categories?.name || '',
     category_slug: data.categories?.slug || '',
     available: data.available,

@@ -185,9 +185,25 @@ export default function ProductPage({ params }: { params: Promise<{ id: string }
           <h1 style={{ fontFamily: "'Playfair Display', serif", fontSize: 'clamp(1.6rem, 3vw, 2.2rem)', fontWeight: 500, color: '#2C2C2C', marginBottom: '1rem', lineHeight: 1.2 }}>
             {product.name}
           </h1>
-          <p style={{ fontFamily: "'Jost', sans-serif", fontSize: '1.1rem', fontWeight: 300, color: '#2C2C2C', marginBottom: '2rem' }}>
-            ₦{product.price}
-          </p>
+          <div style={{ marginBottom: '2rem' }}>
+            {product.discount > 0 ? (
+              <div style={{ display: 'flex', alignItems: 'baseline', gap: '0.75rem', flexWrap: 'wrap' }}>
+                <p style={{ fontFamily: "'Jost', sans-serif", fontSize: '1.1rem', fontWeight: 400, color: '#C0392B' }}>
+                  ₦{Math.round(product.price * (1 - product.discount / 100)).toLocaleString()}
+                </p>
+                <p style={{ fontFamily: "'Jost', sans-serif", fontSize: '0.95rem', fontWeight: 300, color: '#9A8F87', textDecoration: 'line-through' }}>
+                  ₦{product.price.toLocaleString()}
+                </p>
+                <span style={{ fontFamily: "'Jost', sans-serif", fontSize: '0.78rem', color: '#C0392B', fontWeight: 400 }}>
+                  -{product.discount}%
+                </span>
+              </div>
+            ) : (
+              <p style={{ fontFamily: "'Jost', sans-serif", fontSize: '1.1rem', fontWeight: 300, color: '#2C2C2C' }}>
+                ₦{product.price.toLocaleString()}
+              </p>
+            )}
+          </div>
           <p style={{ fontFamily: "'Jost', sans-serif", fontSize: '0.9rem', fontWeight: 300, color: '#5C5450', lineHeight: 1.8, marginBottom: '2.5rem' }}>
             {product.description}
           </p>

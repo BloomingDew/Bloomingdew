@@ -6,7 +6,7 @@ import { useWishlist } from '../context/WishlistContext';
 import { supabase } from '../lib/supabase';
 
 type Category = { id: number; name: string; slug: string; image_url: string | null };
-type FeaturedProduct = { id: number; name: string; price: number; product_images: { url: string }[] };
+type FeaturedProduct = { id: number; name: string; price: number; discount: number; product_images: { url: string }[] };
 
 export default function Home() {
   const [categories, setCategories] = useState<Category[]>([]);
@@ -15,7 +15,7 @@ export default function Home() {
   useEffect(() => {
     supabase.from('categories').select('id, name, slug, image_url').order('name')
       .then(({ data }) => setCategories(data || []));
-    supabase.from('products').select('id, name, price, product_images(url)')
+    supabase.from('products').select('id, name, price, discount, product_images(url)')
       .eq('featured', true).eq('available', true).limit(8)
       .then(({ data }) => setFeaturedProducts(data || []));
   }, []);
@@ -324,9 +324,15 @@ function FeaturedCard({ product }: { product: FeaturedProduct }) {
         <p style={{ fontFamily: "'Jost', sans-serif", fontSize: '0.85rem', fontWeight: 400, color: '#2C2C2C', marginBottom: '0.3rem' }}>
           {product.name}
         </p>
-        <p style={{ fontFamily: "'Jost', sans-serif", fontSize: '0.85rem', fontWeight: 300, color: '#9A8F87' }}>
-          ₦{product.price}
-        </p>
+        {product.discount > 0 ? (
+          <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'baseline' }}>
+            <p style={{ fontFamily: "'Jost', sans-serif", fontSize: '0.85rem', fontWeight: 400, color: '#C0392B' }}>₦{Math.round(product.price * (1 - product.discount / 100)).toLocaleString()}</p>
+            <p style={{ fontFamily: "'Jost', sans-serif", fontSize: '0.78rem', fontWeight: 300, color: '#9A8F87', textDecoration: 'line-through' }}>₦{product.price.toLocaleString()}</p>
+            <p style={{ fontFamily: "'Jost', sans-serif", fontSize: '0.72rem', color: '#C0392B' }}>-{product.discount}%</p>
+          </div>
+        ) : (
+          <p style={{ fontFamily: "'Jost', sans-serif", fontSize: '0.85rem', fontWeight: 300, color: '#9A8F87' }}>₦{product.price.toLocaleString()}</p>
+        )}
       </div>
     </Link>
   );

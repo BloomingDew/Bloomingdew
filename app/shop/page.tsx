@@ -158,7 +158,17 @@ function ProductCard({ product }: { product: Product }) {
             <p style={{ fontFamily: "'Jost', sans-serif", fontSize: '0.88rem', fontWeight: 400, color: '#2C2C2C', marginBottom: '0.25rem' }}>{product.name}</p>
             <p style={{ fontFamily: "'Jost', sans-serif", fontSize: '0.75rem', letterSpacing: '0.08em', color: '#9A8F87', textTransform: 'uppercase' }}>{product.category}</p>
           </div>
-          <p style={{ fontFamily: "'Jost', sans-serif", fontSize: '0.88rem', fontWeight: 300, color: '#2C2C2C' }}>₦{product.price}</p>
+          <div style={{ textAlign: 'right' }}>
+            {product.discount > 0 ? (
+              <>
+                <p style={{ fontFamily: "'Jost', sans-serif", fontSize: '0.88rem', fontWeight: 300, color: '#9A8F87', textDecoration: 'line-through' }}>₦{product.price.toLocaleString()}</p>
+                <p style={{ fontFamily: "'Jost', sans-serif", fontSize: '0.88rem', fontWeight: 400, color: '#C0392B' }}>₦{Math.round(product.price * (1 - product.discount / 100)).toLocaleString()}</p>
+                <p style={{ fontFamily: "'Jost', sans-serif", fontSize: '0.72rem', color: '#C0392B' }}>-{product.discount}%</p>
+              </>
+            ) : (
+              <p style={{ fontFamily: "'Jost', sans-serif", fontSize: '0.88rem', fontWeight: 300, color: '#2C2C2C' }}>₦{product.price.toLocaleString()}</p>
+            )}
+          </div>
         </div>
       </div>
     </Link>
