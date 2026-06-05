@@ -4,7 +4,7 @@ import { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
 import { supabase } from '../lib/supabase';
 
-type Product = { id: number; name: string; price: number; discount: number; categories: { name: string } | null; product_images: { url: string }[] };
+type Product = { id: number; name: string; price: number; discount: number; categories: { name: string }[] | null; product_images: { url: string }[] };
 
 type Props = { isOpen: boolean; onClose: () => void };
 
@@ -105,7 +105,7 @@ export default function SearchOverlay({ isOpen, onClose }: Props) {
 
         {results.map((product) => {
           const image = product.product_images?.[0]?.url;
-          const category = (product.categories as any)?.name || '';
+          const category = Array.isArray(product.categories) ? product.categories[0]?.name : (product.categories as any)?.name || '';
           const salePrice = product.discount > 0 ? Math.round(product.price * (1 - product.discount / 100)) : null;
           return (
             <Link key={product.id} href={`/products/${product.id}`} onClick={onClose} style={{ textDecoration: 'none' }}>
