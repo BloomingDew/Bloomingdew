@@ -14,7 +14,7 @@ export default function CheckoutPage() {
 
   const [shipping, setShipping] = useState({
     firstName: '', lastName: '', email: '', phone: '',
-    address: '', apartment: '', city: '', postcode: '', country: 'United Kingdom',
+    address: '', apartment: '', city: '', postcode: '', country: 'Nigeria',
   });
 
   const handleShippingSubmit = (e: React.FormEvent) => {
@@ -139,24 +139,24 @@ export default function CheckoutPage() {
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', marginBottom: '1rem' }} className="form-row">
                 <div>
                   <label style={labelStyle}>City *</label>
-                  <input required style={inputStyle} value={shipping.city} onChange={e => setShipping({ ...shipping, city: e.target.value })} placeholder="London" />
+                  <input required style={inputStyle} value={shipping.city} onChange={e => setShipping({ ...shipping, city: e.target.value })} placeholder="Lagos" />
                 </div>
                 <div>
-                  <label style={labelStyle}>Postcode *</label>
-                  <input required style={inputStyle} value={shipping.postcode} onChange={e => setShipping({ ...shipping, postcode: e.target.value })} placeholder="SW1A 1AA" />
+                  <label style={labelStyle}>Postal Code *</label>
+                  <input required style={inputStyle} value={shipping.postcode} onChange={e => setShipping({ ...shipping, postcode: e.target.value })} placeholder="100001" />
                 </div>
               </div>
 
               <div style={{ marginBottom: '2rem' }}>
                 <label style={labelStyle}>Country *</label>
                 <select required style={inputStyle} value={shipping.country} onChange={e => setShipping({ ...shipping, country: e.target.value })}>
+                  <option>Nigeria</option>
                   <option>United Kingdom</option>
                   <option>United States</option>
                   <option>Canada</option>
                   <option>Australia</option>
                   <option>France</option>
                   <option>Germany</option>
-                  <option>Nigeria</option>
                   <option>Ghana</option>
                   <option>Other</option>
                 </select>

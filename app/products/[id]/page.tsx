@@ -107,7 +107,7 @@ export default function ProductPage({ params }: { params: Promise<{ id: string }
     'Handmade to order',
     `Available in sizes ${(product.sizes || []).join(', ')}`,
     product.care_instructions && product.care_instructions,
-    'Made in the UK',
+    'Made in Nigeria',
   ].filter(Boolean) as string[];
 
   return (
