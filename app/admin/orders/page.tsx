@@ -79,6 +79,11 @@ export default function OrdersPage() {
     await supabase.from('orders').update({ notes }).eq('id', orderId);
   };
 
+  const saveTracking = async (orderId: string, tracking_number: string, tracking_url: string) => {
+    await supabase.from('orders').update({ tracking_number, tracking_url }).eq('id', orderId);
+    setOrders(prev => prev.map(o => o.id === orderId ? { ...o, tracking_number, tracking_url } : o));
+  };
+
   const filtered = filterStatus === 'all' ? orders : orders.filter(o => o.status === filterStatus);
 
   return (
@@ -197,7 +202,27 @@ export default function OrdersPage() {
                     </p>
                     <p style={{ fontFamily: "'Jost', sans-serif", fontSize: '0.82rem', color: '#9A8F87', marginTop: '0.5rem' }}>{order.customer_phone}</p>
 
-                    <p style={{ ...detailLabel, marginTop: '1.5rem' }}>Internal Notes</p>
+                    {/* Tracking */}
+                    <p style={{ ...detailLabel, marginTop: '1.5rem' }}>Tracking</p>
+                    <input
+                      key={`tn-${order.id}`}
+                      defaultValue={order.tracking_number || ''}
+                      onBlur={e => saveTracking(order.id, e.target.value, order.tracking_url || '')}
+                      placeholder="Tracking number..."
+                      style={{ width: '100%', padding: '0.6rem 0.75rem', border: '1px solid #E8DDD3', fontFamily: "'Jost', sans-serif", fontSize: '0.82rem', color: '#2C2C2C', outline: 'none', marginBottom: '0.5rem', boxSizing: 'border-box' }}
+                    />
+                    <input
+                      key={`tu-${order.id}`}
+                      defaultValue={order.tracking_url || ''}
+                      onBlur={e => saveTracking(order.id, order.tracking_number || '', e.target.value)}
+                      placeholder="Tracking URL (e.g. https://dhl.com/track/...)"
+                      style={{ width: '100%', padding: '0.6rem 0.75rem', border: '1px solid #E8DDD3', fontFamily: "'Jost', sans-serif", fontSize: '0.82rem', color: '#2C2C2C', outline: 'none', marginBottom: '1rem', boxSizing: 'border-box' }}
+                    />
+                    <p style={{ fontFamily: "'Jost', sans-serif", fontSize: '0.7rem', color: '#9A8F87', marginBottom: '1.5rem' }}>
+                      Tracking info is included in the shipping email when you mark the order as Shipped.
+                    </p>
+
+                    <p style={detailLabel}>Internal Notes</p>
                     <textarea
                       defaultValue={order.notes || ''}
                       onBlur={e => saveNotes(order.id, e.target.value)}
