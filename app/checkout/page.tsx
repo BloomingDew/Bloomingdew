@@ -93,10 +93,19 @@ export default function CheckoutPage() {
     });
 
     if (orderError) {
-      console.error('Order save error:', orderError);
+      console.error('Order save error:', orderError.message, orderError.details, orderError.hint);
       setPaymentError(`Order saved in Stripe but failed to record: ${orderError.message}. Please contact hello@bloomingdew.com with your payment reference: ${paymentIntentId}`);
       setLoading(false);
       return;
+    }
+
+    // Decrement stock for each purchased item
+    for (const item of items) {
+      await supabase.rpc('decrement_stock', {
+        p_product_id: item.id,
+        p_size: item.size,
+        p_quantity: item.quantity,
+      });
     }
 
     if (user) {
