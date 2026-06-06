@@ -1,10 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { Resend } from 'resend';
 
-const resend = new Resend(process.env.RESEND_API_KEY);
-
 export async function POST(req: NextRequest) {
   try {
+    if (!process.env.RESEND_API_KEY) {
+      console.warn('RESEND_API_KEY not set — skipping confirmation email');
+      return NextResponse.json({ success: true, skipped: true });
+    }
+
+    const resend = new Resend(process.env.RESEND_API_KEY);
     const { customerName, customerEmail, items, subtotal, orderTotal, shipping } = await req.json();
 
     const itemRows = items.map((item: any) => `
