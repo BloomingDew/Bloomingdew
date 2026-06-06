@@ -23,6 +23,10 @@ export default function EmailTemplatesPage() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [success, setSuccess] = useState('');
+  const [showNewForm, setShowNewForm] = useState(false);
+  const [newTemplate, setNewTemplate] = useState({ id: '', name: '', subject: '', body: '' });
+  const [creating, setCreating] = useState(false);
+  const [newError, setNewError] = useState('');
 
   useEffect(() => {
     getSession().then(s => { if (!s) router.push('/admin/login'); });
@@ -39,6 +43,31 @@ export default function EmailTemplatesPage() {
     setSelected(t);
     setForm({ subject: t.subject, body: t.body });
     setSuccess('');
+  };
+
+  const handleCreate = async () => {
+    if (!newTemplate.id || !newTemplate.name || !newTemplate.subject || !newTemplate.body) {
+      setNewError('All fields are required.');
+      return;
+    }
+    setCreating(true);
+    setNewError('');
+    const { error } = await supabase.from('email_templates').insert({
+      id: newTemplate.id.toLowerCase().replace(/\s+/g, '-'),
+      name: newTemplate.name,
+      subject: newTemplate.subject,
+      body: newTemplate.body,
+      variables: [],
+    });
+    if (error) {
+      setNewError(error.message);
+      setCreating(false);
+      return;
+    }
+    await fetchTemplates();
+    setShowNewForm(false);
+    setNewTemplate({ id: '', name: '', subject: '', body: '' });
+    setCreating(false);
   };
 
   const handleSave = async () => {
@@ -88,24 +117,95 @@ export default function EmailTemplatesPage() {
               {templates.map(t => (
                 <button
                   key={t.id}
-                  onClick={() => selectTemplate(t)}
+                  onClick={() => { selectTemplate(t); setShowNewForm(false); }}
                   style={{
                     padding: '1.2rem 1.5rem', textAlign: 'left', cursor: 'pointer',
-                    backgroundColor: selected?.id === t.id ? '#2C2C2C' : '#FFFFFF',
-                    color: selected?.id === t.id ? '#FAF7F4' : '#2C2C2C',
+                    backgroundColor: selected?.id === t.id && !showNewForm ? '#2C2C2C' : '#FFFFFF',
+                    color: selected?.id === t.id && !showNewForm ? '#FAF7F4' : '#2C2C2C',
                     border: '1px solid #E8DDD3', transition: 'all 0.15s',
                   }}
                 >
                   <p style={{ fontFamily: "'Jost', sans-serif", fontSize: '0.85rem', fontWeight: 500, margin: '0 0 4px' }}>{t.name}</p>
                   <p style={{ fontFamily: "'Jost', sans-serif", fontSize: '0.72rem', fontWeight: 300, margin: 0, opacity: 0.7 }}>
-                    {selected?.id === t.id ? 'Editing' : 'Click to edit'}
+                    {selected?.id === t.id && !showNewForm ? 'Editing' : 'Click to edit'}
                   </p>
                 </button>
               ))}
+
+              {/* Add new */}
+              <button
+                onClick={() => { setShowNewForm(true); setSelected(null); setNewError(''); }}
+                style={{
+                  padding: '1rem 1.5rem', textAlign: 'left', cursor: 'pointer',
+                  backgroundColor: showNewForm ? '#C9A882' : 'transparent',
+                  color: showNewForm ? '#FAF7F4' : '#C9A882',
+                  border: '1px dashed #C9A882', transition: 'all 0.15s',
+                  fontFamily: "'Jost', sans-serif", fontSize: '0.82rem',
+                  letterSpacing: '0.08em',
+                }}
+              >
+                + New Template
+              </button>
             </div>
 
+            {/* New template form */}
+            {showNewForm ? (
+              <div style={{ backgroundColor: '#FFFFFF', border: '1px solid #E8DDD3', padding: '2rem' }}>
+                <h2 style={{ fontFamily: "'Playfair Display', serif", fontSize: '1.2rem', fontWeight: 500, color: '#2C2C2C', marginBottom: '1.5rem' }}>
+                  New Template
+                </h2>
+
+                <div style={{ marginBottom: '1.2rem' }}>
+                  <label style={labelStyle}>Template ID <span style={{ color: '#9A8F87', fontSize: '0.68rem' }}>(no spaces, e.g. welcome-email)</span></label>
+                  <input value={newTemplate.id} onChange={e => setNewTemplate(p => ({ ...p, id: e.target.value }))} style={inputStyle} placeholder="e.g. welcome-email" />
+                </div>
+
+                <div style={{ marginBottom: '1.2rem' }}>
+                  <label style={labelStyle}>Template Name</label>
+                  <input value={newTemplate.name} onChange={e => setNewTemplate(p => ({ ...p, name: e.target.value }))} style={inputStyle} placeholder="e.g. Welcome Email" />
+                </div>
+
+                <div style={{ marginBottom: '1.2rem' }}>
+                  <label style={labelStyle}>Subject Line</label>
+                  <input value={newTemplate.subject} onChange={e => setNewTemplate(p => ({ ...p, subject: e.target.value }))} style={inputStyle} placeholder="Email subject..." />
+                </div>
+
+                <div style={{ marginBottom: '1.5rem' }}>
+                  <label style={labelStyle}>Email Body</label>
+                  <textarea
+                    value={newTemplate.body}
+                    onChange={e => setNewTemplate(p => ({ ...p, body: e.target.value }))}
+                    rows={12}
+                    style={{ ...inputStyle, resize: 'vertical', lineHeight: 1.7 }}
+                    placeholder="Write your email body here..."
+                  />
+                </div>
+
+                {newError && <p style={{ fontFamily: "'Jost', sans-serif", fontSize: '0.82rem', color: '#C0392B', marginBottom: '1rem' }}>{newError}</p>}
+
+                <div style={{ display: 'flex', gap: '1rem' }}>
+                  <button onClick={handleCreate} disabled={creating} style={{
+                    padding: '1rem 2rem', backgroundColor: '#2C2C2C', color: '#FAF7F4',
+                    fontFamily: "'Jost', sans-serif", fontSize: '0.78rem',
+                    letterSpacing: '0.15em', textTransform: 'uppercase',
+                    border: 'none', cursor: creating ? 'not-allowed' : 'pointer', opacity: creating ? 0.7 : 1,
+                  }}>
+                    {creating ? 'Creating...' : 'Create Template'}
+                  </button>
+                  <button onClick={() => setShowNewForm(false)} style={{
+                    padding: '1rem 2rem', backgroundColor: 'transparent', color: '#2C2C2C',
+                    fontFamily: "'Jost', sans-serif", fontSize: '0.78rem',
+                    letterSpacing: '0.15em', textTransform: 'uppercase',
+                    border: '1px solid #E8DDD3', cursor: 'pointer',
+                  }}>
+                    Cancel
+                  </button>
+                </div>
+              </div>
+            ) : null}
+
             {/* Editor */}
-            {selected ? (
+            {!showNewForm && selected ? (
               <div style={{ backgroundColor: '#FFFFFF', border: '1px solid #E8DDD3', padding: '2rem' }}>
                 <h2 style={{ fontFamily: "'Playfair Display', serif", fontSize: '1.2rem', fontWeight: 500, color: '#2C2C2C', marginBottom: '1.5rem' }}>
                   {selected.name}
@@ -187,16 +287,16 @@ export default function EmailTemplatesPage() {
                   {saving ? 'Saving...' : 'Save Template'}
                 </button>
               </div>
-            ) : (
+            ) : !showNewForm ? (
               <div style={{ backgroundColor: '#FFFFFF', border: '1px solid #E8DDD3', padding: '3rem', textAlign: 'center' }}>
                 <p style={{ fontFamily: "'Playfair Display', serif", fontSize: '1.1rem', color: '#2C2C2C', marginBottom: '0.5rem' }}>
                   Select a template to edit
                 </p>
                 <p style={{ fontFamily: "'Jost', sans-serif", fontSize: '0.85rem', fontWeight: 300, color: '#9A8F87' }}>
-                  Choose from the list on the left.
+                  Choose from the list on the left, or create a new one.
                 </p>
               </div>
-            )}
+            ) : null}
           </div>
         )}
       </div>
