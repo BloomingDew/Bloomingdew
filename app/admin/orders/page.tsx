@@ -20,14 +20,13 @@ type Order = {
   created_at: string;
 };
 
-const STATUSES = ['paid', 'processing', 'shipped', 'delivered', 'cancelled'];
+const STATUSES = ['paid', 'shipped', 'delivered', 'cancelled'];
 const STATUS_LABELS: Record<string, string> = {
-  paid: 'New Order', processing: 'Processing',
-  shipped: 'Shipped', delivered: 'Delivered', cancelled: 'Cancelled',
+  paid: 'New Order', shipped: 'Shipped',
+  delivered: 'Delivered', cancelled: 'Cancelled',
 };
 const STATUS_COLORS: Record<string, { bg: string; color: string }> = {
   paid: { bg: '#FFF3E0', color: '#E65100' },
-  processing: { bg: '#E3F2FD', color: '#1565C0' },
   shipped: { bg: '#F3E5F5', color: '#6A1B9A' },
   delivered: { bg: '#E8F5E9', color: '#2E7D32' },
   cancelled: { bg: '#FFEBEE', color: '#C62828' },
@@ -71,7 +70,6 @@ export default function OrdersPage() {
           {[
             { label: 'Total Orders', value: orders.length },
             { label: 'New Orders', value: orders.filter(o => o.status === 'paid').length },
-            { label: 'Processing', value: orders.filter(o => o.status === 'processing').length },
             { label: 'Shipped', value: orders.filter(o => o.status === 'shipped').length },
             { label: 'Delivered', value: orders.filter(o => o.status === 'delivered').length },
           ].map(({ label, value }) => (
