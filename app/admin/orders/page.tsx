@@ -17,6 +17,8 @@ type Order = {
   total: number;
   status: string;
   notes: string;
+  tracking_number?: string;
+  tracking_url?: string;
   created_at: string;
 };
 
@@ -53,6 +55,24 @@ export default function OrdersPage() {
   const updateStatus = async (orderId: string, status: string) => {
     await supabase.from('orders').update({ status }).eq('id', orderId);
     setOrders(prev => prev.map(o => o.id === orderId ? { ...o, status } : o));
+
+    // Fire shipping email when status changes to shipped
+    if (status === 'shipped') {
+      const order = orders.find(o => o.id === orderId);
+      if (order) {
+        fetch('/api/email/shipping-notification', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            customerName: order.customer_name,
+            customerEmail: order.customer_email,
+            items: order.items,
+            trackingNumber: order.tracking_number || null,
+            trackingUrl: order.tracking_url || null,
+          }),
+        }).catch(err => console.error('Shipping email error:', err));
+      }
+    }
   };
 
   const saveNotes = async (orderId: string, notes: string) => {

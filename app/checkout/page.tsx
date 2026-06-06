@@ -124,6 +124,26 @@ export default function CheckoutPage() {
       });
     }
 
+    // Send order confirmation email (non-blocking)
+    fetch('/api/email/order-confirmation', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        customerName: `${shipping.firstName} ${shipping.lastName}`,
+        customerEmail: shipping.email,
+        items: items.map(i => ({ name: i.name, size: i.size, quantity: i.quantity, price: i.price })),
+        subtotal: totalPrice,
+        orderTotal,
+        shipping: {
+          address: shipping.address,
+          apartment: shipping.apartment,
+          city: shipping.city,
+          postcode: shipping.postcode,
+          country: shipping.country,
+        },
+      }),
+    }).catch(err => console.error('Email send error:', err));
+
     clearCart();
     router.push('/order-confirmation');
   };
