@@ -9,6 +9,7 @@ const navLinks = [
   { label: 'Orders', href: '/admin/orders' },
   { label: 'Enquiries', href: '/admin/enquiries' },
   { label: 'Homepage', href: '/admin/homepage' },
+  { label: 'Email Templates', href: '/admin/email-templates' },
 ];
 
 export default function AdminTopbar() {
