@@ -71,7 +71,7 @@ export default function CheckoutPage() {
   const [paymentError, setPaymentError] = useState('');
 
   const saveOrderAndRedirect = async (paymentIntentId: string) => {
-    await supabase.from('orders').insert({
+    const { error: orderError } = await supabase.from('orders').insert({
       customer_name: `${shipping.firstName} ${shipping.lastName}`,
       customer_email: shipping.email,
       customer_phone: shipping.phone,
@@ -91,6 +91,13 @@ export default function CheckoutPage() {
       payment_intent_id: paymentIntentId,
       payment_method: 'stripe',
     });
+
+    if (orderError) {
+      console.error('Order save error:', orderError);
+      setPaymentError(`Order saved in Stripe but failed to record: ${orderError.message}. Please contact hello@bloomingdew.com with your payment reference: ${paymentIntentId}`);
+      setLoading(false);
+      return;
+    }
 
     if (user) {
       await supabase.from('addresses').insert({
