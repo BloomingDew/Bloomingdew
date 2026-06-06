@@ -87,7 +87,7 @@ export default function NewProductPage() {
         fabric: form.fabric,
         care_instructions: form.care_instructions,
         available: form.available,
-        made_to_order: form.made_to_order,
+        made_to_order: false,
         lead_time: form.lead_time,
       })
       .select()
@@ -103,7 +103,7 @@ export default function NewProductPage() {
     }
 
     // Save per-size inventory
-    if (!form.made_to_order) {
+    if (true) {
       await supabase.from('product_size_inventory').insert(
         sizeInventory.map(s => ({ product_id: product.id, size: s.size, quantity: s.quantity }))
       );
@@ -245,43 +245,37 @@ export default function NewProductPage() {
           {/* Availability & Stock */}
           <div style={card}>
             <h3 style={cardHeading}>Availability & Stock</h3>
-            <div style={{ display: 'flex', gap: '2rem', marginBottom: '1.5rem' }}>
+            <div style={{ marginBottom: '1.5rem' }}>
               <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer', fontFamily: "'Jost', sans-serif", fontSize: '0.85rem', color: '#2C2C2C' }}>
                 <input type="checkbox" checked={form.available} onChange={e => setForm({ ...form, available: e.target.checked })} />
                 Visible on site
               </label>
-              <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer', fontFamily: "'Jost', sans-serif", fontSize: '0.85rem', color: '#2C2C2C' }}>
-                <input type="checkbox" checked={form.made_to_order} onChange={e => setForm({ ...form, made_to_order: e.target.checked })} />
-                Made to order (no stock limit)
-              </label>
             </div>
 
-            {!form.made_to_order && (
-              <div>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: '1rem' }}>
-                  <label style={labelStyle}>Stock per Size</label>
-                  <span style={{ fontFamily: "'Jost', sans-serif", fontSize: '0.75rem', color: '#9A8F87' }}>
-                    Total: {totalStock} units
-                  </span>
-                </div>
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(8, 1fr)', gap: '0.75rem' }}>
-                  {sizeInventory.map(({ size, quantity }) => (
-                    <div key={size} style={{ textAlign: 'center' }}>
-                      <label style={{ ...labelStyle, textAlign: 'center', marginBottom: '0.4rem' }}>{size}</label>
-                      <input
-                        type="number" min="0"
-                        value={quantity}
-                        onChange={e => setSizeInventory(prev => prev.map(s => s.size === size ? { ...s, quantity: parseInt(e.target.value) || 0 } : s))}
-                        style={{ ...inputStyle, textAlign: 'center', padding: '0.6rem 0.4rem' }}
-                      />
-                      <p style={{ fontFamily: "'Jost', sans-serif", fontSize: '0.65rem', color: quantity === 0 ? '#C0392B' : quantity <= 3 ? '#E65100' : '#2E7D32', marginTop: '0.3rem' }}>
-                        {quantity === 0 ? 'Sold out' : quantity <= 3 ? 'Low stock' : 'In stock'}
-                      </p>
-                    </div>
-                  ))}
-                </div>
+            <div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: '1rem' }}>
+                <label style={labelStyle}>Stock per Size</label>
+                <span style={{ fontFamily: "'Jost', sans-serif", fontSize: '0.75rem', color: '#9A8F87' }}>
+                  Total: {totalStock} units
+                </span>
               </div>
-            )}
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(8, 1fr)', gap: '0.75rem' }}>
+                {sizeInventory.map(({ size, quantity }) => (
+                  <div key={size} style={{ textAlign: 'center' }}>
+                    <label style={{ ...labelStyle, textAlign: 'center', marginBottom: '0.4rem' }}>{size}</label>
+                    <input
+                      type="number" min="0"
+                      value={quantity}
+                      onChange={e => setSizeInventory(prev => prev.map(s => s.size === size ? { ...s, quantity: parseInt(e.target.value) || 0 } : s))}
+                      style={{ ...inputStyle, textAlign: 'center', padding: '0.6rem 0.4rem' }}
+                    />
+                    <p style={{ fontFamily: "'Jost', sans-serif", fontSize: '0.65rem', color: quantity === 0 ? '#C0392B' : quantity <= 3 ? '#E65100' : '#2E7D32', marginTop: '0.3rem' }}>
+                      {quantity === 0 ? 'Sold out' : quantity <= 3 ? 'Low stock' : 'In stock'}
+                    </p>
+                  </div>
+                ))}
+              </div>
+            </div>
           </div>
 
           {error && <p style={{ fontFamily: "'Jost', sans-serif", fontSize: '0.82rem', color: '#C0392B' }}>{error}</p>}
