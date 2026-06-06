@@ -20,14 +20,14 @@ type Order = {
   created_at: string;
 };
 
-const STATUSES = ['pending', 'in_production', 'shipped', 'delivered', 'cancelled'];
+const STATUSES = ['paid', 'processing', 'shipped', 'delivered', 'cancelled'];
 const STATUS_LABELS: Record<string, string> = {
-  pending: 'Pending', in_production: 'In Production',
+  paid: 'New Order', processing: 'Processing',
   shipped: 'Shipped', delivered: 'Delivered', cancelled: 'Cancelled',
 };
 const STATUS_COLORS: Record<string, { bg: string; color: string }> = {
-  pending: { bg: '#FFF3E0', color: '#E65100' },
-  in_production: { bg: '#E3F2FD', color: '#1565C0' },
+  paid: { bg: '#FFF3E0', color: '#E65100' },
+  processing: { bg: '#E3F2FD', color: '#1565C0' },
   shipped: { bg: '#F3E5F5', color: '#6A1B9A' },
   delivered: { bg: '#E8F5E9', color: '#2E7D32' },
   cancelled: { bg: '#FFEBEE', color: '#C62828' },
@@ -70,8 +70,8 @@ export default function OrdersPage() {
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: '1rem', marginBottom: '2.5rem' }}>
           {[
             { label: 'Total Orders', value: orders.length },
-            { label: 'Pending', value: orders.filter(o => o.status === 'pending').length },
-            { label: 'In Production', value: orders.filter(o => o.status === 'in_production').length },
+            { label: 'New Orders', value: orders.filter(o => o.status === 'paid').length },
+            { label: 'Processing', value: orders.filter(o => o.status === 'processing').length },
             { label: 'Shipped', value: orders.filter(o => o.status === 'shipped').length },
             { label: 'Delivered', value: orders.filter(o => o.status === 'delivered').length },
           ].map(({ label, value }) => (
