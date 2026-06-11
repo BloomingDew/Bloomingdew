@@ -70,82 +70,39 @@ export default function CheckoutPage() {
 
   const [paymentError, setPaymentError] = useState('');
 
+  // Stripe has confirmed payment on the client; now finalize the order on the
+  // server, which verifies the payment with Stripe before recording anything.
   const saveOrderAndRedirect = async (paymentIntentId: string) => {
-    const { error: orderError } = await supabase.from('orders').insert({
-      customer_name: `${shipping.firstName} ${shipping.lastName}`,
-      customer_email: shipping.email,
-      customer_phone: shipping.phone,
-      user_id: user?.id ?? null,
-      shipping_address: {
-        address: shipping.address,
-        apartment: shipping.apartment,
-        city: shipping.city,
-        postcode: shipping.postcode,
-        country: shipping.country,
-      },
-      items: items.map(i => ({ id: i.id, name: i.name, size: i.size, quantity: i.quantity, price: i.price })),
-      subtotal: totalPrice,
-      shipping_cost: shippingCost,
-      total: orderTotal,
-      status: 'paid',
-      payment_intent_id: paymentIntentId,
-      payment_method: 'stripe',
-    });
+    try {
+      const res = await fetch('/api/orders/create', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          paymentIntentId,
+          items: items.map(i => ({ id: i.id, size: i.size, quantity: i.quantity })),
+          shipping,
+          userId: user?.id ?? null,
+        }),
+      });
+      const data = await res.json().catch(() => ({}));
 
-    if (orderError) {
-      console.error('Order save error:', orderError.message, orderError.details, orderError.hint);
-      setPaymentError(`Order saved in Stripe but failed to record: ${orderError.message}. Please contact hello@bloomingdew.com with your payment reference: ${paymentIntentId}`);
+      if (!res.ok) {
+        setPaymentError(
+          data.error ||
+            `Your payment went through but we hit a snag recording the order. Please contact hello@bloomingdew.com with your payment reference: ${paymentIntentId}`,
+        );
+        setLoading(false);
+        return;
+      }
+
+      clearCart();
+      router.push(`/order-confirmation?ref=${encodeURIComponent(data.orderId || paymentIntentId)}`);
+    } catch {
+      setPaymentError(
+        `Your payment went through but we couldn't confirm the order. Please contact hello@bloomingdew.com with your payment reference: ${paymentIntentId}`,
+      );
       setLoading(false);
-      return;
     }
-
-    // Decrement stock for each purchased item
-    for (const item of items) {
-      await supabase.rpc('decrement_stock', {
-        p_product_id: item.id,
-        p_size: item.size,
-        p_quantity: item.quantity,
-      });
-    }
-
-    if (user) {
-      await supabase.from('addresses').insert({
-        user_id: user.id,
-        label: 'Shipping',
-        first_name: shipping.firstName,
-        last_name: shipping.lastName,
-        address: shipping.address,
-        apartment: shipping.apartment,
-        city: shipping.city,
-        postcode: shipping.postcode,
-        country: shipping.country,
-        phone: shipping.phone,
-        is_default: false,
-      });
-    }
-
-    // Send order confirmation email (non-blocking)
-    fetch('/api/email/order-confirmation', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        customerName: `${shipping.firstName} ${shipping.lastName}`,
-        customerEmail: shipping.email,
-        items: items.map(i => ({ name: i.name, size: i.size, quantity: i.quantity, price: i.price })),
-        subtotal: totalPrice,
-        orderTotal,
-        shipping: {
-          address: shipping.address,
-          apartment: shipping.apartment,
-          city: shipping.city,
-          postcode: shipping.postcode,
-          country: shipping.country,
-        },
-      }),
-    }).catch(err => console.error('Email send error:', err));
-
-    clearCart();
-    router.push('/order-confirmation');
   };
 
   const shippingCost = 0;
@@ -304,6 +261,7 @@ export default function CheckoutPage() {
               {/* Stripe payment form */}
               <StripePaymentForm
                 amount={orderTotal}
+                items={items.map(i => ({ id: i.id, size: i.size, quantity: i.quantity }))}
                 loading={loading}
                 setLoading={setLoading}
                 onSuccess={saveOrderAndRedirect}

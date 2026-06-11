@@ -9,6 +9,19 @@ import { supabase } from '../../lib/supabase';
 export default function WishlistPage() {
   const { items, removeItem } = useWishlist();
   const { addItem, openCart } = useCart();
+  const [images, setImages] = useState<Record<number, string>>({});
+
+  // Fetch all wishlist images in a single query instead of one per card.
+  useEffect(() => {
+    if (items.length === 0) return;
+    const ids = [...new Set(items.map(i => i.id))];
+    supabase.from('product_images').select('product_id, url').in('product_id', ids).order('position')
+      .then(({ data }) => {
+        const map: Record<number, string> = {};
+        (data || []).forEach(row => { if (!map[row.product_id]) map[row.product_id] = row.url; });
+        setImages(map);
+      });
+  }, [items]);
 
   const handleAddToCart = (item: { id: number; name: string; price: string; originalPrice?: string }) => {
     addItem({ id: item.id, name: item.name, price: item.price, originalPrice: item.originalPrice, size: 'M', quantity: 1 });
@@ -45,7 +58,7 @@ export default function WishlistPage() {
       ) : (
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))', gap: '2rem' }}>
           {items.map((item) => (
-            <WishlistCard key={item.id} item={item} onRemove={() => removeItem(item.id)} onAddToCart={() => handleAddToCart({ id: item.id, name: item.name, price: item.price, originalPrice: item.originalPrice })} />
+            <WishlistCard key={item.id} item={item} imageUrl={images[item.id] ?? null} onRemove={() => removeItem(item.id)} onAddToCart={() => handleAddToCart({ id: item.id, name: item.name, price: item.price, originalPrice: item.originalPrice })} />
           ))}
         </div>
       )}
@@ -53,18 +66,13 @@ export default function WishlistPage() {
   );
 }
 
-function WishlistCard({ item, onRemove, onAddToCart }: {
+function WishlistCard({ item, imageUrl, onRemove, onAddToCart }: {
   item: { id: number; name: string; price: string; originalPrice?: string; category: string };
+  imageUrl: string | null;
   onRemove: () => void;
   onAddToCart: () => void;
 }) {
   const [hovered, setHovered] = useState(false);
-  const [imageUrl, setImageUrl] = useState<string | null>(null);
-
-  useEffect(() => {
-    supabase.from('product_images').select('url').eq('product_id', item.id).order('position').limit(1).single()
-      .then(({ data }) => setImageUrl(data?.url ?? null));
-  }, [item.id]);
 
   return (
     <div onMouseEnter={() => setHovered(true)} onMouseLeave={() => setHovered(false)}>

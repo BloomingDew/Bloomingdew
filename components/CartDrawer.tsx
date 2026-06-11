@@ -37,6 +37,18 @@ function CountdownTimer({ expiresAt }: { expiresAt: Date }) {
 export default function CartDrawer() {
   const { items, isOpen, closeCart, removeItem, updateQuantity, totalPrice, totalItems } = useCart();
   const router = useRouter();
+  const [stockErrors, setStockErrors] = useState<Record<string, string>>({});
+
+  const handleQuantity = async (id: number, size: string, quantity: number) => {
+    const key = `${id}-${size}`;
+    const result = await updateQuantity(id, size, quantity);
+    setStockErrors(prev => {
+      const next = { ...prev };
+      if (result.success) delete next[key];
+      else next[key] = result.message || 'Unable to update quantity.';
+      return next;
+    });
+  };
 
   return (
     <>
@@ -148,7 +160,7 @@ export default function CartDrawer() {
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                       <div style={{ display: 'flex', alignItems: 'center', border: '1px solid #E8DDD3' }}>
                         <button
-                          onClick={() => updateQuantity(item.id, item.size, item.quantity - 1)}
+                          onClick={() => handleQuantity(item.id, item.size, item.quantity - 1)}
                           style={{ width: '32px', height: '32px', background: 'none', border: 'none', cursor: 'pointer', color: '#2C2C2C', fontSize: '1rem' }}>
                           −
                         </button>
@@ -156,7 +168,7 @@ export default function CartDrawer() {
                           {item.quantity}
                         </span>
                         <button
-                          onClick={() => updateQuantity(item.id, item.size, item.quantity + 1)}
+                          onClick={() => handleQuantity(item.id, item.size, item.quantity + 1)}
                           style={{ width: '32px', height: '32px', background: 'none', border: 'none', cursor: 'pointer', color: '#2C2C2C', fontSize: '1rem' }}>
                           +
                         </button>
@@ -179,6 +191,11 @@ export default function CartDrawer() {
                         </button>
                       </div>
                     </div>
+                    {stockErrors[`${item.id}-${item.size}`] && (
+                      <p style={{ fontFamily: "'Jost', sans-serif", fontSize: '0.72rem', color: '#C0392B', marginTop: '0.5rem' }}>
+                        {stockErrors[`${item.id}-${item.size}`]}
+                      </p>
+                    )}
                   </div>
                 </div>
               ))}

@@ -1,6 +1,11 @@
 import Link from 'next/link';
 
-export default function OrderConfirmationPage() {
+export default async function OrderConfirmationPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ ref?: string }>;
+}) {
+  const { ref } = await searchParams;
   return (
     <div style={{ minHeight: '80vh', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '4rem 2rem' }}>
       <div style={{ maxWidth: '560px', width: '100%', textAlign: 'center' }}>
@@ -23,9 +28,23 @@ export default function OrderConfirmationPage() {
         <h1 style={{ fontFamily: "'Playfair Display', serif", fontSize: 'clamp(1.8rem, 4vw, 2.8rem)', fontWeight: 500, color: '#2C2C2C', marginBottom: '1.2rem', lineHeight: 1.2 }}>
           Thank you for your order.
         </h1>
-        <p style={{ fontFamily: "'Jost', sans-serif", fontSize: '0.92rem', fontWeight: 300, color: '#9A8F87', lineHeight: 1.9, marginBottom: '2.5rem' }}>
+        <p style={{ fontFamily: "'Jost', sans-serif", fontSize: '0.92rem', fontWeight: 300, color: '#9A8F87', lineHeight: 1.9, marginBottom: ref ? '1.5rem' : '2.5rem' }}>
           We've received your order and we're so excited to make something beautiful for you. You'll receive a confirmation email shortly, and we'll be in touch within 48 hours.
         </p>
+
+        {ref && (
+          <div style={{ display: 'inline-block', padding: '0.75rem 1.5rem', backgroundColor: '#FAF7F4', border: '1px solid #E8DDD3', marginBottom: '2.5rem' }}>
+            <p style={{ fontFamily: "'Jost', sans-serif", fontSize: '0.68rem', letterSpacing: '0.14em', textTransform: 'uppercase', color: '#C9A882', marginBottom: '0.3rem' }}>
+              Your Order Reference
+            </p>
+            <p style={{ fontFamily: "'Jost', sans-serif", fontSize: '0.95rem', color: '#2C2C2C', letterSpacing: '0.05em' }}>
+              {ref}
+            </p>
+            <p style={{ fontFamily: "'Jost', sans-serif", fontSize: '0.72rem', fontWeight: 300, color: '#9A8F87', marginTop: '0.3rem' }}>
+              Please keep this for your records.
+            </p>
+          </div>
+        )}
 
         {/* Info boxes */}
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', marginBottom: '3rem', textAlign: 'left' }}>

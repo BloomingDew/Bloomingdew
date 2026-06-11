@@ -34,7 +34,7 @@ export async function getProducts(categorySlug?: string): Promise<Product[]> {
   }
 
   const { data, error } = await query;
-  if (error) { console.error(error); return []; }
+  if (error) throw error;
 
   return (data || []).map(normalise).filter(Boolean) as Product[];
 }
@@ -50,7 +50,12 @@ export async function getProductById(id: number): Promise<Product | null> {
     .eq('id', id)
     .single();
 
-  if (error || !data) return null;
+  // PGRST116 = no rows found (genuine 404); anything else is a real failure.
+  if (error) {
+    if (error.code === 'PGRST116') return null;
+    throw error;
+  }
+  if (!data) return null;
   return normalise(data);
 }
 

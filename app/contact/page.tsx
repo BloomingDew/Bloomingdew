@@ -6,17 +6,29 @@ export default function ContactPage() {
   const [form, setForm] = useState({ firstName: '', lastName: '', email: '', subject: '', message: '' });
   const [loading, setLoading] = useState(false);
   const [sent, setSent] = useState(false);
+  const [error, setError] = useState('');
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
-    await fetch('/api/enquiry', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ type: 'contact', first_name: form.firstName, last_name: form.lastName, email: form.email, subject: form.subject, message: form.message }),
-    });
-    setSent(true);
-    setLoading(false);
+    setError('');
+    try {
+      const res = await fetch('/api/enquiry', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ type: 'contact', first_name: form.firstName, last_name: form.lastName, email: form.email, subject: form.subject, message: form.message }),
+      });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        setError(data.error || 'Something went wrong. Please try again or email hello@bloomingdew.com.');
+        return;
+      }
+      setSent(true);
+    } catch {
+      setError('Could not reach the server. Please check your connection and try again.');
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -105,6 +117,11 @@ export default function ContactPage() {
               <label style={labelStyle}>Message</label>
               <textarea required style={{ ...inputStyle, minHeight: '140px', resize: 'vertical' }} placeholder="How can we help?" value={form.message} onChange={e => setForm({...form, message: e.target.value})} />
             </div>
+            {error && (
+              <p style={{ fontFamily: "'Jost', sans-serif", fontSize: '0.82rem', color: '#C0392B' }}>
+                {error}
+              </p>
+            )}
             <button type="submit" disabled={loading} style={{
               padding: '1.1rem', backgroundColor: '#2C2C2C', color: '#FAF7F4',
               fontFamily: "'Jost', sans-serif", fontSize: '0.78rem',

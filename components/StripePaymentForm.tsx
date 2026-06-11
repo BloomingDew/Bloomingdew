@@ -11,15 +11,18 @@ import {
 
 const stripePromise = loadStripe(process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY!);
 
+type IntentItem = { id: number; size: string; quantity: number };
+
 interface StripePaymentFormProps {
-  amount: number; // in kobo (smallest unit)
+  amount: number; // NGN, for display/guard only — the server recomputes the charge
+  items: IntentItem[];
   onSuccess: (paymentIntentId: string) => void;
   onError: (msg: string) => void;
   loading: boolean;
   setLoading: (v: boolean) => void;
 }
 
-function CheckoutForm({ onSuccess, onError, loading, setLoading }: Omit<StripePaymentFormProps, 'amount'>) {
+function CheckoutForm({ onSuccess, onError, loading, setLoading }: Omit<StripePaymentFormProps, 'amount' | 'items'>) {
   const stripe = useStripe();
   const elements = useElements();
 
@@ -67,16 +70,20 @@ function CheckoutForm({ onSuccess, onError, loading, setLoading }: Omit<StripePa
   );
 }
 
-export default function StripePaymentForm({ amount, onSuccess, onError, loading, setLoading }: StripePaymentFormProps) {
+export default function StripePaymentForm({ amount, items, onSuccess, onError, loading, setLoading }: StripePaymentFormProps) {
   const [clientSecret, setClientSecret] = useState<string | null>(null);
   const [initError, setInitError] = useState<string | null>(null);
 
   useEffect(() => {
-    if (!amount) return;
+    if (!amount || amount <= 0) {
+      setInitError('Order total is ₦0 — please check your cart items have a valid price.');
+      return;
+    }
+    // The server prices the order from the line items — the client never sends an amount.
     fetch('/api/stripe/payment-intent', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ amount: Math.round(amount * 100), currency: 'ngn' }),
+      body: JSON.stringify({ items }),
     })
       .then(r => r.json())
       .then(data => {
@@ -84,7 +91,9 @@ export default function StripePaymentForm({ amount, onSuccess, onError, loading,
         else setClientSecret(data.clientSecret);
       })
       .catch(() => setInitError('Could not connect to payment service.'));
-  }, [amount]);
+    // Re-create the intent only when the cart contents change.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [JSON.stringify(items)]);
 
   if (initError) {
     return (

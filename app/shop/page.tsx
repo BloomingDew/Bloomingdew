@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import Link from 'next/link';
 import { useWishlist } from '../../context/WishlistContext';
 import { getProducts, type Product } from '../../lib/products';
@@ -11,12 +11,20 @@ const sortOptions = ['Featured', 'Price: Low to High', 'Price: High to Low', 'Ne
 export default function ShopPage() {
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(false);
   const [activeCategory, setActiveCategory] = useState('All');
   const [activeSort, setActiveSort] = useState('Featured');
 
-  useEffect(() => {
-    getProducts().then((data) => { setProducts(data); setLoading(false); });
+  const load = useCallback(() => {
+    setLoading(true);
+    setError(false);
+    getProducts()
+      .then((data) => setProducts(data))
+      .catch(() => setError(true))
+      .finally(() => setLoading(false));
   }, []);
+
+  useEffect(() => { load(); }, [load]);
 
   const filtered = products.filter(
     (p) => activeCategory === 'All' || p.category === activeCategory
@@ -82,8 +90,27 @@ export default function ShopPage() {
         </div>
       )}
 
+      {/* Error state */}
+      {!loading && error && (
+        <div style={{ textAlign: 'center', padding: '6rem 0', color: '#9A8F87' }}>
+          <p style={{ fontFamily: "'Playfair Display', serif", fontSize: '1.3rem', color: '#2C2C2C', marginBottom: '1rem' }}>
+            We couldn&apos;t load the collection.
+          </p>
+          <p style={{ fontFamily: "'Jost', sans-serif", fontSize: '0.85rem', marginBottom: '1.5rem' }}>
+            Please check your connection and try again.
+          </p>
+          <button onClick={load} style={{
+            fontFamily: "'Jost', sans-serif", fontSize: '0.75rem', letterSpacing: '0.15em',
+            textTransform: 'uppercase', padding: '0.8rem 2rem',
+            backgroundColor: '#2C2C2C', color: '#FAF7F4', border: 'none', cursor: 'pointer',
+          }}>
+            Try Again
+          </button>
+        </div>
+      )}
+
       {/* Product grid */}
-      {!loading && sorted.length === 0 && (
+      {!loading && !error && sorted.length === 0 && (
         <div style={{ textAlign: 'center', padding: '6rem 0', color: '#9A8F87' }}>
           <p style={{ fontFamily: "'Playfair Display', serif", fontSize: '1.3rem' }}>No pieces found.</p>
         </div>
