@@ -49,7 +49,7 @@ export default function AdminPage() {
 
   const fetchAlerts = async () => {
     const [{ data: stock }, { count: enquiries }, { count: orders }, { data: delivered }] = await Promise.all([
-      supabase.from('product_size_inventory').select('product_id, size, quantity, products(name)').lte('quantity', 3).gt('quantity', 0),
+      supabase.from('product_size_inventory').select('product_id, size, quantity, products(name)').lte('quantity', 3).gte('quantity', 0),
       supabase.from('enquiries').select('*', { count: 'exact', head: true }).eq('status', 'unread'),
       supabase.from('orders').select('*', { count: 'exact', head: true }).eq('status', 'pending'),
       supabase.from('orders').select('total').eq('status', 'delivered'),

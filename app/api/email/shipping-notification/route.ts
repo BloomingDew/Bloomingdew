@@ -1,7 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getResend, FROM_EMAIL, buildEmail } from '../../../../lib/email';
+import { getAdminUser } from '../../../../lib/admin-server';
 
 export async function POST(req: NextRequest) {
+  // Only admins can trigger shipping emails (called from the admin orders page).
+  const admin = await getAdminUser();
+  if (!admin) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+
   try {
     const { customerName, customerEmail, items, trackingNumber, trackingUrl } = await req.json();
 

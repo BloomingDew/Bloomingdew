@@ -55,11 +55,12 @@ export function WishlistProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const syncFromDB = async (uid: string) => {
-    const { data } = await supabase
+    const { data, error } = await supabase
       .from('wishlists')
       .select('product_id, products(id, name, price, discount, categories(name))')
       .eq('user_id', uid);
-    if (!data) return;
+    // On failure, keep whatever is already in local state rather than wiping it.
+    if (error || !data) return;
     const dbItems: WishlistItem[] = data.map((row: any) => {
       const rawPrice = row.products?.price || 0;
       const discount = row.products?.discount || 0;
@@ -72,8 +73,25 @@ export function WishlistProvider({ children }: { children: ReactNode }) {
         category: row.products?.categories?.name || '',
       };
     });
-    setItems(dbItems);
-    localStorage.setItem('bloomingdew_wishlist', JSON.stringify(dbItems));
+
+    // Merge any guest (local-only) items into the account instead of discarding them.
+    const dbIds = new Set(dbItems.map(i => i.id));
+    let local: WishlistItem[] = [];
+    try {
+      local = JSON.parse(localStorage.getItem('bloomingdew_wishlist') || '[]');
+    } catch {}
+    const localOnly = local.filter(i => !dbIds.has(i.id));
+
+    if (localOnly.length > 0) {
+      const { error: insertError } = await supabase
+        .from('wishlists')
+        .insert(localOnly.map(i => ({ user_id: uid, product_id: i.id })));
+      if (insertError) console.error('Wishlist merge failed:', insertError.message);
+    }
+
+    const merged = [...dbItems, ...localOnly];
+    setItems(merged);
+    localStorage.setItem('bloomingdew_wishlist', JSON.stringify(merged));
   };
 
   // Persist to localStorage whenever items change
@@ -85,14 +103,16 @@ export function WishlistProvider({ children }: { children: ReactNode }) {
   const addItem = (item: WishlistItem) => {
     setItems(prev => prev.find(i => i.id === item.id) ? prev : [...prev, item]);
     if (userId) {
-      supabase.from('wishlists').insert({ user_id: userId, product_id: item.id }).then(() => {});
+      supabase.from('wishlists').insert({ user_id: userId, product_id: item.id })
+        .then(({ error }) => { if (error) console.error('Wishlist add failed:', error.message); });
     }
   };
 
   const removeItem = (id: number) => {
     setItems(prev => prev.filter(i => i.id !== id));
     if (userId) {
-      supabase.from('wishlists').delete().match({ user_id: userId, product_id: id }).then(() => {});
+      supabase.from('wishlists').delete().match({ user_id: userId, product_id: id })
+        .then(({ error }) => { if (error) console.error('Wishlist remove failed:', error.message); });
     }
   };
 

@@ -66,3 +66,51 @@ export async function buildEmail(templateId: string, variables: Record<string, s
 
   return { subject, html };
 }
+
+type OrderEmailItem = { name: string; size: string; quantity: number; price: string };
+
+export type OrderConfirmationPayload = {
+  customerName: string;
+  customerEmail: string;
+  items: OrderEmailItem[];
+  orderTotal: number;
+  shipping: {
+    address?: string;
+    apartment?: string;
+    city?: string;
+    postcode?: string;
+    country?: string;
+  };
+};
+
+// Shared sender so server code (e.g. the order-create route) can send the
+// confirmation email directly instead of going through an HTTP endpoint.
+export async function sendOrderConfirmationEmail(payload: OrderConfirmationPayload): Promise<boolean> {
+  const itemsList = payload.items
+    .map(i => `• ${i.name} (Size ${i.size}) x${i.quantity} — ${i.price}`)
+    .join('\n');
+  const shippingAddress = [
+    payload.shipping.address,
+    payload.shipping.apartment,
+    payload.shipping.city,
+    payload.shipping.postcode,
+    payload.shipping.country,
+  ].filter(Boolean).join(', ');
+
+  const email = await buildEmail('order-confirmation', {
+    '{{customerName}}': payload.customerName,
+    '{{items}}': itemsList,
+    '{{orderTotal}}': `₦${Number(payload.orderTotal).toLocaleString()}`,
+    '{{shippingAddress}}': shippingAddress,
+  });
+  if (!email) return false;
+
+  const resend = getResend();
+  await resend.emails.send({
+    from: FROM_EMAIL,
+    to: payload.customerEmail,
+    subject: email.subject,
+    html: email.html,
+  });
+  return true;
+}

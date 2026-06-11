@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, use, useEffect } from 'react';
+import { useState, use, useEffect, useCallback } from 'react';
 import Link from 'next/link';
 import { useCart } from '../../../context/CartContext';
 import { useWishlist } from '../../../context/WishlistContext';
@@ -36,9 +36,18 @@ export default function ProductPage({ params }: { params: Promise<{ id: string }
   const { addItem } = useCart();
   const { addItem: wishlistAdd, removeItem: wishlistRemove, isWishlisted } = useWishlist();
 
-  useEffect(() => {
-    getProductById(Number(id)).then((data) => { setProduct(data); setLoading(false); });
+  const [loadError, setLoadError] = useState(false);
+
+  const loadProduct = useCallback(() => {
+    setLoading(true);
+    setLoadError(false);
+    getProductById(Number(id))
+      .then((data) => setProduct(data))
+      .catch(() => setLoadError(true))
+      .finally(() => setLoading(false));
   }, [id]);
+
+  useEffect(() => { loadProduct(); }, [loadProduct]);
 
   // Close size dropdown on outside click
   useEffect(() => {
@@ -65,12 +74,17 @@ export default function ProductPage({ params }: { params: Promise<{ id: string }
   const handleAddToCart = async () => {
     if (!product) return;
     setStockError('');
+    // Require an explicit size choice — never silently default.
+    if (!selectedSize) {
+      setStockError('Please select a size first.');
+      return;
+    }
     const salePrice = product.discount > 0 ? Math.round(product.price * (1 - product.discount / 100)) : product.price;
     const result = await addItem({
       id: product.id, name: product.name,
       price: `₦${salePrice.toLocaleString()}`,
       originalPrice: product.discount > 0 ? `₦${product.price.toLocaleString()}` : undefined,
-      size: selectedSize || 'M',
+      size: selectedSize,
       quantity: 1, madeToOrder: product.made_to_order,
     });
     if (!result.success) {
@@ -102,6 +116,22 @@ export default function ProductPage({ params }: { params: Promise<{ id: string }
           ))}
         </div>
       </div>
+    </div>
+  );
+
+  if (loadError) return (
+    <div style={{ textAlign: 'center', padding: '8rem 2rem' }}>
+      <h2 style={{ fontFamily: "'Playfair Display', serif", fontSize: '1.8rem', marginBottom: '1rem' }}>Something went wrong</h2>
+      <p style={{ fontFamily: "'Jost', sans-serif", fontSize: '0.85rem', color: '#9A8F87', marginBottom: '1.5rem' }}>
+        We couldn&apos;t load this piece. Please try again.
+      </p>
+      <button onClick={loadProduct} style={{
+        fontFamily: "'Jost', sans-serif", fontSize: '0.75rem', letterSpacing: '0.15em',
+        textTransform: 'uppercase', padding: '0.8rem 2rem',
+        backgroundColor: '#2C2C2C', color: '#FAF7F4', border: 'none', cursor: 'pointer',
+      }}>
+        Try Again
+      </button>
     </div>
   );
 

@@ -1,36 +1,18 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getResend, FROM_EMAIL, buildEmail } from '../../../../lib/email';
+import { sendOrderConfirmationEmail } from '../../../../lib/email';
+import { getAdminUser } from '../../../../lib/admin-server';
 
+// Customer confirmation emails are sent server-side by /api/orders/create.
+// This HTTP endpoint remains only for admin-triggered resends and is therefore
+// restricted to authenticated admins (previously it was an open send-as-Bloomingdew relay).
 export async function POST(req: NextRequest) {
+  const admin = await getAdminUser();
+  if (!admin) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+
   try {
-    const { customerName, customerEmail, items, subtotal, orderTotal, shipping } = await req.json();
-
-    const itemsList = items.map((i: any) => `• ${i.name} (Size ${i.size}) x${i.quantity} — ${i.price}`).join('\n');
-    const shippingAddress = [
-      shipping.address,
-      shipping.apartment,
-      shipping.city,
-      shipping.postcode,
-      shipping.country,
-    ].filter(Boolean).join(', ');
-
-    const email = await buildEmail('order-confirmation', {
-      '{{customerName}}': customerName,
-      '{{items}}': itemsList,
-      '{{orderTotal}}': `₦${Number(orderTotal).toLocaleString()}`,
-      '{{shippingAddress}}': shippingAddress,
-    });
-
-    if (!email) return NextResponse.json({ error: 'Template not found' }, { status: 404 });
-
-    const resend = getResend();
-    await resend.emails.send({
-      from: FROM_EMAIL,
-      to: customerEmail,
-      subject: email.subject,
-      html: email.html,
-    });
-
+    const { customerName, customerEmail, items, orderTotal, shipping } = await req.json();
+    const ok = await sendOrderConfirmationEmail({ customerName, customerEmail, items, orderTotal, shipping });
+    if (!ok) return NextResponse.json({ error: 'Template not found' }, { status: 404 });
     return NextResponse.json({ success: true });
   } catch (err: any) {
     console.error('Order confirmation email error:', err);

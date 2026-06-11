@@ -89,7 +89,19 @@ function AccountPageInner() {
     setAddresses(prev => prev.map(a => ({ ...a, is_default: a.id === id })));
   };
 
-  if (loading || !user) return null;
+  // While the auth state resolves, show a light skeleton instead of a blank flash.
+  // (Unauthenticated users are redirected away by the effect above.)
+  if (loading || !user) return (
+    <div style={{ maxWidth: '1100px', margin: '0 auto', padding: '3rem 2rem 6rem' }}>
+      <div style={{ height: '32px', width: '40%', backgroundColor: '#E8DDD3', marginBottom: '2rem', animation: 'pulse 1.5s infinite' }} />
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+        {[80, 100, 100, 60].map((w, i) => (
+          <div key={i} style={{ height: '18px', width: `${w}%`, backgroundColor: '#E8DDD3', animation: 'pulse 1.5s infinite' }} />
+        ))}
+      </div>
+      <style>{`@keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: 0.5; } }`}</style>
+    </div>
+  );
 
   const STATUS_COLORS: Record<string, { bg: string; color: string }> = {
     pending: { bg: '#FFF3E0', color: '#E65100' },

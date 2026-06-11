@@ -15,19 +15,40 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Too many requests. Please wait a minute.' }, { status: 429 });
   }
 
-  const body = await req.json();
+  let body: Record<string, unknown>;
+  try {
+    body = await req.json();
+  } catch {
+    return NextResponse.json({ error: 'Invalid request.' }, { status: 400 });
+  }
+
+  const str = (v: unknown, max: number) =>
+    typeof v === 'string' ? v.trim().slice(0, max) : null;
+
+  const email = str(body.email, 200);
+  const firstName = str(body.first_name, 100);
+  const message = str(body.message, 5000);
+
+  // Basic required-field + format validation
+  const emailValid = email && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+  if (!firstName || !emailValid || !message) {
+    return NextResponse.json(
+      { error: 'Please provide your name, a valid email, and a message.' },
+      { status: 400 },
+    );
+  }
 
   const { error } = await supabase.from('enquiries').insert({
-    type: body.type,
-    first_name: body.first_name,
-    last_name: body.last_name,
-    email: body.email,
-    phone: body.phone,
-    subject: body.subject,
-    message: body.message,
-    occasion: body.occasion,
-    budget: body.budget,
-    measurements: body.measurements,
+    type: str(body.type, 50) || 'contact',
+    first_name: firstName,
+    last_name: str(body.last_name, 100),
+    email,
+    phone: str(body.phone, 50),
+    subject: str(body.subject, 200),
+    message,
+    occasion: str(body.occasion, 200),
+    budget: str(body.budget, 100),
+    measurements: body.measurements ?? null,
     status: 'unread',
   });
 

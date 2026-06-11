@@ -29,6 +29,7 @@ const steps = [
 export default function CustomPage() {
   const [loading, setLoading] = useState(false);
   const [sent, setSent] = useState(false);
+  const [error, setError] = useState('');
   const [form, setForm] = useState({
     firstName: '', lastName: '', email: '', occasion: '', vision: '', budget: '',
     bust: '', waist: '', hips: '', height: '', shoulder: '', inseam: '',
@@ -37,13 +38,24 @@ export default function CustomPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
-    await fetch('/api/enquiry', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ type: 'custom', first_name: form.firstName, last_name: form.lastName, email: form.email, occasion: form.occasion, message: form.vision, budget: form.budget, measurements: { bust: form.bust, waist: form.waist, hips: form.hips, height: form.height, shoulder: form.shoulder, inseam: form.inseam } }),
-    });
-    setSent(true);
-    setLoading(false);
+    setError('');
+    try {
+      const res = await fetch('/api/enquiry', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ type: 'custom', first_name: form.firstName, last_name: form.lastName, email: form.email, occasion: form.occasion, message: form.vision, budget: form.budget, measurements: { bust: form.bust, waist: form.waist, hips: form.hips, height: form.height, shoulder: form.shoulder, inseam: form.inseam } }),
+      });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        setError(data.error || 'Something went wrong. Please try again or email hello@bloomingdew.com.');
+        return;
+      }
+      setSent(true);
+    } catch {
+      setError('Could not reach the server. Please check your connection and try again.');
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -243,6 +255,11 @@ export default function CustomPage() {
               <input style={inputStyle} type="text" placeholder="e.g. ₦80,000–₦150,000" value={form.budget} onChange={e => setForm({...form, budget: e.target.value})} />
             </div>
 
+            {error && (
+              <p style={{ fontFamily: "'Jost', sans-serif", fontSize: '0.82rem', color: '#C0392B', marginTop: '0.5rem' }}>
+                {error}
+              </p>
+            )}
             <button type="submit" disabled={loading} style={{
               marginTop: '0.5rem',
               padding: '1.1rem',

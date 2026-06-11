@@ -18,7 +18,7 @@ type CartContextType = {
   items: CartItem[];
   addItem: (item: CartItem) => Promise<{ success: boolean; message?: string }>;
   removeItem: (id: number, size: string) => void;
-  updateQuantity: (id: number, size: string, quantity: number) => void;
+  updateQuantity: (id: number, size: string, quantity: number) => Promise<{ success: boolean; message?: string }>;
   clearCart: () => void;
   totalItems: number;
   totalPrice: number;
@@ -58,10 +58,11 @@ export function CartProvider({ children }: { children: ReactNode }) {
   // Check for expired reservations every minute
   useEffect(() => {
     const interval = setInterval(() => {
-      const now = new Date();
+      const now = Date.now();
       setItems(prev => prev.filter(item => {
         if (item.madeToOrder || !item.expiresAt) return true;
-        return item.expiresAt > now;
+        // expiresAt may be a string after rehydration from localStorage
+        return new Date(item.expiresAt).getTime() > now;
       }));
     }, 60 * 1000);
     return () => clearInterval(interval);
@@ -112,9 +113,39 @@ export function CartProvider({ children }: { children: ReactNode }) {
     setItems(prev => prev.filter(i => !(i.id === id && i.size === size)));
   };
 
-  const updateQuantity = (id: number, size: string, quantity: number) => {
-    if (quantity < 1) return removeItem(id, size);
-    setItems(prev => prev.map(i => i.id === id && i.size === size ? { ...i, quantity } : i));
+  const updateQuantity = async (
+    id: number,
+    size: string,
+    quantity: number,
+  ): Promise<{ success: boolean; message?: string }> => {
+    if (quantity < 1) {
+      removeItem(id, size);
+      return { success: true };
+    }
+
+    const item = items.find(i => i.id === id && i.size === size);
+    if (!item) return { success: false };
+
+    // Made to order — no stock limit
+    if (item.madeToOrder) {
+      setItems(prev => prev.map(i => i.id === id && i.size === size ? { ...i, quantity } : i));
+      return { success: true };
+    }
+
+    // Ready to wear — re-reserve at the new quantity so we never exceed stock.
+    // Release our current hold first so our own reserved units count as available.
+    await removeReservation(id, size);
+    const expiresAt = new Date(Date.now() + 30 * 60 * 1000);
+    const success = await createReservation(id, size, quantity);
+
+    if (!success) {
+      // Restore the previous hold and report the cap.
+      await createReservation(id, size, item.quantity);
+      return { success: false, message: 'Sorry, there is not enough stock in this size.' };
+    }
+
+    setItems(prev => prev.map(i => i.id === id && i.size === size ? { ...i, quantity, expiresAt } : i));
+    return { success: true };
   };
 
   const clearCart = () => {
