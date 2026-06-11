@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import Link from 'next/link';
+import Image from 'next/image';
 import { useWishlist } from '../../context/WishlistContext';
 import { getProducts, type Product } from '../../lib/products';
 
@@ -148,11 +149,13 @@ function ProductCard({ product }: { product: Product }) {
           display: 'flex', alignItems: 'center', justifyContent: 'center',
         }}>
           {mainImage ? (
-            <img
+            <Image
               src={mainImage}
               alt={product.name}
-              style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
-              onError={e => { (e.target as HTMLImageElement).style.display = 'none'; }}
+              fill
+              sizes="(max-width: 600px) 50vw, (max-width: 1280px) 33vw, 300px"
+              style={{ objectFit: 'cover' }}
+              onError={e => { (e.currentTarget as HTMLImageElement).style.display = 'none'; }}
             />
           ) : (
             <span style={{ fontFamily: "'Jost', sans-serif", fontSize: '0.65rem', letterSpacing: '0.15em', textTransform: 'uppercase', color: '#9A8F87' }}>
