@@ -5,17 +5,55 @@ import { priceOrder } from '../../../../lib/orders-server';
 // Creates a PaymentIntent for the SERVER-COMPUTED order total. The client sends
 // only the cart line items (id/size/quantity); the amount is recomputed from
 // authoritative DB prices, so a tampered client cannot under-pay.
+//
+// Every failure path is logged with a distinct, greppable reason and returns a
+// `code` so a broken deploy is never a mystery (e.g. a missing env var used to
+// surface only as the generic "Could not start payment").
 export async function POST(req: NextRequest) {
+  // Fail fast, and loudly in the logs, when server config is missing.
+  const missing: string[] = [];
+  if (!process.env.STRIPE_SECRET_KEY) missing.push('STRIPE_SECRET_KEY');
+  if (!process.env.SUPABASE_SERVICE_ROLE_KEY) missing.push('SUPABASE_SERVICE_ROLE_KEY');
+  if (missing.length > 0) {
+    console.error(`[payment-intent] Missing required env var(s): ${missing.join(', ')}`);
+    return NextResponse.json(
+      { error: 'Payments are temporarily unavailable. Please try again shortly.', code: 'server_config' },
+      { status: 500 },
+    );
+  }
+
+  let items: unknown;
+  try {
+    ({ items } = await req.json());
+  } catch {
+    return NextResponse.json({ error: 'Invalid request.', code: 'bad_request' }, { status: 400 });
+  }
+
+  // 1) Price the order from the DB (service role). Distinguish a customer-fixable
+  //    cart problem (400) from an infrastructure failure (502).
+  let pricing;
+  try {
+    pricing = await priceOrder(items);
+  } catch (err: any) {
+    const msg = typeof err?.message === 'string' ? err.message : '';
+    const isValidation = /cart|item|available|total/i.test(msg);
+    if (isValidation) {
+      return NextResponse.json({ error: msg, code: 'invalid_cart' }, { status: 400 });
+    }
+    console.error('[payment-intent] Pricing failed (DB/service-role):', msg || err);
+    return NextResponse.json(
+      { error: 'We couldn’t price your order. Please try again.', code: 'pricing_failed' },
+      { status: 502 },
+    );
+  }
+
+  if (pricing.amountMinor < 100) {
+    return NextResponse.json({ error: 'Order total is too low.', code: 'amount_too_low' }, { status: 400 });
+  }
+
+  // 2) Create the Stripe PaymentIntent.
   try {
     const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!);
-    const { items } = await req.json();
-
-    const pricing = await priceOrder(items);
-
-    if (pricing.amountMinor < 100) {
-      return NextResponse.json({ error: 'Order total is too low.' }, { status: 400 });
-    }
-
     const paymentIntent = await stripe.paymentIntents.create({
       amount: pricing.amountMinor, // kobo
       currency: 'ngn',
@@ -31,13 +69,10 @@ export async function POST(req: NextRequest) {
       amount: pricing.subtotal,
     });
   } catch (err: any) {
-    // Pricing/validation errors are client-fixable (400); Stripe/infra are 500.
-    const isValidation = typeof err?.message === 'string' &&
-      /cart|item|available|total/i.test(err.message);
-    console.error('Payment intent error:', err);
+    console.error('[payment-intent] Stripe createPaymentIntent failed:', err?.message || err);
     return NextResponse.json(
-      { error: isValidation ? err.message : 'Could not start payment.' },
-      { status: isValidation ? 400 : 500 },
+      { error: 'We couldn’t reach the payment provider. Please try again.', code: 'stripe_error' },
+      { status: 502 },
     );
   }
 }
