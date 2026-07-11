@@ -16,13 +16,15 @@ type IntentItem = { id: number; size: string; quantity: number };
 interface StripePaymentFormProps {
   amount: number; // NGN, for display/guard only — the server recomputes the charge
   items: IntentItem[];
+  shipping: Record<string, string>;
+  userId?: string | null;
   onSuccess: (paymentIntentId: string) => void;
   onError: (msg: string) => void;
   loading: boolean;
   setLoading: (v: boolean) => void;
 }
 
-function CheckoutForm({ onSuccess, onError, loading, setLoading }: Omit<StripePaymentFormProps, 'amount' | 'items'>) {
+function CheckoutForm({ onSuccess, onError, loading, setLoading }: Omit<StripePaymentFormProps, 'amount' | 'items' | 'shipping' | 'userId'>) {
   const stripe = useStripe();
   const elements = useElements();
 
@@ -70,7 +72,7 @@ function CheckoutForm({ onSuccess, onError, loading, setLoading }: Omit<StripePa
   );
 }
 
-export default function StripePaymentForm({ amount, items, onSuccess, onError, loading, setLoading }: StripePaymentFormProps) {
+export default function StripePaymentForm({ amount, items, shipping, userId, onSuccess, onError, loading, setLoading }: StripePaymentFormProps) {
   const [clientSecret, setClientSecret] = useState<string | null>(null);
   const [initError, setInitError] = useState<string | null>(null);
   // A PaymentIntent must be created exactly once: Stripe's <Elements clientSecret>
@@ -88,11 +90,13 @@ export default function StripePaymentForm({ amount, items, onSuccess, onError, l
     }
 
     createdRef.current = true;
-    // The server prices the order from the line items — the client never sends an amount.
+    // The server prices the order from the line items — the client never sends an
+    // amount. Shipping + userId are stashed server-side so the webhook can finalize
+    // the order if the client callback never runs (3DS redirect, closed tab).
     fetch('/api/stripe/payment-intent', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ items }),
+      body: JSON.stringify({ items, shipping, userId }),
     })
       .then(r => r.json())
       .then(data => {

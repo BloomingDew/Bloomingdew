@@ -262,6 +262,8 @@ export default function CheckoutPage() {
               <StripePaymentForm
                 amount={orderTotal}
                 items={items.map(i => ({ id: i.id, size: i.size, quantity: i.quantity }))}
+                shipping={shipping}
+                userId={user?.id ?? null}
                 loading={loading}
                 setLoading={setLoading}
                 onSuccess={saveOrderAndRedirect}

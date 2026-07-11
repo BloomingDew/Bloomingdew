@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import Stripe from 'stripe';
-import { priceOrder } from '../../../../lib/orders-server';
+import { priceOrder, savePendingOrder, type Shipping } from '../../../../lib/orders-server';
 
 // Creates a PaymentIntent for the SERVER-COMPUTED order total. The client sends
 // only the cart line items (id/size/quantity); the amount is recomputed from
@@ -23,8 +23,10 @@ export async function POST(req: NextRequest) {
   }
 
   let items: unknown;
+  let shipping: Shipping | undefined;
+  let userId: string | null = null;
   try {
-    ({ items } = await req.json());
+    ({ items, shipping, userId = null } = await req.json());
   } catch {
     return NextResponse.json({ error: 'Invalid request.', code: 'bad_request' }, { status: 400 });
   }
@@ -63,6 +65,18 @@ export async function POST(req: NextRequest) {
         subtotal_ngn: String(pricing.subtotal),
       },
     });
+
+    // Stash the order context so the webhook can finalize even if the client
+    // callback never runs (3DS redirect, closed tab). Non-fatal if it fails —
+    // the inline success path can still finalize from the request body.
+    if (shipping?.email && shipping?.address) {
+      await savePendingOrder(paymentIntent.id, {
+        items: pricing.lines.map(l => ({ id: l.id, size: l.size, quantity: l.quantity })),
+        shipping,
+        userId,
+        subtotal: pricing.subtotal,
+      });
+    }
 
     return NextResponse.json({
       clientSecret: paymentIntent.client_secret,
