@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { loadStripe } from '@stripe/stripe-js';
 import {
   Elements,
@@ -16,13 +16,15 @@ type IntentItem = { id: number; size: string; quantity: number };
 interface StripePaymentFormProps {
   amount: number; // NGN, for display/guard only — the server recomputes the charge
   items: IntentItem[];
+  shipping: Record<string, string>;
+  userId?: string | null;
   onSuccess: (paymentIntentId: string) => void;
   onError: (msg: string) => void;
   loading: boolean;
   setLoading: (v: boolean) => void;
 }
 
-function CheckoutForm({ onSuccess, onError, loading, setLoading }: Omit<StripePaymentFormProps, 'amount' | 'items'>) {
+function CheckoutForm({ onSuccess, onError, loading, setLoading }: Omit<StripePaymentFormProps, 'amount' | 'items' | 'shipping' | 'userId'>) {
   const stripe = useStripe();
   const elements = useElements();
 
@@ -70,30 +72,39 @@ function CheckoutForm({ onSuccess, onError, loading, setLoading }: Omit<StripePa
   );
 }
 
-export default function StripePaymentForm({ amount, items, onSuccess, onError, loading, setLoading }: StripePaymentFormProps) {
+export default function StripePaymentForm({ amount, items, shipping, userId, onSuccess, onError, loading, setLoading }: StripePaymentFormProps) {
   const [clientSecret, setClientSecret] = useState<string | null>(null);
   const [initError, setInitError] = useState<string | null>(null);
+  // A PaymentIntent must be created exactly once: Stripe's <Elements clientSecret>
+  // is immutable after mount, and duplicate intents clutter the dashboard. This
+  // ref also absorbs React StrictMode's double-invoke of effects in development.
+  const createdRef = useRef(false);
 
   useEffect(() => {
+    if (createdRef.current) return;
+    // Wait for the cart to hydrate from localStorage before pricing.
+    if (!items || items.length === 0) return;
     if (!amount || amount <= 0) {
       setInitError('Order total is ₦0 — please check your cart items have a valid price.');
       return;
     }
-    // The server prices the order from the line items — the client never sends an amount.
+
+    createdRef.current = true;
+    // The server prices the order from the line items — the client never sends an
+    // amount. Shipping + userId are stashed server-side so the webhook can finalize
+    // the order if the client callback never runs (3DS redirect, closed tab).
     fetch('/api/stripe/payment-intent', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ items }),
+      body: JSON.stringify({ items, shipping, userId }),
     })
       .then(r => r.json())
       .then(data => {
         if (data.error) setInitError(data.error);
         else setClientSecret(data.clientSecret);
       })
-      .catch(() => setInitError('Could not connect to payment service.'));
-    // Re-create the intent only when the cart contents change.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [JSON.stringify(items)]);
+      .catch(() => setInitError('Could not connect to payment service. Please try again.'));
+  }, [amount, items]);
 
   if (initError) {
     return (
