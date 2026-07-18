@@ -4,6 +4,7 @@ import { useState, use, useEffect, useCallback } from 'react';
 import Link from 'next/link';
 import { useCart } from '../../../context/CartContext';
 import { useWishlist } from '../../../context/WishlistContext';
+import { useCurrency } from '../../../context/CurrencyContext';
 import { getProductById, type Product } from '../../../lib/products';
 import { getAvailableStock, getAllSizesStock } from '../../../lib/inventory';
 
@@ -35,6 +36,7 @@ export default function ProductPage({ params }: { params: Promise<{ id: string }
   const [allStock, setAllStock] = useState<Record<string, number>>({});
   const { addItem } = useCart();
   const { addItem: wishlistAdd, removeItem: wishlistRemove, isWishlisted } = useWishlist();
+  const { format } = useCurrency();
 
   const [loadError, setLoadError] = useState(false);
 
@@ -79,11 +81,11 @@ export default function ProductPage({ params }: { params: Promise<{ id: string }
       setStockError('Please select a size first.');
       return;
     }
-    const salePrice = product.discount > 0 ? Math.round(product.price * (1 - product.discount / 100)) : product.price;
+    const salePriceUsd = product.discount > 0 ? product.price * (1 - product.discount / 100) : product.price;
     const result = await addItem({
       id: product.id, name: product.name,
-      price: `₦${salePrice.toLocaleString()}`,
-      originalPrice: product.discount > 0 ? `₦${product.price.toLocaleString()}` : undefined,
+      priceUsd: salePriceUsd,
+      originalPriceUsd: product.discount > 0 ? product.price : undefined,
       size: selectedSize,
       quantity: 1, madeToOrder: product.made_to_order,
     });
@@ -103,7 +105,7 @@ export default function ProductPage({ params }: { params: Promise<{ id: string }
     if (!product) return;
     isWishlisted(product.id)
       ? wishlistRemove(product.id)
-      : wishlistAdd({ id: product.id, name: product.name, price: `₦${(product.discount > 0 ? Math.round(product.price * (1 - product.discount / 100)) : product.price).toLocaleString()}`, originalPrice: product.discount > 0 ? `₦${product.price.toLocaleString()}` : undefined, category: product.category });
+      : wishlistAdd({ id: product.id, name: product.name, priceUsd: product.discount > 0 ? product.price * (1 - product.discount / 100) : product.price, originalPriceUsd: product.discount > 0 ? product.price : undefined, category: product.category });
   };
 
   if (loading) return (
@@ -234,10 +236,10 @@ export default function ProductPage({ params }: { params: Promise<{ id: string }
             {product.discount > 0 ? (
               <div style={{ display: 'flex', alignItems: 'baseline', gap: '0.75rem', flexWrap: 'wrap' }}>
                 <p style={{ fontFamily: "'Jost', sans-serif", fontSize: '1.1rem', fontWeight: 400, color: '#C0392B' }}>
-                  ₦{Math.round(product.price * (1 - product.discount / 100)).toLocaleString()}
+                  {format(product.price * (1 - product.discount / 100))}
                 </p>
                 <p style={{ fontFamily: "'Jost', sans-serif", fontSize: '0.95rem', fontWeight: 300, color: '#9A8F87', textDecoration: 'line-through' }}>
-                  ₦{product.price.toLocaleString()}
+                  {format(product.price)}
                 </p>
                 <span style={{ fontFamily: "'Jost', sans-serif", fontSize: '0.78rem', color: '#C0392B', fontWeight: 400 }}>
                   -{product.discount}%
@@ -245,7 +247,7 @@ export default function ProductPage({ params }: { params: Promise<{ id: string }
               </div>
             ) : (
               <p style={{ fontFamily: "'Jost', sans-serif", fontSize: '1.1rem', fontWeight: 300, color: '#2C2C2C' }}>
-                ₦{product.price.toLocaleString()}
+                {format(product.price)}
               </p>
             )}
           </div>
@@ -294,8 +296,8 @@ export default function ProductPage({ params }: { params: Promise<{ id: string }
                     const stock = product.made_to_order ? null : (allStock[size] ?? null);
                     const soldOut = stock !== null && stock === 0;
                     const lastOne = stock !== null && stock > 0 && stock <= 3;
-                    const salePrice = product.discount > 0
-                      ? Math.round(product.price * (1 - product.discount / 100))
+                    const salePriceUsd = product.discount > 0
+                      ? product.price * (1 - product.discount / 100)
                       : product.price;
                     return (
                       <button
@@ -317,7 +319,7 @@ export default function ProductPage({ params }: { params: Promise<{ id: string }
                           {lastOne && <span style={{ fontSize: '0.7rem', color: '#C0392B', letterSpacing: '0.08em' }}>Last {stock} left</span>}
                         </span>
                         <span style={{ fontFamily: "'Jost', sans-serif", fontSize: '0.85rem', fontWeight: 300, color: soldOut ? '#9A8F87' : '#2C2C2C' }}>
-                          ₦{salePrice?.toLocaleString()}
+                          {format(salePriceUsd)}
                         </span>
                       </button>
                     );

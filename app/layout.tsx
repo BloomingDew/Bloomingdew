@@ -8,6 +8,7 @@ import CartDrawer from '../components/CartDrawer';
 import { CartProvider } from '../context/CartContext';
 import { WishlistProvider } from '../context/WishlistContext';
 import { UserProvider } from '../context/UserContext';
+import { CurrencyProvider } from '../context/CurrencyContext';
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
@@ -26,6 +27,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html lang="en">
       <body style={{ display: 'flex', flexDirection: 'column', minHeight: '100vh' }}>
+        <CurrencyProvider>
         <UserProvider>
         <CartProvider>
           <WishlistProvider>
@@ -38,6 +40,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           </WishlistProvider>
         </CartProvider>
         </UserProvider>
+        </CurrencyProvider>
       </body>
     </html>
   );
