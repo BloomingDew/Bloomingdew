@@ -6,8 +6,8 @@ import { supabase } from '../lib/supabase';
 export type WishlistItem = {
   id: number;
   name: string;
-  price: string;
-  originalPrice?: string;
+  priceUsd: number;          // unit price in USD (base currency)
+  originalPriceUsd?: number; // pre-discount unit price in USD
   category: string;
 };
 
@@ -62,14 +62,14 @@ export function WishlistProvider({ children }: { children: ReactNode }) {
     // On failure, keep whatever is already in local state rather than wiping it.
     if (error || !data) return;
     const dbItems: WishlistItem[] = data.map((row: any) => {
-      const rawPrice = row.products?.price || 0;
-      const discount = row.products?.discount || 0;
-      const salePrice = discount > 0 ? Math.round(rawPrice * (1 - discount / 100)) : rawPrice;
+      const rawPrice = Number(row.products?.price) || 0; // USD base
+      const discount = Number(row.products?.discount) || 0;
+      const salePrice = discount > 0 ? rawPrice * (1 - discount / 100) : rawPrice;
       return {
         id: row.product_id,
         name: row.products?.name || '',
-        price: `₦${salePrice.toLocaleString()}`,
-        originalPrice: discount > 0 ? `₦${rawPrice.toLocaleString()}` : undefined,
+        priceUsd: salePrice,
+        originalPriceUsd: discount > 0 ? rawPrice : undefined,
         category: row.products?.categories?.name || '',
       };
     });
@@ -80,7 +80,8 @@ export function WishlistProvider({ children }: { children: ReactNode }) {
     try {
       local = JSON.parse(localStorage.getItem('bloomingdew_wishlist') || '[]');
     } catch {}
-    const localOnly = local.filter(i => !dbIds.has(i.id));
+    // Drop legacy pre-USD items (no numeric priceUsd) so stale strings don't linger.
+    const localOnly = local.filter(i => !dbIds.has(i.id) && typeof i.priceUsd === 'number');
 
     if (localOnly.length > 0) {
       const { error: insertError } = await supabase

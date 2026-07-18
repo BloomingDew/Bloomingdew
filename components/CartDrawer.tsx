@@ -1,6 +1,7 @@
 'use client';
 
 import { useCart } from '../context/CartContext';
+import { useCurrency } from '../context/CurrencyContext';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useState, useEffect } from 'react';
@@ -35,7 +36,8 @@ function CountdownTimer({ expiresAt }: { expiresAt: Date }) {
 }
 
 export default function CartDrawer() {
-  const { items, isOpen, closeCart, removeItem, updateQuantity, totalPrice, totalItems } = useCart();
+  const { items, isOpen, closeCart, removeItem, updateQuantity, totalPriceUsd, totalItems } = useCart();
+  const { format } = useCurrency();
   const router = useRouter();
   const [stockErrors, setStockErrors] = useState<Record<string, string>>({});
 
@@ -175,13 +177,13 @@ export default function CartDrawer() {
                       </div>
                       <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
                         <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '0.1rem' }}>
-                          {item.originalPrice && (
+                          {item.originalPriceUsd && (
                             <span style={{ fontFamily: "'Jost', sans-serif", fontSize: '0.75rem', color: '#B0A8A0', textDecoration: 'line-through' }}>
-                              {item.originalPrice}
+                              {format(item.originalPriceUsd)}
                             </span>
                           )}
-                          <span style={{ fontFamily: "'Jost', sans-serif", fontSize: '0.88rem', color: item.originalPrice ? '#C0392B' : '#2C2C2C', fontWeight: item.originalPrice ? 500 : 400 }}>
-                            {item.price}
+                          <span style={{ fontFamily: "'Jost', sans-serif", fontSize: '0.88rem', color: item.originalPriceUsd ? '#C0392B' : '#2C2C2C', fontWeight: item.originalPriceUsd ? 500 : 400 }}>
+                            {format(item.priceUsd)}
                           </span>
                         </div>
                         <button
@@ -211,7 +213,7 @@ export default function CartDrawer() {
                 Subtotal
               </span>
               <span style={{ fontFamily: "'Jost', sans-serif", fontSize: '0.95rem', fontWeight: 400, color: '#2C2C2C' }}>
-                ₦{totalPrice}
+                {format(totalPriceUsd)}
               </span>
             </div>
             <p style={{ fontFamily: "'Jost', sans-serif", fontSize: '0.75rem', fontWeight: 300, color: '#9A8F87', marginBottom: '1.2rem', textAlign: 'center' }}>

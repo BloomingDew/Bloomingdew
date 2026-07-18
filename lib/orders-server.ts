@@ -3,6 +3,7 @@
 import Stripe from 'stripe';
 import { supabaseService } from './admin-server';
 import { sendOrderConfirmationEmail } from './email';
+import { formatMoney, toMinorUnits } from './currency';
 
 export type IncomingItem = { id: number; size: string; quantity: number };
 
@@ -11,14 +12,14 @@ export type PricedLine = {
   name: string;
   size: string;
   quantity: number;
-  unitPrice: number;   // sale price per unit, in NGN
-  priceLabel: string;  // formatted, e.g. "₦12,000"
+  unitPrice: number;   // sale price per unit, in USD (base currency)
+  priceLabel: string;  // formatted, e.g. "$50.00"
 };
 
 export type OrderPricing = {
   lines: PricedLine[];
-  subtotal: number;     // NGN
-  amountMinor: number;  // kobo, what Stripe should charge
+  subtotal: number;     // USD
+  amountMinor: number;  // USD cents, what Stripe charges (base-currency charge for now)
 };
 
 const isPositiveInt = (n: unknown): n is number =>
@@ -56,22 +57,23 @@ export async function priceOrder(items: unknown): Promise<OrderPricing> {
     if (!product || product.available === false) {
       throw new Error('One or more items are no longer available.');
     }
-    const rawPrice = Number(product.price) || 0;
+    const rawPrice = Number(product.price) || 0; // USD base price
     const discount = Number(product.discount) || 0;
-    const unitPrice = discount > 0 ? Math.round(rawPrice * (1 - discount / 100)) : rawPrice;
+    const unitPrice = discount > 0 ? rawPrice * (1 - discount / 100) : rawPrice;
     return {
       id: item.id,
       name: product.name,
       size: item.size,
       quantity: item.quantity,
       unitPrice,
-      priceLabel: `₦${unitPrice.toLocaleString()}`,
+      priceLabel: formatMoney(unitPrice, 'USD'),
     };
   });
 
   const subtotal = lines.reduce((sum, l) => sum + l.unitPrice * l.quantity, 0);
+  // Charged in USD (base) for now; local-currency charging comes with payment routing.
   // Shipping is TBD (finalized with DHL) and not charged at checkout yet.
-  const amountMinor = Math.round(subtotal * 100);
+  const amountMinor = toMinorUnits(subtotal, 'USD');
 
   return { lines, subtotal, amountMinor };
 }

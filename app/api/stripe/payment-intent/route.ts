@@ -57,12 +57,12 @@ export async function POST(req: NextRequest) {
   try {
     const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!);
     const paymentIntent = await stripe.paymentIntents.create({
-      amount: pricing.amountMinor, // kobo
-      currency: 'ngn',
+      amount: pricing.amountMinor, // USD cents
+      currency: 'usd',
       automatic_payment_methods: { enabled: true },
       metadata: {
         item_count: String(pricing.lines.length),
-        subtotal_ngn: String(pricing.subtotal),
+        subtotal_usd: String(pricing.subtotal),
       },
     });
 

@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
 import { supabase } from '../lib/supabase';
+import { useCurrency } from '../context/CurrencyContext';
 
 type Product = { id: number; name: string; price: number; discount: number; categories: { name: string }[] | null; product_images: { url: string }[] };
 
@@ -13,6 +14,7 @@ export default function SearchOverlay({ isOpen, onClose }: Props) {
   const [results, setResults] = useState<Product[]>([]);
   const [loading, setLoading] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
+  const { format } = useCurrency();
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
@@ -106,7 +108,7 @@ export default function SearchOverlay({ isOpen, onClose }: Props) {
         {results.map((product) => {
           const image = product.product_images?.[0]?.url;
           const category = Array.isArray(product.categories) ? product.categories[0]?.name : (product.categories as any)?.name || '';
-          const salePrice = product.discount > 0 ? Math.round(product.price * (1 - product.discount / 100)) : null;
+          const salePriceUsd = product.discount > 0 ? product.price * (1 - product.discount / 100) : null;
           return (
             <Link key={product.id} href={`/products/${product.id}`} onClick={onClose} style={{ textDecoration: 'none' }}>
               <div style={{
@@ -131,13 +133,13 @@ export default function SearchOverlay({ isOpen, onClose }: Props) {
                   </div>
                 </div>
                 <div style={{ textAlign: 'right' }}>
-                  {salePrice ? (
+                  {salePriceUsd ? (
                     <>
-                      <p style={{ fontFamily: "'Jost', sans-serif", fontSize: '0.88rem', color: '#C0392B', fontWeight: 400 }}>₦{salePrice.toLocaleString()}</p>
-                      <p style={{ fontFamily: "'Jost', sans-serif", fontSize: '0.75rem', color: '#9A8F87', textDecoration: 'line-through' }}>₦{product.price.toLocaleString()}</p>
+                      <p style={{ fontFamily: "'Jost', sans-serif", fontSize: '0.88rem', color: '#C0392B', fontWeight: 400 }}>{format(salePriceUsd)}</p>
+                      <p style={{ fontFamily: "'Jost', sans-serif", fontSize: '0.75rem', color: '#9A8F87', textDecoration: 'line-through' }}>{format(product.price)}</p>
                     </>
                   ) : (
-                    <span style={{ fontFamily: "'Jost', sans-serif", fontSize: '0.88rem', color: '#2C2C2C' }}>₦{product.price.toLocaleString()}</span>
+                    <span style={{ fontFamily: "'Jost', sans-serif", fontSize: '0.88rem', color: '#2C2C2C' }}>{format(product.price)}</span>
                   )}
                 </div>
               </div>

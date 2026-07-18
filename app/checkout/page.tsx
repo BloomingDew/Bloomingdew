@@ -5,12 +5,15 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { useCart } from '../../context/CartContext';
 import { useUser } from '../../context/UserContext';
+import { useCurrency } from '../../context/CurrencyContext';
+import { formatMoney } from '../../lib/currency';
 import { supabase } from '../../lib/supabase';
 import StripePaymentForm from '../../components/StripePaymentForm';
 
 export default function CheckoutPage() {
-  const { items, totalPrice, clearCart } = useCart();
+  const { items, totalPriceUsd, clearCart } = useCart();
   const { user, profile } = useUser();
+  const { format, currency } = useCurrency();
   const router = useRouter();
   const [step, setStep] = useState<'shipping' | 'payment'>('shipping');
   const [loading, setLoading] = useState(false);
@@ -105,8 +108,9 @@ export default function CheckoutPage() {
     }
   };
 
-  const shippingCost = 0;
-  const orderTotal = totalPrice;
+  // orderTotal is in USD (base). Charging stays USD until local-currency
+  // payment routing (Paystack/Stripe presentment) lands in a later PR.
+  const orderTotal = totalPriceUsd;
 
   if (items.length === 0 && !loading) {
     return (
@@ -315,7 +319,7 @@ export default function CheckoutPage() {
                   <p style={{ fontFamily: "'Jost', sans-serif", fontSize: '0.85rem', fontWeight: 400, color: '#2C2C2C', marginBottom: '0.2rem' }}>{item.name}</p>
                   <p style={{ fontFamily: "'Jost', sans-serif", fontSize: '0.75rem', color: '#9A8F87' }}>Size: {item.size}</p>
                 </div>
-                <span style={{ fontFamily: "'Jost', sans-serif", fontSize: '0.85rem', color: '#2C2C2C' }}>{item.price}</span>
+                <span style={{ fontFamily: "'Jost', sans-serif", fontSize: '0.85rem', color: '#2C2C2C' }}>{format(item.priceUsd)}</span>
               </div>
             ))}
           </div>
@@ -323,7 +327,7 @@ export default function CheckoutPage() {
           <div style={{ borderTop: '1px solid #E8DDD3', paddingTop: '1.2rem', display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between' }}>
               <span style={summaryLabel}>Subtotal</span>
-              <span style={summaryValue}>₦{totalPrice.toFixed(2)}</span>
+              <span style={summaryValue}>{format(totalPriceUsd)}</span>
             </div>
             <div style={{ display: 'flex', justifyContent: 'space-between' }}>
               <span style={summaryLabel}>Shipping</span>
@@ -331,8 +335,13 @@ export default function CheckoutPage() {
             </div>
             <div style={{ borderTop: '1px solid #E8DDD3', paddingTop: '0.75rem', display: 'flex', justifyContent: 'space-between' }}>
               <span style={{ fontFamily: "'Jost', sans-serif", fontSize: '0.88rem', fontWeight: 500, color: '#2C2C2C' }}>Total</span>
-              <span style={{ fontFamily: "'Jost', sans-serif", fontSize: '0.95rem', fontWeight: 500, color: '#2C2C2C' }}>₦{orderTotal.toFixed(2)}</span>
+              <span style={{ fontFamily: "'Jost', sans-serif", fontSize: '0.95rem', fontWeight: 500, color: '#2C2C2C' }}>{format(totalPriceUsd)}</span>
             </div>
+            {currency !== 'USD' && (
+              <p style={{ fontFamily: "'Jost', sans-serif", fontSize: '0.72rem', fontWeight: 300, color: '#9A8F87', marginTop: '0.25rem' }}>
+                Charged in USD ({formatMoney(orderTotal, 'USD')}). Local-currency charging is coming soon.
+              </p>
+            )}
           </div>
         </div>
       </div>

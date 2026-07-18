@@ -85,7 +85,7 @@ export default function StripePaymentForm({ amount, items, shipping, userId, onS
     // Wait for the cart to hydrate from localStorage before pricing.
     if (!items || items.length === 0) return;
     if (!amount || amount <= 0) {
-      setInitError('Order total is ₦0 — please check your cart items have a valid price.');
+      setInitError('Order total is $0 — please check your cart items have a valid price.');
       return;
     }
 

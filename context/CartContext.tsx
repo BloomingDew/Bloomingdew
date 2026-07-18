@@ -6,8 +6,8 @@ import { createReservation, removeReservation, clearAllReservations } from '../l
 export type CartItem = {
   id: number;
   name: string;
-  price: string;
-  originalPrice?: string;
+  priceUsd: number;          // unit price in USD (base currency)
+  originalPriceUsd?: number; // pre-discount unit price in USD
   size: string;
   quantity: number;
   expiresAt?: Date;
@@ -21,7 +21,7 @@ type CartContextType = {
   updateQuantity: (id: number, size: string, quantity: number) => Promise<{ success: boolean; message?: string }>;
   clearCart: () => void;
   totalItems: number;
-  totalPrice: number;
+  totalPriceUsd: number; // cart subtotal in USD; format per currency at display time
   isOpen: boolean;
   openCart: () => void;
   closeCart: () => void;
@@ -40,9 +40,13 @@ export function CartProvider({ children }: { children: ReactNode }) {
       const stored = localStorage.getItem('bloomingdew_cart');
       if (stored) {
         const parsed: CartItem[] = JSON.parse(stored);
-        // Filter out expired reservations
         const now = new Date();
-        const valid = parsed.filter(i => i.madeToOrder || !i.expiresAt || new Date(i.expiresAt) > now);
+        const valid = parsed.filter(i =>
+          // Drop legacy items saved before the USD refactor (no numeric priceUsd)…
+          typeof i.priceUsd === 'number' &&
+          // …and expired reservations.
+          (i.madeToOrder || !i.expiresAt || new Date(i.expiresAt) > now),
+        );
         setItems(valid);
       }
     } catch {}
@@ -155,15 +159,12 @@ export function CartProvider({ children }: { children: ReactNode }) {
   };
 
   const totalItems = items.reduce((sum, i) => sum + i.quantity, 0);
-  const totalPrice = items.reduce((sum, i) => {
-    const price = parseInt(i.price.replace(/\D/g, ''));
-    return sum + price * i.quantity;
-  }, 0);
+  const totalPriceUsd = items.reduce((sum, i) => sum + i.priceUsd * i.quantity, 0);
 
   return (
     <CartContext.Provider value={{
       items, addItem, removeItem, updateQuantity, clearCart,
-      totalItems, totalPrice,
+      totalItems, totalPriceUsd,
       isOpen, openCart: () => setIsOpen(true), closeCart: () => setIsOpen(false),
     }}>
       {children}

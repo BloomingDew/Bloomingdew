@@ -2,6 +2,7 @@
 
 import { useWishlist } from '../../context/WishlistContext';
 import { useCart } from '../../context/CartContext';
+import { useCurrency } from '../../context/CurrencyContext';
 import Link from 'next/link';
 import { useState, useEffect } from 'react';
 import { supabase } from '../../lib/supabase';
@@ -9,6 +10,7 @@ import { supabase } from '../../lib/supabase';
 export default function WishlistPage() {
   const { items, removeItem } = useWishlist();
   const { addItem, openCart } = useCart();
+  const { format } = useCurrency();
   const [images, setImages] = useState<Record<number, string>>({});
 
   // Fetch all wishlist images in a single query instead of one per card.
@@ -23,8 +25,8 @@ export default function WishlistPage() {
       });
   }, [items]);
 
-  const handleAddToCart = (item: { id: number; name: string; price: string; originalPrice?: string }) => {
-    addItem({ id: item.id, name: item.name, price: item.price, originalPrice: item.originalPrice, size: 'M', quantity: 1 });
+  const handleAddToCart = (item: { id: number; name: string; priceUsd: number; originalPriceUsd?: number }) => {
+    addItem({ id: item.id, name: item.name, priceUsd: item.priceUsd, originalPriceUsd: item.originalPriceUsd, size: 'M', quantity: 1 });
   };
 
   return (
@@ -58,7 +60,7 @@ export default function WishlistPage() {
       ) : (
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))', gap: '2rem' }}>
           {items.map((item) => (
-            <WishlistCard key={item.id} item={item} imageUrl={images[item.id] ?? null} onRemove={() => removeItem(item.id)} onAddToCart={() => handleAddToCart({ id: item.id, name: item.name, price: item.price, originalPrice: item.originalPrice })} />
+            <WishlistCard key={item.id} item={item} imageUrl={images[item.id] ?? null} format={format} onRemove={() => removeItem(item.id)} onAddToCart={() => handleAddToCart({ id: item.id, name: item.name, priceUsd: item.priceUsd, originalPriceUsd: item.originalPriceUsd })} />
           ))}
         </div>
       )}
@@ -66,9 +68,10 @@ export default function WishlistPage() {
   );
 }
 
-function WishlistCard({ item, imageUrl, onRemove, onAddToCart }: {
-  item: { id: number; name: string; price: string; originalPrice?: string; category: string };
+function WishlistCard({ item, imageUrl, format, onRemove, onAddToCart }: {
+  item: { id: number; name: string; priceUsd: number; originalPriceUsd?: number; category: string };
   imageUrl: string | null;
+  format: (usd: number) => string;
   onRemove: () => void;
   onAddToCart: () => void;
 }) {
@@ -105,10 +108,10 @@ function WishlistCard({ item, imageUrl, onRemove, onAddToCart }: {
           <p style={{ fontFamily: "'Jost', sans-serif", fontSize: '0.75rem', color: '#9A8F87', textTransform: 'uppercase', letterSpacing: '0.08em' }}>{item.category}</p>
         </div>
         <div style={{ textAlign: 'right' }}>
-          {item.originalPrice && (
-            <p style={{ fontFamily: "'Jost', sans-serif", fontSize: '0.75rem', color: '#B0A8A0', textDecoration: 'line-through', marginBottom: '0.1rem' }}>{item.originalPrice}</p>
+          {item.originalPriceUsd && (
+            <p style={{ fontFamily: "'Jost', sans-serif", fontSize: '0.75rem', color: '#B0A8A0', textDecoration: 'line-through', marginBottom: '0.1rem' }}>{format(item.originalPriceUsd)}</p>
           )}
-          <span style={{ fontFamily: "'Jost', sans-serif", fontSize: '0.88rem', color: item.originalPrice ? '#C0392B' : '#2C2C2C', fontWeight: item.originalPrice ? 500 : 400 }}>{item.price}</span>
+          <span style={{ fontFamily: "'Jost', sans-serif", fontSize: '0.88rem', color: item.originalPriceUsd ? '#C0392B' : '#2C2C2C', fontWeight: item.originalPriceUsd ? 500 : 400 }}>{format(item.priceUsd)}</span>
         </div>
       </div>
       <button onClick={onAddToCart} style={{

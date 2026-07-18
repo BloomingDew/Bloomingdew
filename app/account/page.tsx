@@ -5,6 +5,7 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { useUser } from '../../context/UserContext';
 import { supabase } from '../../lib/supabase';
+import { formatMoney } from '../../lib/currency';
 
 type Order = {
   id: string;
@@ -189,7 +190,7 @@ function AccountPageInner() {
                         {order.status?.replace('_', ' ')}
                       </span>
                       <p style={{ fontFamily: "'Jost', sans-serif", fontSize: '0.9rem', fontWeight: 500, color: '#2C2C2C' }}>
-                        ₦{order.total?.toLocaleString()}
+                        {formatMoney(Number(order.total) || 0, 'USD')}
                       </p>
                     </div>
                   </div>

@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { useWishlist } from '../../context/WishlistContext';
+import { useCurrency } from '../../context/CurrencyContext';
 import { getProducts, type Product } from '../../lib/products';
 
 const categories = ['All', 'New In', 'Dresses', 'Sets', 'Tops', 'Skirts', 'Trousers'];
@@ -129,13 +130,18 @@ export default function ShopPage() {
 function ProductCard({ product }: { product: Product }) {
   const [hovered, setHovered] = useState(false);
   const { addItem, removeItem, isWishlisted } = useWishlist();
+  const { format } = useCurrency();
   const wishlisted = isWishlisted(product.id);
+
+  const salePriceUsd = product.discount > 0
+    ? product.price * (1 - product.discount / 100)
+    : product.price;
 
   const toggleWishlist = (e: React.MouseEvent) => {
     e.preventDefault();
     wishlisted
       ? removeItem(product.id)
-      : addItem({ id: product.id, name: product.name, price: `₦${(product.discount > 0 ? Math.round(product.price * (1 - product.discount / 100)) : product.price).toLocaleString()}`, originalPrice: product.discount > 0 ? `₦${product.price.toLocaleString()}` : undefined, category: product.category });
+      : addItem({ id: product.id, name: product.name, priceUsd: salePriceUsd, originalPriceUsd: product.discount > 0 ? product.price : undefined, category: product.category });
   };
 
   const mainImage = product.images[0]?.url;
@@ -195,12 +201,12 @@ function ProductCard({ product }: { product: Product }) {
           <div style={{ textAlign: 'right' }}>
             {product.discount > 0 ? (
               <>
-                <p style={{ fontFamily: "'Jost', sans-serif", fontSize: '0.88rem', fontWeight: 300, color: '#9A8F87', textDecoration: 'line-through' }}>₦{product.price.toLocaleString()}</p>
-                <p style={{ fontFamily: "'Jost', sans-serif", fontSize: '0.88rem', fontWeight: 400, color: '#C0392B' }}>₦{Math.round(product.price * (1 - product.discount / 100)).toLocaleString()}</p>
+                <p style={{ fontFamily: "'Jost', sans-serif", fontSize: '0.88rem', fontWeight: 300, color: '#9A8F87', textDecoration: 'line-through' }}>{format(product.price)}</p>
+                <p style={{ fontFamily: "'Jost', sans-serif", fontSize: '0.88rem', fontWeight: 400, color: '#C0392B' }}>{format(salePriceUsd)}</p>
                 <p style={{ fontFamily: "'Jost', sans-serif", fontSize: '0.72rem', color: '#C0392B' }}>-{product.discount}%</p>
               </>
             ) : (
-              <p style={{ fontFamily: "'Jost', sans-serif", fontSize: '0.88rem', fontWeight: 300, color: '#2C2C2C' }}>₦{product.price.toLocaleString()}</p>
+              <p style={{ fontFamily: "'Jost', sans-serif", fontSize: '0.88rem', fontWeight: 300, color: '#2C2C2C' }}>{format(product.price)}</p>
             )}
           </div>
         </div>
