@@ -1,12 +1,19 @@
 import Link from 'next/link';
+import ClearCart from './ClearCart';
 
 export default async function OrderConfirmationPage({
   searchParams,
 }: {
-  searchParams: Promise<{ ref?: string }>;
+  searchParams: Promise<{ ref?: string; payment_intent?: string; redirect_status?: string }>;
 }) {
-  const { ref } = await searchParams;
+  const params = await searchParams;
+  // Inline path passes ?ref=<orderId>; the 3DS redirect returns with Stripe's
+  // ?payment_intent=<pi>&redirect_status=succeeded (order created by the webhook).
+  const ref = params.ref || params.payment_intent;
+  const paymentSucceeded = !!params.ref || params.redirect_status === 'succeeded';
   return (
+    <>
+      {paymentSucceeded && <ClearCart />}
     <div style={{ minHeight: '80vh', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '4rem 2rem' }}>
       <div style={{ maxWidth: '560px', width: '100%', textAlign: 'center' }}>
 
@@ -85,5 +92,6 @@ export default async function OrderConfirmationPage({
         </div>
       </div>
     </div>
+    </>
   );
 }
