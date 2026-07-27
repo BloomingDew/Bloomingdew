@@ -2,8 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { getSession } from '../../../lib/supabase-admin';
-import { supabase } from '../../../lib/supabase';
+import { getSession, supabaseAuth } from '../../../lib/supabase-admin';
 
 type Enquiry = {
   id: string;
@@ -36,33 +35,33 @@ export default function EnquiriesPage() {
   }, []);
 
   const fetchEnquiries = async () => {
-    const { data } = await supabase.from('enquiries').select('*').order('created_at', { ascending: false });
+    const { data } = await supabaseAuth.from('enquiries').select('*').order('created_at', { ascending: false });
     setEnquiries(data || []);
     setLoading(false);
   };
 
   const markRead = async (id: string) => {
-    await supabase.from('enquiries').update({ status: 'read' }).eq('id', id);
+    await supabaseAuth.from('enquiries').update({ status: 'read' }).eq('id', id);
     setEnquiries(prev => prev.map(e => e.id === id ? { ...e, status: 'read' } : e));
   };
 
   const markUnread = async (id: string) => {
-    await supabase.from('enquiries').update({ status: 'unread' }).eq('id', id);
+    await supabaseAuth.from('enquiries').update({ status: 'unread' }).eq('id', id);
     setEnquiries(prev => prev.map(e => e.id === id ? { ...e, status: 'unread' } : e));
   };
 
   const markReplied = async (id: string) => {
-    await supabase.from('enquiries').update({ status: 'replied' }).eq('id', id);
+    await supabaseAuth.from('enquiries').update({ status: 'replied' }).eq('id', id);
     setEnquiries(prev => prev.map(e => e.id === id ? { ...e, status: 'replied' } : e));
   };
 
   const markAccepted = async (id: string) => {
-    await supabase.from('enquiries').update({ status: 'accepted' }).eq('id', id);
+    await supabaseAuth.from('enquiries').update({ status: 'accepted' }).eq('id', id);
     setEnquiries(prev => prev.map(e => e.id === id ? { ...e, status: 'accepted' } : e));
   };
 
   const archiveEnquiry = async (id: string) => {
-    await supabase.from('enquiries').update({ status: 'archived' }).eq('id', id);
+    await supabaseAuth.from('enquiries').update({ status: 'archived' }).eq('id', id);
     setEnquiries(prev => prev.map(e => e.id === id ? { ...e, status: 'archived' } : e));
     setExpanded(null);
   };
