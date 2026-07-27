@@ -25,6 +25,7 @@ export default function EditProductPage({ params }: { params: Promise<{ id: stri
   const [uploadingImage, setUploadingImage] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
+  const [updatedAt, setUpdatedAt] = useState<string | null>(null);
 
   const [form, setForm] = useState({
     name: '', price: '', category_id: '', discount: '0',
@@ -55,6 +56,7 @@ export default function EditProductPage({ params }: { params: Promise<{ id: stri
       });
       const sorted = [...(data.product_images || [])].sort((a: ProductImage, b: ProductImage) => a.position - b.position);
       setImages(sorted);
+      if (data.updated_at) setUpdatedAt(data.updated_at);
     }
 
     if (inventory && inventory.length > 0) {
@@ -81,7 +83,7 @@ export default function EditProductPage({ params }: { params: Promise<{ id: stri
       const { error } = await supabaseAuth.storage.from('product-image').upload(fileName, file);
       if (!error) {
         const { data } = supabaseAuth.storage.from('product-image').getPublicUrl(fileName);
-        const { data: imgData } = await supabase.from('product_images').insert({
+        const { data: imgData } = await supabaseAuth.from('product_images').insert({
           product_id: parseInt(id), url: data.publicUrl,
           alt_text: form.name, position: images.length,
         }).select().single();
@@ -95,10 +97,10 @@ export default function EditProductPage({ params }: { params: Promise<{ id: stri
     await supabase.from('product_images').delete().eq('id', imageId);
     const updated = images.filter(img => img.id !== imageId)
       .map((img, i) => ({ ...img, position: i }));
-    // Update positions
-    for (const img of updated) {
-      await supabase.from('product_images').update({ position: img.position }).eq('id', img.id);
-    }
+    // Update positions in parallel
+    await Promise.all(
+      updated.map(img => supabase.from('product_images').update({ position: img.position }).eq('id', img.id))
+    );
     setImages(updated);
   };
 
@@ -126,6 +128,10 @@ export default function EditProductPage({ params }: { params: Promise<{ id: stri
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+
+    const allZero = sizeInventory.every(s => s.quantity === 0);
+    if (allZero && !window.confirm('All sizes have 0 stock. Save anyway?')) return;
+
     setLoading(true);
     setError('');
 
@@ -139,7 +145,7 @@ export default function EditProductPage({ params }: { params: Promise<{ id: stri
       fabric: form.fabric,
       care_instructions: form.care_instructions,
       available: form.available,
-      made_to_order: false,
+      made_to_order: form.made_to_order,
       lead_time: form.lead_time,
     }).eq('id', id);
 
@@ -163,11 +169,20 @@ export default function EditProductPage({ params }: { params: Promise<{ id: stri
   return (
     <div>
       <div style={{ maxWidth: '860px', margin: '0 auto', padding: '3rem 2rem' }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2.5rem' }}>
-          <h2 style={{ fontFamily: "'Playfair Display', serif", fontSize: '1.6rem', fontWeight: 500, color: '#2C2C2C' }}>Edit Product</h2>
-          <button onClick={handleDelete} style={{ padding: '0.6rem 1.2rem', backgroundColor: 'transparent', color: '#C0392B', border: '1px solid #C0392B', fontFamily: "'Jost', sans-serif", fontSize: '0.72rem', letterSpacing: '0.1em', textTransform: 'uppercase', cursor: 'pointer' }}>
-            Delete Product
-          </button>
+        <div style={{ display: 'flex', alignItems: 'flex-start', marginBottom: '2.5rem', gap: '1rem' }}>
+          <div style={{ flex: 1 }}>
+            <h2 style={{ fontFamily: "'Playfair Display', serif", fontSize: '1.6rem', fontWeight: 500, color: '#2C2C2C', marginBottom: '0.3rem' }}>Edit Product</h2>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+              {updatedAt && (
+                <span style={{ fontFamily: "'Jost', sans-serif", fontSize: '0.7rem', color: '#B0A89E' }}>
+                  Last updated {new Date(updatedAt).toLocaleString()}
+                </span>
+              )}
+              <a href={`/products/${id}`} target="_blank" rel="noopener noreferrer" style={{ fontFamily: "'Jost', sans-serif", fontSize: '0.72rem', color: '#C9A882', textDecoration: 'none', letterSpacing: '0.05em' }}>
+                View on site →
+              </a>
+            </div>
+          </div>
         </div>
 
         <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
@@ -181,7 +196,7 @@ export default function EditProductPage({ params }: { params: Promise<{ id: stri
                 <input required style={inputStyle} value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} />
               </div>
               <div>
-                <label style={labelStyle}>Price (₦) *</label>
+                <label style={labelStyle}>Price (USD $) *</label>
                 <input required type="number" step="0.01" style={inputStyle} value={form.price} onChange={e => setForm({ ...form, price: e.target.value })} />
               </div>
               <div>
@@ -189,7 +204,7 @@ export default function EditProductPage({ params }: { params: Promise<{ id: stri
                 <input type="number" min="0" max="100" style={inputStyle} value={form.discount} onChange={e => setForm({ ...form, discount: e.target.value })} placeholder="0" />
                 {parseInt(form.discount) > 0 && form.price && (
                   <p style={{ fontFamily: "'Jost', sans-serif", fontSize: '0.72rem', color: '#C0392B', marginTop: '0.4rem' }}>
-                    Sale price: ₦{Math.round(parseFloat(form.price) * (1 - parseInt(form.discount) / 100)).toLocaleString()}
+                    Sale price: ${Math.round(parseFloat(form.price) * (1 - parseInt(form.discount) / 100)).toLocaleString()}
                   </p>
                 )}
               </div>
@@ -294,10 +309,14 @@ export default function EditProductPage({ params }: { params: Promise<{ id: stri
           {/* Availability & Stock */}
           <div style={card}>
             <h3 style={cardHeading}>Availability & Stock</h3>
-            <div style={{ marginBottom: '1.5rem' }}>
+            <div style={{ marginBottom: '1.5rem', display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
               <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer', fontFamily: "'Jost', sans-serif", fontSize: '0.85rem', color: '#2C2C2C' }}>
                 <input type="checkbox" checked={form.available} onChange={e => setForm({ ...form, available: e.target.checked })} />
                 Visible on site
+              </label>
+              <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer', fontFamily: "'Jost', sans-serif", fontSize: '0.85rem', color: '#2C2C2C' }}>
+                <input type="checkbox" checked={form.made_to_order} onChange={e => setForm({ ...form, made_to_order: e.target.checked })} />
+                Made to Order
               </label>
             </div>
 
@@ -337,6 +356,17 @@ export default function EditProductPage({ params }: { params: Promise<{ id: stri
             <Link href="/admin" style={{ padding: '1.1rem 2rem', border: '1px solid #E8DDD3', color: '#2C2C2C', fontFamily: "'Jost', sans-serif", fontSize: '0.78rem', letterSpacing: '0.15em', textTransform: 'uppercase', textDecoration: 'none', display: 'flex', alignItems: 'center' }}>
               Cancel
             </Link>
+          </div>
+
+          {/* Danger Zone */}
+          <div style={{ border: '1px solid #F5C6C2', padding: '1.5rem 2rem', backgroundColor: '#FFF8F7', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <div>
+              <p style={{ fontFamily: "'Jost', sans-serif", fontSize: '0.82rem', color: '#2C2C2C', marginBottom: '0.25rem', fontWeight: 500 }}>Delete this product</p>
+              <p style={{ fontFamily: "'Jost', sans-serif", fontSize: '0.72rem', color: '#9A8F87' }}>This action cannot be undone. All images and inventory will be removed.</p>
+            </div>
+            <button type="button" onClick={handleDelete} style={{ marginLeft: '2rem', padding: '0.6rem 1.4rem', backgroundColor: 'transparent', color: '#C0392B', border: '1px solid #C0392B', fontFamily: "'Jost', sans-serif", fontSize: '0.72rem', letterSpacing: '0.1em', textTransform: 'uppercase', cursor: 'pointer', whiteSpace: 'nowrap' }}>
+              Delete Product
+            </button>
           </div>
         </form>
       </div>

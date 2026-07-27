@@ -16,7 +16,7 @@ export default function NewProductPage() {
   const [categories, setCategories] = useState<Category[]>([]);
   const [loading, setLoading] = useState(false);
   const [uploadingImage, setUploadingImage] = useState(false);
-  const [images, setImages] = useState<{ url: string; alt_text: string }[]>([]);
+  const [images, setImages] = useState<{ url: string; alt_text: string; path: string }[]>([]);
   const [sizeInventory, setSizeInventory] = useState(
     DEFAULT_SIZES.map(size => ({ size, quantity: 0 }))
   );
@@ -50,13 +50,17 @@ export default function NewProductPage() {
       const { error } = await supabaseAuth.storage.from('product-image').upload(fileName, file);
       if (!error) {
         const { data } = supabaseAuth.storage.from('product-image').getPublicUrl(fileName);
-        setImages(prev => [...prev, { url: data.publicUrl, alt_text: form.name || file.name }]);
+        setImages(prev => [...prev, { url: data.publicUrl, alt_text: form.name || file.name, path: fileName }]);
       }
     }
     setUploadingImage(false);
   };
 
-  const removeImage = (index: number) => {
+  const removeImage = async (index: number) => {
+    const img = images[index];
+    if (img?.path) {
+      await supabaseAuth.storage.from('product-image').remove([img.path]);
+    }
     setImages(prev => prev.filter((_, i) => i !== index));
   };
 
@@ -87,13 +91,19 @@ export default function NewProductPage() {
         fabric: form.fabric,
         care_instructions: form.care_instructions,
         available: form.available,
-        made_to_order: false,
+        made_to_order: form.made_to_order,
         lead_time: form.lead_time,
       })
       .select()
       .single();
 
-    if (productError) { setError(productError.message); setLoading(false); return; }
+    if (productError) {
+      // Clean up any already-uploaded images from Storage
+      for (const img of images) {
+        if (img.path) await supabaseAuth.storage.from('product-image').remove([img.path]);
+      }
+      setError(productError.message); setLoading(false); return;
+    }
 
     // Save images
     if (images.length > 0) {
@@ -103,15 +113,13 @@ export default function NewProductPage() {
     }
 
     // Save per-size inventory
-    if (true) {
-      await supabase.from('product_size_inventory').insert(
-        sizeInventory.map(s => ({ product_id: product.id, size: s.size, quantity: s.quantity }))
-      );
-    }
+    await supabase.from('product_size_inventory').insert(
+      sizeInventory.map(s => ({ product_id: product.id, size: s.size, quantity: s.quantity }))
+    );
 
     setSuccess('Product added successfully!');
     setLoading(false);
-    setTimeout(() => router.push('/admin'), 1500);
+    setTimeout(() => router.push('/admin'), 2500);
   };
 
   const totalStock = sizeInventory.reduce((sum, s) => sum + s.quantity, 0);
@@ -134,7 +142,7 @@ export default function NewProductPage() {
                 <input required style={inputStyle} value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} placeholder="e.g. Linen Wrap Dress" />
               </div>
               <div>
-                <label style={labelStyle}>Price (₦) *</label>
+                <label style={labelStyle}>Price (USD $) *</label>
                 <input required type="number" step="0.01" style={inputStyle} value={form.price} onChange={e => setForm({ ...form, price: e.target.value })} placeholder="120.00" />
               </div>
               <div>
@@ -142,7 +150,7 @@ export default function NewProductPage() {
                 <input type="number" min="0" max="100" style={inputStyle} value={form.discount} onChange={e => setForm({ ...form, discount: e.target.value })} placeholder="0" />
                 {parseInt(form.discount) > 0 && form.price && (
                   <p style={{ fontFamily: "'Jost', sans-serif", fontSize: '0.72rem', color: '#C0392B', marginTop: '0.4rem' }}>
-                    Sale price: ₦{Math.round(parseFloat(form.price) * (1 - parseInt(form.discount) / 100)).toLocaleString()}
+                    Sale price: ${Math.round(parseFloat(form.price) * (1 - parseInt(form.discount) / 100)).toLocaleString()}
                   </p>
                 )}
               </div>
@@ -245,10 +253,14 @@ export default function NewProductPage() {
           {/* Availability & Stock */}
           <div style={card}>
             <h3 style={cardHeading}>Availability & Stock</h3>
-            <div style={{ marginBottom: '1.5rem' }}>
+            <div style={{ marginBottom: '1.5rem', display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
               <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer', fontFamily: "'Jost', sans-serif", fontSize: '0.85rem', color: '#2C2C2C' }}>
                 <input type="checkbox" checked={form.available} onChange={e => setForm({ ...form, available: e.target.checked })} />
                 Visible on site
+              </label>
+              <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer', fontFamily: "'Jost', sans-serif", fontSize: '0.85rem', color: '#2C2C2C' }}>
+                <input type="checkbox" checked={form.made_to_order} onChange={e => setForm({ ...form, made_to_order: e.target.checked })} />
+                Made to Order
               </label>
             </div>
 

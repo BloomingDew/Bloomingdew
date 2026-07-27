@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { getSession, supabaseAuth } from '../../../lib/supabase-admin';
 import { supabase } from '../../../lib/supabase';
+import { formatAdminPrice } from '../../../lib/adminCurrency';
 
 type Category = { id: number; name: string; slug: string; image_url: string | null };
 type Product = { id: number; name: string; price: number; featured: boolean; product_images: { url: string }[] };
@@ -14,8 +15,12 @@ export default function HomepageAdminPage() {
   const [products, setProducts] = useState<Product[]>([]);
   const [uploadingId, setUploadingId] = useState<number | null>(null);
   const [savedMsg, setSavedMsg] = useState('');
+  const [savedMsgSection, setSavedMsgSection] = useState<'category' | 'featured' | 'about' | ''>('');
   const [aboutImage, setAboutImage] = useState<string | null>(null);
   const [uploadingAbout, setUploadingAbout] = useState(false);
+  const [featuredError, setFeaturedError] = useState('');
+  // featuredOrder stores product ids in display order; cosmetic only — no featured_position column in DB
+  const [featuredOrder, setFeaturedOrder] = useState<number[]>([]);
 
   useEffect(() => {
     getSession().then(s => { if (!s) router.push('/admin/login'); });
@@ -29,7 +34,9 @@ export default function HomepageAdminPage() {
       supabaseAuth.from('site_settings').select('value').eq('key', 'about_image_url').single(),
     ]);
     setCategories(cats || []);
-    setProducts(prods || []);
+    const loadedProducts = prods || [];
+    setProducts(loadedProducts);
+    setFeaturedOrder(loadedProducts.filter(p => p.featured).map(p => p.id));
     setAboutImage(setting?.value ?? null);
   };
 
@@ -65,7 +72,21 @@ export default function HomepageAdminPage() {
     setUploadingId(null);
   };
 
+  const extractStoragePath = (url: string): string | null => {
+    const marker = 'product-image/';
+    const idx = url.indexOf(marker);
+    return idx !== -1 ? url.slice(idx + marker.length) : null;
+  };
+
   const removeCategoryImage = async (categoryId: number) => {
+    const cat = categories.find(c => c.id === categoryId);
+    if (cat?.image_url) {
+      const path = extractStoragePath(cat.image_url);
+      if (path) {
+        const { error } = await supabaseAuth.storage.from('product-image').remove([path]);
+        if (error) console.error('Storage delete error:', error.message);
+      }
+    }
     await supabaseAuth.from('categories').update({ image_url: null }).eq('id', categoryId);
     setCategories(prev => prev.map(c => c.id === categoryId ? { ...c, image_url: null } : c));
   };
@@ -99,10 +120,18 @@ export default function HomepageAdminPage() {
     setAboutImage(publicUrl);
     setUploadingAbout(false);
     setSavedMsg('Saved!');
-    setTimeout(() => setSavedMsg(''), 2000);
+    setSavedMsgSection('about');
+    setTimeout(() => { setSavedMsg(''); setSavedMsgSection(''); }, 2000);
   };
 
   const removeAboutImage = async () => {
+    if (aboutImage) {
+      const path = extractStoragePath(aboutImage);
+      if (path) {
+        const { error } = await supabaseAuth.storage.from('product-image').remove([path]);
+        if (error) console.error('Storage delete error:', error.message);
+      }
+    }
     await supabaseAuth.from('site_settings').update({ value: null }).eq('key', 'about_image_url');
     setAboutImage(null);
   };
@@ -110,27 +139,40 @@ export default function HomepageAdminPage() {
   const toggleFeatured = async (productId: number, current: boolean) => {
     const featured = products.filter(p => p.featured).length;
     if (!current && featured >= 8) {
-      alert('Maximum 8 featured products. Remove one first.');
+      setFeaturedError('Maximum 8 featured products. Remove one first.');
+      setTimeout(() => setFeaturedError(''), 3000);
       return;
     }
     await supabaseAuth.from('products').update({ featured: !current }).eq('id', productId);
     setProducts(prev => prev.map(p => p.id === productId ? { ...p, featured: !current } : p));
+    setFeaturedOrder(prev =>
+      !current ? [...prev, productId] : prev.filter(id => id !== productId)
+    );
     setSavedMsg('Saved!');
-    setTimeout(() => setSavedMsg(''), 2000);
+    setSavedMsgSection('featured');
+    setTimeout(() => { setSavedMsg(''); setSavedMsgSection(''); }, 2000);
   };
 
-  const featuredProducts = products.filter(p => p.featured);
+  const moveFeatured = (index: number, direction: -1 | 1) => {
+    const newOrder = [...featuredOrder];
+    const swapIdx = index + direction;
+    if (swapIdx < 0 || swapIdx >= newOrder.length) return;
+    [newOrder[index], newOrder[swapIdx]] = [newOrder[swapIdx], newOrder[index]];
+    setFeaturedOrder(newOrder);
+    // Note: cosmetic reorder only — no featured_position column in DB
+  };
+
+  const featuredProducts = featuredOrder
+    .map(id => products.find(p => p.id === id))
+    .filter((p): p is Product => p !== undefined && p.featured);
 
   return (
     <div>
       <div style={{ maxWidth: '1100px', margin: '0 auto', padding: '3rem 2rem' }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2.5rem' }}>
+        <div style={{ marginBottom: '2.5rem' }}>
           <h2 style={{ fontFamily: "'Playfair Display', serif", fontSize: '1.6rem', fontWeight: 500, color: '#2C2C2C' }}>
             Homepage Content
           </h2>
-          {savedMsg && (
-            <span style={{ fontFamily: "'Jost', sans-serif", fontSize: '0.82rem', color: '#2E7D32' }}>{savedMsg}</span>
-          )}
         </div>
 
         {/* Shop by Category */}
@@ -199,9 +241,14 @@ export default function HomepageAdminPage() {
         {/* About Page Image */}
         <div style={{ backgroundColor: '#FFFFFF', border: '1px solid #E8DDD3', padding: '2rem', marginBottom: '2rem' }}>
           <div style={{ marginBottom: '1.5rem' }}>
-            <h3 style={{ fontFamily: "'Playfair Display', serif", fontSize: '1.2rem', fontWeight: 500, color: '#2C2C2C', marginBottom: '0.4rem' }}>
-              About Page Image
-            </h3>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', marginBottom: '0.4rem' }}>
+              <h3 style={{ fontFamily: "'Playfair Display', serif", fontSize: '1.2rem', fontWeight: 500, color: '#2C2C2C' }}>
+                About Page Image
+              </h3>
+              {savedMsg && savedMsgSection === 'about' && (
+                <span style={{ fontFamily: "'Jost', sans-serif", fontSize: '0.82rem', color: '#2E7D32' }}>{savedMsg}</span>
+              )}
+            </div>
             <p style={{ fontFamily: "'Jost', sans-serif", fontSize: '0.82rem', fontWeight: 300, color: '#9A8F87' }}>
               The portrait image shown on the About page alongside the brand story.
             </p>
@@ -261,12 +308,20 @@ export default function HomepageAdminPage() {
         {/* Featured Pieces */}
         <div style={{ backgroundColor: '#FFFFFF', border: '1px solid #E8DDD3', padding: '2rem' }}>
           <div style={{ marginBottom: '1.5rem' }}>
-            <h3 style={{ fontFamily: "'Playfair Display', serif", fontSize: '1.2rem', fontWeight: 500, color: '#2C2C2C', marginBottom: '0.4rem' }}>
-              Featured Pieces
-            </h3>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', marginBottom: '0.4rem' }}>
+              <h3 style={{ fontFamily: "'Playfair Display', serif", fontSize: '1.2rem', fontWeight: 500, color: '#2C2C2C' }}>
+                Featured Pieces
+              </h3>
+              {savedMsg && savedMsgSection === 'featured' && (
+                <span style={{ fontFamily: "'Jost', sans-serif", fontSize: '0.82rem', color: '#2E7D32' }}>{savedMsg}</span>
+              )}
+            </div>
             <p style={{ fontFamily: "'Jost', sans-serif", fontSize: '0.82rem', fontWeight: 300, color: '#9A8F87' }}>
               Select up to 8 products to feature on the homepage. Currently featuring {featuredProducts.length} product{featuredProducts.length !== 1 ? 's' : ''}.
             </p>
+            {featuredError && (
+              <p style={{ fontFamily: "'Jost', sans-serif", fontSize: '0.82rem', color: '#C62828', marginTop: '0.4rem' }}>{featuredError}</p>
+            )}
           </div>
 
           {/* Currently featured */}
@@ -275,10 +330,24 @@ export default function HomepageAdminPage() {
               <p style={{ fontFamily: "'Jost', sans-serif", fontSize: '0.72rem', letterSpacing: '0.12em', textTransform: 'uppercase', color: '#C9A882', marginBottom: '1rem' }}>
                 Currently Featured
               </p>
-              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem' }}>
-                {featuredProducts.map(p => (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
+                {featuredProducts.map((p, idx) => (
                   <div key={p.id} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.4rem 0.8rem', backgroundColor: '#FAF7F4', border: '1px solid #C9A882' }}>
-                    <span style={{ fontFamily: "'Jost', sans-serif", fontSize: '0.82rem', color: '#2C2C2C' }}>{p.name}</span>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '1px', marginRight: '0.25rem' }}>
+                      <button
+                        onClick={() => moveFeatured(idx, -1)}
+                        disabled={idx === 0}
+                        style={{ background: 'none', border: 'none', cursor: idx === 0 ? 'default' : 'pointer', color: idx === 0 ? '#D4C4B5' : '#9A8F87', fontSize: '0.65rem', lineHeight: 1, padding: '1px 3px' }}
+                        title="Move up"
+                      >▲</button>
+                      <button
+                        onClick={() => moveFeatured(idx, 1)}
+                        disabled={idx === featuredProducts.length - 1}
+                        style={{ background: 'none', border: 'none', cursor: idx === featuredProducts.length - 1 ? 'default' : 'pointer', color: idx === featuredProducts.length - 1 ? '#D4C4B5' : '#9A8F87', fontSize: '0.65rem', lineHeight: 1, padding: '1px 3px' }}
+                        title="Move down"
+                      >▼</button>
+                    </div>
+                    <span style={{ fontFamily: "'Jost', sans-serif", fontSize: '0.82rem', color: '#2C2C2C', flex: 1 }}>{p.name}</span>
                     <button onClick={() => toggleFeatured(p.id, true)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#9A8F87', fontSize: '0.8rem' }}>✕</button>
                   </div>
                 ))}
@@ -305,7 +374,7 @@ export default function HomepageAdminPage() {
                   <p style={{ fontFamily: "'Jost', sans-serif", fontSize: '0.82rem', color: '#2C2C2C', marginBottom: '0.2rem', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                     {product.name}
                   </p>
-                  <p style={{ fontFamily: "'Jost', sans-serif", fontSize: '0.75rem', color: '#9A8F87' }}>₦{product.price}</p>
+                  <p style={{ fontFamily: "'Jost', sans-serif", fontSize: '0.75rem', color: '#9A8F87' }}>{formatAdminPrice(product.price)}</p>
                 </div>
                 <div style={{
                   width: '20px', height: '20px', flexShrink: 0, borderRadius: '50%',

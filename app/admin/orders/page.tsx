@@ -1,9 +1,10 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { getSession } from '../../../lib/supabase-admin';
 import { supabase } from '../../../lib/supabase';
+import { formatAdminPrice } from '../../../lib/adminCurrency';
 
 type Order = {
   id: string;
@@ -11,7 +12,7 @@ type Order = {
   customer_email: string;
   customer_phone: string;
   shipping_address: { address: string; city: string; postcode: string; country: string };
-  items: { id: number; name: string; size: string; quantity: number; price: string }[];
+  items: { id: number; name: string; size: string; quantity: number; price: string | number }[];
   subtotal: number;
   shipping_cost: number;
   total: number;
@@ -22,17 +23,23 @@ type Order = {
   created_at: string;
 };
 
-const STATUSES = ['paid', 'shipped', 'delivered', 'cancelled'];
+const STATUSES = ['pending', 'paid', 'shipped', 'delivered', 'cancelled'];
 const STATUS_LABELS: Record<string, string> = {
-  paid: 'New Order', shipped: 'Shipped',
-  delivered: 'Delivered', cancelled: 'Cancelled',
+  pending: 'Pending',
+  paid: 'New Order',
+  shipped: 'Shipped',
+  delivered: 'Delivered',
+  cancelled: 'Cancelled',
 };
 const STATUS_COLORS: Record<string, { bg: string; color: string }> = {
+  pending: { bg: '#FFF8E1', color: '#F57F17' },
   paid: { bg: '#FFF3E0', color: '#E65100' },
   shipped: { bg: '#F3E5F5', color: '#6A1B9A' },
   delivered: { bg: '#E8F5E9', color: '#2E7D32' },
   cancelled: { bg: '#FFEBEE', color: '#C62828' },
 };
+
+type DateRange = 'all' | '7d' | '30d';
 
 export default function OrdersPage() {
   const router = useRouter();
@@ -40,10 +47,19 @@ export default function OrdersPage() {
   const [loading, setLoading] = useState(true);
   const [expanded, setExpanded] = useState<string | null>(null);
   const [filterStatus, setFilterStatus] = useState('all');
+  const [searchQuery, setSearchQuery] = useState('');
+  const [dateRange, setDateRange] = useState<DateRange>('all');
+  const [trackingValues, setTrackingValues] = useState<Record<string, { number: string; url: string }>>({});
+  const [unsavedNotes, setUnsavedNotes] = useState<Set<string>>(new Set());
 
   useEffect(() => {
-    getSession().then(s => { if (!s) router.push('/admin/login'); });
-    fetchOrders();
+    getSession().then(s => {
+      if (!s) {
+        router.push('/admin/login');
+      } else {
+        fetchOrders();
+      }
+    });
   }, []);
 
   const fetchOrders = async () => {
@@ -56,10 +72,13 @@ export default function OrdersPage() {
     await supabase.from('orders').update({ status }).eq('id', orderId);
     setOrders(prev => prev.map(o => o.id === orderId ? { ...o, status } : o));
 
-    // Fire shipping email when status changes to shipped
     if (status === 'shipped') {
       const order = orders.find(o => o.id === orderId);
       if (order) {
+        // Use trackingValues (live typed values) if available, else fall back to order state
+        const tv = trackingValues[orderId];
+        const trackingNumber = tv?.number ?? order.tracking_number ?? null;
+        const trackingUrl = tv?.url ?? order.tracking_url ?? null;
         fetch('/api/email/shipping-notification', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -67,8 +86,8 @@ export default function OrdersPage() {
             customerName: order.customer_name,
             customerEmail: order.customer_email,
             items: order.items,
-            trackingNumber: order.tracking_number || null,
-            trackingUrl: order.tracking_url || null,
+            trackingNumber,
+            trackingUrl,
           }),
         }).catch(err => console.error('Shipping email error:', err));
       }
@@ -77,6 +96,7 @@ export default function OrdersPage() {
 
   const saveNotes = async (orderId: string, notes: string) => {
     await supabase.from('orders').update({ notes }).eq('id', orderId);
+    setUnsavedNotes(prev => { const next = new Set(prev); next.delete(orderId); return next; });
   };
 
   const saveTracking = async (orderId: string, tracking_number: string, tracking_url: string) => {
@@ -84,7 +104,21 @@ export default function OrdersPage() {
     setOrders(prev => prev.map(o => o.id === orderId ? { ...o, tracking_number, tracking_url } : o));
   };
 
-  const filtered = filterStatus === 'all' ? orders : orders.filter(o => o.status === filterStatus);
+  // Client-side filters
+  const now = new Date();
+  const filtered = orders.filter(o => {
+    if (filterStatus !== 'all' && o.status !== filterStatus) return false;
+    if (searchQuery) {
+      const q = searchQuery.toLowerCase();
+      if (!o.customer_name?.toLowerCase().includes(q) && !o.customer_email?.toLowerCase().includes(q)) return false;
+    }
+    if (dateRange !== 'all') {
+      const days = dateRange === '7d' ? 7 : 30;
+      const cutoff = new Date(now.getTime() - days * 24 * 60 * 60 * 1000);
+      if (new Date(o.created_at) < cutoff) return false;
+    }
+    return true;
+  });
 
   return (
     <div>
@@ -97,6 +131,7 @@ export default function OrdersPage() {
             { label: 'New Orders', value: orders.filter(o => o.status === 'paid').length },
             { label: 'Shipped', value: orders.filter(o => o.status === 'shipped').length },
             { label: 'Delivered', value: orders.filter(o => o.status === 'delivered').length },
+            { label: 'Cancelled', value: orders.filter(o => o.status === 'cancelled').length },
           ].map(({ label, value }) => (
             <div key={label} style={{ backgroundColor: '#FFFFFF', padding: '1.2rem 1.5rem', border: '1px solid #E8DDD3' }}>
               <p style={{ fontFamily: "'Jost', sans-serif", fontSize: '0.68rem', letterSpacing: '0.12em', textTransform: 'uppercase', color: '#9A8F87', marginBottom: '0.4rem' }}>{label}</p>
@@ -105,7 +140,31 @@ export default function OrdersPage() {
           ))}
         </div>
 
-        {/* Filter */}
+        {/* Search & date filters */}
+        <div style={{ display: 'flex', gap: '1rem', marginBottom: '1rem', flexWrap: 'wrap', alignItems: 'center' }}>
+          <input
+            type="text"
+            value={searchQuery}
+            onChange={e => setSearchQuery(e.target.value)}
+            placeholder="Search by name or email..."
+            style={{ flex: '1 1 220px', padding: '0.5rem 0.85rem', border: '1px solid #E8DDD3', fontFamily: "'Jost', sans-serif", fontSize: '0.82rem', color: '#2C2C2C', outline: 'none' }}
+          />
+          <div style={{ display: 'flex', gap: '0.4rem' }}>
+            {(['all', '7d', '30d'] as DateRange[]).map(r => (
+              <button key={r} onClick={() => setDateRange(r)} style={{
+                padding: '0.4rem 0.85rem', border: '1px solid', cursor: 'pointer',
+                fontFamily: "'Jost', sans-serif", fontSize: '0.72rem', letterSpacing: '0.08em', textTransform: 'uppercase',
+                borderColor: dateRange === r ? '#2C2C2C' : '#E8DDD3',
+                backgroundColor: dateRange === r ? '#2C2C2C' : '#FFFFFF',
+                color: dateRange === r ? '#FAF7F4' : '#2C2C2C',
+              }}>
+                {r === 'all' ? 'All time' : r === '7d' ? 'Last 7 days' : 'Last 30 days'}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* Status filter */}
         <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '1.5rem', flexWrap: 'wrap' }}>
           {['all', ...STATUSES].map(s => (
             <button key={s} onClick={() => setFilterStatus(s)} style={{
@@ -140,12 +199,13 @@ export default function OrdersPage() {
                     <p style={{ fontFamily: "'Jost', sans-serif", fontSize: '0.75rem', color: '#9A8F87' }}>{order.customer_email}</p>
                   </div>
                   <div>
+                    <p style={{ fontFamily: "'Jost', sans-serif", fontSize: '0.72rem', color: '#C9A882', letterSpacing: '0.06em' }}>#{order.id.slice(0, 8).toUpperCase()}</p>
                     <p style={{ fontFamily: "'Jost', sans-serif", fontSize: '0.75rem', color: '#9A8F87' }}>
                       {new Date(order.created_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}
                     </p>
-                    <p style={{ fontFamily: "'Jost', sans-serif", fontSize: '0.88rem', color: '#2C2C2C' }}>₦{order.total?.toFixed(2)}</p>
                   </div>
                   <div>
+                    <p style={{ fontFamily: "'Jost', sans-serif", fontSize: '0.88rem', color: '#2C2C2C' }}>{formatAdminPrice(order.total)}</p>
                     <p style={{ fontFamily: "'Jost', sans-serif", fontSize: '0.75rem', color: '#9A8F87' }}>{order.items?.length} item{order.items?.length !== 1 ? 's' : ''}</p>
                   </div>
                 </div>
@@ -174,21 +234,23 @@ export default function OrdersPage() {
                     {order.items?.map((item, i) => (
                       <div key={i} style={{ display: 'flex', justifyContent: 'space-between', padding: '0.5rem 0', borderBottom: '1px solid #F5F5F5' }}>
                         <span style={{ fontFamily: "'Jost', sans-serif", fontSize: '0.85rem', color: '#2C2C2C' }}>{item.name} — Size {item.size} × {item.quantity}</span>
-                        <span style={{ fontFamily: "'Jost', sans-serif", fontSize: '0.85rem', color: '#9A8F87' }}>{item.price}</span>
+                        <span style={{ fontFamily: "'Jost', sans-serif", fontSize: '0.85rem', color: '#9A8F87' }}>
+                          {typeof item.price === 'number' ? formatAdminPrice(item.price) : item.price}
+                        </span>
                       </div>
                     ))}
                     <div style={{ marginTop: '1rem', display: 'flex', flexDirection: 'column', gap: '0.3rem' }}>
                       <div style={{ display: 'flex', justifyContent: 'space-between' }}>
                         <span style={{ fontFamily: "'Jost', sans-serif", fontSize: '0.78rem', color: '#9A8F87' }}>Subtotal</span>
-                        <span style={{ fontFamily: "'Jost', sans-serif", fontSize: '0.78rem', color: '#2C2C2C' }}>₦{order.subtotal?.toFixed(2)}</span>
+                        <span style={{ fontFamily: "'Jost', sans-serif", fontSize: '0.78rem', color: '#2C2C2C' }}>{formatAdminPrice(order.subtotal)}</span>
                       </div>
                       <div style={{ display: 'flex', justifyContent: 'space-between' }}>
                         <span style={{ fontFamily: "'Jost', sans-serif", fontSize: '0.78rem', color: '#9A8F87' }}>Shipping</span>
-                        <span style={{ fontFamily: "'Jost', sans-serif", fontSize: '0.78rem', color: '#2C2C2C' }}>{order.shipping_cost === 0 ? 'Free' : `₦${order.shipping_cost?.toFixed(2)}`}</span>
+                        <span style={{ fontFamily: "'Jost', sans-serif", fontSize: '0.78rem', color: '#2C2C2C' }}>{order.shipping_cost === 0 ? 'Free' : formatAdminPrice(order.shipping_cost)}</span>
                       </div>
                       <div style={{ display: 'flex', justifyContent: 'space-between', borderTop: '1px solid #E8DDD3', paddingTop: '0.3rem' }}>
                         <span style={{ fontFamily: "'Jost', sans-serif", fontSize: '0.85rem', fontWeight: 500, color: '#2C2C2C' }}>Total</span>
-                        <span style={{ fontFamily: "'Jost', sans-serif", fontSize: '0.85rem', fontWeight: 500, color: '#2C2C2C' }}>₦{order.total?.toFixed(2)}</span>
+                        <span style={{ fontFamily: "'Jost', sans-serif", fontSize: '0.85rem', fontWeight: 500, color: '#2C2C2C' }}>{formatAdminPrice(order.total)}</span>
                       </div>
                     </div>
                   </div>
@@ -207,14 +269,22 @@ export default function OrdersPage() {
                     <input
                       key={`tn-${order.id}`}
                       defaultValue={order.tracking_number || ''}
-                      onBlur={e => saveTracking(order.id, e.target.value, order.tracking_url || '')}
+                      onChange={e => setTrackingValues(prev => ({
+                        ...prev,
+                        [order.id]: { number: e.target.value, url: prev[order.id]?.url ?? order.tracking_url ?? '' },
+                      }))}
+                      onBlur={e => saveTracking(order.id, e.target.value, trackingValues[order.id]?.url ?? order.tracking_url ?? '')}
                       placeholder="Tracking number..."
                       style={{ width: '100%', padding: '0.6rem 0.75rem', border: '1px solid #E8DDD3', fontFamily: "'Jost', sans-serif", fontSize: '0.82rem', color: '#2C2C2C', outline: 'none', marginBottom: '0.5rem', boxSizing: 'border-box' }}
                     />
                     <input
                       key={`tu-${order.id}`}
                       defaultValue={order.tracking_url || ''}
-                      onBlur={e => saveTracking(order.id, order.tracking_number || '', e.target.value)}
+                      onChange={e => setTrackingValues(prev => ({
+                        ...prev,
+                        [order.id]: { number: prev[order.id]?.number ?? order.tracking_number ?? '', url: e.target.value },
+                      }))}
+                      onBlur={e => saveTracking(order.id, trackingValues[order.id]?.number ?? order.tracking_number ?? '', e.target.value)}
                       placeholder="Tracking URL (e.g. https://dhl.com/track/...)"
                       style={{ width: '100%', padding: '0.6rem 0.75rem', border: '1px solid #E8DDD3', fontFamily: "'Jost', sans-serif", fontSize: '0.82rem', color: '#2C2C2C', outline: 'none', marginBottom: '1rem', boxSizing: 'border-box' }}
                     />
@@ -222,9 +292,15 @@ export default function OrdersPage() {
                       Tracking info is included in the shipping email when you mark the order as Shipped.
                     </p>
 
-                    <p style={detailLabel}>Internal Notes</p>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.5rem' }}>
+                      <p style={{ ...detailLabel, marginBottom: 0 }}>Internal Notes</p>
+                      {unsavedNotes.has(order.id) && (
+                        <span style={{ fontFamily: "'Jost', sans-serif", fontSize: '0.68rem', color: '#E65100' }}>• unsaved</span>
+                      )}
+                    </div>
                     <textarea
                       defaultValue={order.notes || ''}
+                      onChange={() => setUnsavedNotes(prev => new Set(prev).add(order.id))}
                       onBlur={e => saveNotes(order.id, e.target.value)}
                       placeholder="Add notes about this order..."
                       style={{ width: '100%', padding: '0.75rem', border: '1px solid #E8DDD3', fontFamily: "'Jost', sans-serif", fontSize: '0.82rem', fontWeight: 300, color: '#2C2C2C', outline: 'none', resize: 'vertical', minHeight: '80px', backgroundColor: '#FAFAFA' }}

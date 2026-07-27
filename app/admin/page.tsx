@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { getSession } from '../../lib/supabase-admin';
 import { supabase } from '../../lib/supabase';
+import { formatAdminPrice } from '../../lib/adminCurrency';
 
 type Product = {
   id: number;
@@ -25,6 +26,7 @@ export default function AdminPage() {
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [selected, setSelected] = useState<number[]>([]);
+  const [statusFilter, setStatusFilter] = useState<'all' | 'live' | 'hidden'>('all');
   const [lowStock, setLowStock] = useState<LowStockItem[]>([]);
   const [unreadEnquiries, setUnreadEnquiries] = useState(0);
   const [pendingOrders, setPendingOrders] = useState(0);
@@ -57,7 +59,7 @@ export default function AdminPage() {
     setLowStock(stock || []);
     setUnreadEnquiries(enquiries || 0);
     setPendingOrders(orders || 0);
-    const revenue = (delivered || []).reduce((sum, o) => sum + (o.total || 0), 0);
+    const revenue = (delivered || []).filter(o => o.total != null).reduce((sum, o) => sum + (o.total || 0), 0);
     setCompletedRevenue(revenue);
   };
 
@@ -77,26 +79,25 @@ export default function AdminPage() {
   const clearSelection = () => setSelected([]);
 
   const bulkSetAvailable = async (available: boolean) => {
-    for (const id of selected) {
-      await supabase.from('products').update({ available }).eq('id', id);
-    }
+    if (!available && !window.confirm(`Hide ${selected.length} product${selected.length !== 1 ? 's' : ''}?`)) return;
+    await supabase.from('products').update({ available }).in('id', selected);
     setProducts(prev => prev.map(p => selected.includes(p.id) ? { ...p, available } : p));
     setSelected([]);
   };
 
   const bulkDelete = async () => {
-    if (!confirm(`Delete ${selected.length} product${selected.length !== 1 ? 's' : ''}? This cannot be undone.`)) return;
-    for (const id of selected) {
-      await supabase.from('product_images').delete().eq('product_id', id);
-      await supabase.from('product_size_inventory').delete().eq('product_id', id);
-      await supabase.from('products').delete().eq('id', id);
-    }
+    if (!window.confirm(`Delete ${selected.length} product${selected.length !== 1 ? 's' : ''}? This cannot be undone.`)) return;
+    await supabase.from('product_images').delete().in('product_id', selected);
+    await supabase.from('product_size_inventory').delete().in('product_id', selected);
+    await supabase.from('products').delete().in('id', selected);
     setProducts(prev => prev.filter(p => !selected.includes(p.id)));
     setSelected([]);
   };
 
 
-  const filtered = products.filter(p => p.name.toLowerCase().includes(search.toLowerCase()));
+  const filtered = products
+    .filter(p => p.name.toLowerCase().includes(search.toLowerCase()))
+    .filter(p => statusFilter === 'all' ? true : statusFilter === 'live' ? p.available : !p.available);
 
   return (
     <div>
@@ -121,17 +122,43 @@ export default function AdminPage() {
           </div>
         )}
 
+        {/* Pending orders / unread enquiries alert cards */}
+        {(pendingOrders > 0 || unreadEnquiries > 0) && (
+          <div style={{ display: 'flex', gap: '1rem', marginBottom: '1.5rem', flexWrap: 'wrap' }}>
+            {pendingOrders > 0 && (
+              <div style={{ backgroundColor: '#FFFBEA', border: '1px solid #F59E0B', padding: '1rem 1.5rem', flex: '1 1 180px' }}>
+                <p style={{ fontFamily: "'Jost', sans-serif", fontSize: '0.7rem', letterSpacing: '0.12em', textTransform: 'uppercase', color: '#92400E', marginBottom: '0.4rem' }}>Pending Orders</p>
+                <p style={{ fontFamily: "'Playfair Display', serif", fontSize: '2rem', fontWeight: 500, color: '#B45309' }}>{pendingOrders}</p>
+              </div>
+            )}
+            {unreadEnquiries > 0 && (
+              <div style={{ backgroundColor: '#FFFBEA', border: '1px solid #F59E0B', padding: '1rem 1.5rem', flex: '1 1 180px' }}>
+                <p style={{ fontFamily: "'Jost', sans-serif", fontSize: '0.7rem', letterSpacing: '0.12em', textTransform: 'uppercase', color: '#92400E', marginBottom: '0.4rem' }}>Unread Enquiries</p>
+                <p style={{ fontFamily: "'Playfair Display', serif", fontSize: '2rem', fontWeight: 500, color: '#B45309' }}>{unreadEnquiries}</p>
+              </div>
+            )}
+          </div>
+        )}
+
         {/* Stats */}
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '1rem', marginBottom: '3rem' }}>
           {[
-            { label: 'Total Products', value: products.length },
-            { label: 'Live', value: products.filter(p => p.available).length },
-            { label: 'Hidden', value: products.filter(p => !p.available).length },
-            { label: 'With Images', value: products.filter(p => p.product_images?.length > 0).length },
-          ].map(({ label, value }) => (
-            <div key={label} style={{ backgroundColor: '#FFFFFF', padding: '1.5rem', border: '1px solid #E8DDD3' }}>
-              <p style={{ fontFamily: "'Jost', sans-serif", fontSize: '0.7rem', letterSpacing: '0.12em', textTransform: 'uppercase', color: '#9A8F87', marginBottom: '0.5rem' }}>{label}</p>
-              <p style={{ fontFamily: "'Playfair Display', serif", fontSize: '2rem', fontWeight: 500, color: '#2C2C2C' }}>{value}</p>
+            { label: 'Total Products', value: products.length, filter: 'all' as const },
+            { label: 'Live', value: products.filter(p => p.available).length, filter: 'live' as const },
+            { label: 'Hidden', value: products.filter(p => !p.available).length, filter: 'hidden' as const },
+            { label: 'With Images', value: products.filter(p => p.product_images?.length > 0).length, filter: 'all' as const },
+          ].map(({ label, value, filter }) => (
+            <div
+              key={label}
+              onClick={() => setStatusFilter(prev => prev === filter && filter !== 'all' ? 'all' : filter)}
+              style={{
+                backgroundColor: statusFilter === filter && filter !== 'all' ? '#2C2C2C' : '#FFFFFF',
+                padding: '1.5rem', border: '1px solid #E8DDD3',
+                cursor: filter !== 'all' ? 'pointer' : 'default',
+              }}
+            >
+              <p style={{ fontFamily: "'Jost', sans-serif", fontSize: '0.7rem', letterSpacing: '0.12em', textTransform: 'uppercase', color: statusFilter === filter && filter !== 'all' ? '#C9A882' : '#9A8F87', marginBottom: '0.5rem' }}>{label}</p>
+              <p style={{ fontFamily: "'Playfair Display', serif", fontSize: '2rem', fontWeight: 500, color: statusFilter === filter && filter !== 'all' ? '#FAF7F4' : '#2C2C2C' }}>{value}</p>
             </div>
           ))}
           {/* Revenue card */}
@@ -140,7 +167,7 @@ export default function AdminPage() {
               Revenue (Delivered)
             </p>
             <p style={{ fontFamily: "'Playfair Display', serif", fontSize: '2rem', fontWeight: 500, color: '#FAF7F4' }}>
-              {completedRevenue === null ? '—' : `₦${completedRevenue.toLocaleString()}`}
+              {completedRevenue === null ? '—' : formatAdminPrice(completedRevenue)}
             </p>
           </div>
         </div>
@@ -166,7 +193,7 @@ export default function AdminPage() {
 
         {/* Bulk actions bar */}
         {selected.length > 0 && (
-          <div style={{ backgroundColor: '#2C2C2C', padding: '0.75rem 1.5rem', display: 'flex', alignItems: 'center', gap: '1.5rem', marginBottom: '0', borderRadius: '2px 2px 0 0' }}>
+          <div style={{ position: 'fixed', bottom: 0, left: 0, right: 0, zIndex: 100, backgroundColor: '#2C2C2C', padding: '0.75rem 1.5rem', display: 'flex', alignItems: 'center', gap: '1.5rem' }}>
             <span style={{ fontFamily: "'Jost', sans-serif", fontSize: '0.78rem', color: '#FAF7F4' }}>{selected.length} selected</span>
             <button onClick={() => bulkSetAvailable(true)} style={{ fontFamily: "'Jost', sans-serif", fontSize: '0.72rem', letterSpacing: '0.1em', textTransform: 'uppercase', color: '#C9A882', background: 'none', border: '1px solid #C9A882', padding: '0.3rem 0.8rem', cursor: 'pointer' }}>
               Set Live
@@ -227,7 +254,7 @@ export default function AdminPage() {
                       <p style={{ fontFamily: "'Jost', sans-serif", fontSize: '0.82rem', color: '#9A8F87' }}>{product.categories?.[0]?.name || '—'}</p>
                     </td>
                     <td style={{ padding: '1rem 1.2rem' }}>
-                      <p style={{ fontFamily: "'Jost', sans-serif", fontSize: '0.88rem', color: '#2C2C2C' }}>₦{product.price}</p>
+                      <p style={{ fontFamily: "'Jost', sans-serif", fontSize: '0.88rem', color: '#2C2C2C' }}>{formatAdminPrice(product.price)}</p>
                     </td>
                     <td style={{ padding: '1rem 1.2rem' }}>
                       {product.made_to_order ? (
