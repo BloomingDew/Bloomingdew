@@ -82,6 +82,12 @@ export default function NewProductPage() {
     setLoading(true);
     setError('');
 
+    if (!form.category_id) {
+      setError('Please select a category before saving.');
+      setLoading(false);
+      return;
+    }
+
     const slug = form.name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
 
     const { data: product, error: productError } = await supabase
@@ -168,8 +174,8 @@ export default function NewProductPage() {
                 )}
               </div>
               <div>
-                <label style={labelStyle}>Category</label>
-                <select style={inputStyle} value={form.category_id} onChange={e => setForm({ ...form, category_id: e.target.value })}>
+                <label style={labelStyle}>Category <span style={{ color: '#C0392B' }}>*</span></label>
+                <select style={{ ...inputStyle, borderColor: !form.category_id && error ? '#C0392B' : undefined }} value={form.category_id} onChange={e => setForm({ ...form, category_id: e.target.value })}>
                   <option value="">Select category</option>
                   {categories.map(cat => <option key={cat.id} value={cat.id}>{cat.name}</option>)}
                 </select>
