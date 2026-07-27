@@ -9,6 +9,7 @@ import { useCurrency } from '../../context/CurrencyContext';
 import { formatMoney } from '../../lib/currency';
 import { supabase } from '../../lib/supabase';
 import StripePaymentForm from '../../components/StripePaymentForm';
+import SquarePaymentForm from '../../components/SquarePaymentForm';
 
 export default function CheckoutPage() {
   const { items, totalPriceUsd, clearCart } = useCart();
@@ -72,6 +73,13 @@ export default function CheckoutPage() {
   };
 
   const [paymentError, setPaymentError] = useState('');
+  const [paymentProvider, setPaymentProvider] = useState<'square' | 'stripe'>('square');
+
+  // Square: payment + order saved in one API call, returns orderId directly
+  const handleSquareSuccess = (orderId: string) => {
+    clearCart();
+    router.push(`/order-confirmation?ref=${encodeURIComponent(orderId)}`);
+  };
 
   // Stripe has confirmed payment on the client; now finalize the order on the
   // server, which verifies the payment with Stripe before recording anything.
@@ -262,17 +270,45 @@ export default function CheckoutPage() {
 
               <h2 style={sectionHeading}>Payment</h2>
 
-              {/* Stripe payment form */}
-              <StripePaymentForm
-                amount={orderTotal}
-                items={items.map(i => ({ id: i.id, size: i.size, quantity: i.quantity }))}
-                shipping={shipping}
-                userId={user?.id ?? null}
-                loading={loading}
-                setLoading={setLoading}
-                onSuccess={saveOrderAndRedirect}
-                onError={(msg) => { setPaymentError(msg); setLoading(false); }}
-              />
+              {/* Provider toggle */}
+              <div style={{ display: 'flex', gap: '0', marginBottom: '1.5rem', border: '1px solid #E8DDD3' }}>
+                {(['square', 'stripe'] as const).map(p => (
+                  <button key={p} onClick={() => { setPaymentProvider(p); setPaymentError(''); }} style={{
+                    flex: 1, padding: '0.75rem',
+                    backgroundColor: paymentProvider === p ? '#2C2C2C' : '#FFFFFF',
+                    color: paymentProvider === p ? '#FAF7F4' : '#9A8F87',
+                    fontFamily: "'Jost', sans-serif", fontSize: '0.72rem',
+                    letterSpacing: '0.12em', textTransform: 'uppercase',
+                    border: 'none', cursor: 'pointer', transition: 'all 0.2s',
+                  }}>
+                    {p === 'square' ? 'Pay by Card (Square)' : 'Pay by Card (Stripe)'}
+                  </button>
+                ))}
+              </div>
+
+              {paymentProvider === 'square' ? (
+                <SquarePaymentForm
+                  amount={orderTotal}
+                  items={items.map(i => ({ id: i.id, name: i.name, size: i.size, quantity: i.quantity, price: i.priceUsd }))}
+                  shipping={shipping}
+                  userId={user?.id ?? null}
+                  loading={loading}
+                  setLoading={setLoading}
+                  onSuccess={handleSquareSuccess}
+                  onError={(msg) => setPaymentError(msg)}
+                />
+              ) : (
+                <StripePaymentForm
+                  amount={orderTotal}
+                  items={items.map(i => ({ id: i.id, size: i.size, quantity: i.quantity }))}
+                  shipping={shipping}
+                  userId={user?.id ?? null}
+                  loading={loading}
+                  setLoading={setLoading}
+                  onSuccess={saveOrderAndRedirect}
+                  onError={(msg) => { setPaymentError(msg); setLoading(false); }}
+                />
+              )}
 
               {paymentError && (
                 <p style={{ fontFamily: "'Jost', sans-serif", fontSize: '0.82rem', color: '#C0392B', marginTop: '1rem' }}>
