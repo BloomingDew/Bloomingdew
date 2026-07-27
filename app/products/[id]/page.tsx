@@ -31,6 +31,7 @@ export default function ProductPage({ params }: { params: Promise<{ id: string }
   const [stockError, setStockError] = useState('');
   const [availableStock, setAvailableStock] = useState<number | null>(null);
   const [activeImage, setActiveImage] = useState(0);
+  const [selectedColour, setSelectedColour] = useState<string | null>(null);
   const [sizeGuideOpen, setSizeGuideOpen] = useState(false);
   const [sizeDropdownOpen, setSizeDropdownOpen] = useState(false);
   const [allStock, setAllStock] = useState<Record<string, number>>({});
@@ -58,6 +59,16 @@ export default function ProductPage({ params }: { params: Promise<{ id: string }
     document.addEventListener('click', handler);
     return () => document.removeEventListener('click', handler);
   }, [sizeDropdownOpen]);
+
+  // Auto-select first colour when product loads
+  useEffect(() => {
+    if (product?.has_colours && product.colours.length > 0) {
+      setSelectedColour(product.colours[0].id);
+    }
+  }, [product]);
+
+  // Reset active image when colour changes
+  useEffect(() => { setActiveImage(0); }, [selectedColour]);
 
   // Fetch all sizes stock when product loads
   useEffect(() => {
@@ -144,6 +155,14 @@ export default function ProductPage({ params }: { params: Promise<{ id: string }
     </div>
   );
 
+  const displayedImages = product
+    ? product.has_colours && selectedColour
+      ? product.images.filter(img => img.colour_id === selectedColour).length > 0
+        ? product.images.filter(img => img.colour_id === selectedColour)
+        : product.images.filter(img => !img.colour_id)
+      : product.images.filter(img => !img.colour_id || !product.has_colours)
+    : [];
+
   const details = [
     product.fabric && product.fabric,
     'Handmade to order',
@@ -182,10 +201,10 @@ export default function ProductPage({ params }: { params: Promise<{ id: string }
             background: 'linear-gradient(150deg, #F0E8E0, #D4C4B5)',
             overflow: 'hidden', display: 'flex', alignItems: 'center', justifyContent: 'center',
           }}>
-            {product.images[activeImage] ? (
+            {displayedImages[activeImage] ? (
               <img
-                src={product.images[activeImage].url}
-                alt={product.images[activeImage].alt_text || product.name}
+                src={displayedImages[activeImage].url}
+                alt={displayedImages[activeImage].alt_text || product.name}
                 style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
                 onError={e => { (e.target as HTMLImageElement).style.display = 'none'; }}
               />
@@ -199,9 +218,9 @@ export default function ProductPage({ params }: { params: Promise<{ id: string }
           </div>
 
           {/* Thumbnails */}
-          {product.images.length > 1 && (
+          {displayedImages.length > 1 && (
             <div style={{ display: 'flex', gap: '0.5rem' }}>
-              {product.images.map((img, i) => (
+              {displayedImages.map((img, i) => (
                 <button key={i} onClick={() => setActiveImage(i)} style={{
                   width: '72px', height: '88px', border: `2px solid ${activeImage === i ? '#2C2C2C' : 'transparent'}`,
                   padding: 0, cursor: 'pointer', overflow: 'hidden', background: 'none',
@@ -213,7 +232,7 @@ export default function ProductPage({ params }: { params: Promise<{ id: string }
           )}
 
           {/* Placeholder thumbnails when no images */}
-          {product.images.length === 0 && (
+          {displayedImages.length === 0 && (
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem' }}>
               {[1, 2].map((n) => (
                 <div key={n} style={{ aspectRatio: '1/1', background: 'linear-gradient(150deg, #EDE4DA, #C9A882)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
@@ -254,6 +273,38 @@ export default function ProductPage({ params }: { params: Promise<{ id: string }
           <p style={{ fontFamily: "'Jost', sans-serif", fontSize: '0.9rem', fontWeight: 300, color: '#5C5450', lineHeight: 1.8, marginBottom: '2.5rem' }}>
             {product.description}
           </p>
+
+          {/* Colour swatches */}
+          {product.has_colours && product.colours.length > 0 && (
+            <div style={{ marginBottom: '2rem' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: '1rem' }}>
+                <span style={{ fontFamily: "'Jost', sans-serif", fontSize: '0.75rem', letterSpacing: '0.12em', textTransform: 'uppercase', color: '#2C2C2C' }}>
+                  Colour
+                </span>
+                <span style={{ fontFamily: "'Jost', sans-serif", fontSize: '0.78rem', fontWeight: 300, color: '#5C5450' }}>
+                  {product.colours.find(c => c.id === selectedColour)?.name || ''}
+                </span>
+              </div>
+              <div style={{ display: 'flex', gap: '0.6rem', flexWrap: 'wrap' }}>
+                {product.colours.map(colour => (
+                  <button
+                    key={colour.id}
+                    onClick={() => setSelectedColour(colour.id)}
+                    title={colour.name}
+                    style={{
+                      width: '32px', height: '32px', borderRadius: '50%',
+                      backgroundColor: colour.hex_code,
+                      border: selectedColour === colour.id ? '2px solid #2C2C2C' : '2px solid transparent',
+                      outline: selectedColour === colour.id ? '2px solid #2C2C2C' : '2px solid #E8DDD3',
+                      outlineOffset: '2px',
+                      cursor: 'pointer', padding: 0, flexShrink: 0,
+                      transition: 'outline 0.15s',
+                    }}
+                  />
+                ))}
+              </div>
+            </div>
+          )}
 
           {/* Size selector */}
           <div style={{ marginBottom: '2rem' }}>
