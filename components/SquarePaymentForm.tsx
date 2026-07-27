@@ -60,9 +60,8 @@ export default function SquarePaymentForm({ amount, items, shipping, userId, loa
           '.input-container': { borderColor: '#E8DDD3', borderRadius: '0px' },
           '.input-container.is-focus': { borderColor: '#2C2C2C' },
           '.input-container.is-error': { borderColor: '#C0392B' },
-          input: { fontFamily: 'Jost, sans-serif', fontSize: '14px', color: '#2C2C2C', fontWeight: '300' },
+          input: { color: '#2C2C2C' },
           'input::placeholder': { color: '#9A8F87' },
-          '.message-text': { fontFamily: 'Jost, sans-serif', fontSize: '12px' },
           '.message-icon': { color: '#C0392B' },
         },
       });
