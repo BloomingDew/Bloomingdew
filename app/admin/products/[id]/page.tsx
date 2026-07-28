@@ -9,6 +9,7 @@ import { supabase } from '../../../../lib/supabase';
 type Category = { id: number; name: string };
 type ProductImage = { id: number; url: string; alt_text: string; position: number };
 type SizeInventory = { size: string; quantity: number };
+type Colour = { id: string; name: string; hex_code: string; display_order: number; is_available: boolean };
 
 const DEFAULT_SIZES = ['6', '8', '10', '12', '14', '16', '18', '20'];
 const MAX_IMAGES = 4;
@@ -26,6 +27,12 @@ export default function EditProductPage({ params }: { params: Promise<{ id: stri
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
   const [updatedAt, setUpdatedAt] = useState<string | null>(null);
+  const [hasColours, setHasColours] = useState(false);
+  const [colours, setColours] = useState<Colour[]>([]);
+  const [newColourName, setNewColourName] = useState('');
+  const [newColourHex, setNewColourHex] = useState('#000000');
+  const [uploadingColourId, setUploadingColourId] = useState<string | null>(null);
+  const [colourImages, setColourImages] = useState<Record<string, ProductImage[]>>({});
 
   const [form, setForm] = useState({
     name: '', price: '', category_id: '', discount: '0',
@@ -57,6 +64,20 @@ export default function EditProductPage({ params }: { params: Promise<{ id: stri
       const sorted = [...(data.product_images || [])].sort((a: ProductImage, b: ProductImage) => a.position - b.position);
       setImages(sorted);
       if (data.updated_at) setUpdatedAt(data.updated_at);
+      setHasColours(data.has_colours || false);
+    }
+
+    const { data: coloursData } = await supabaseAuth.from('product_colours')
+      .select('*').eq('product_id', id).order('display_order');
+    setColours(coloursData || []);
+    if (coloursData?.length) {
+      const colImgs: Record<string, ProductImage[]> = {};
+      for (const c of coloursData) {
+        const { data: imgs } = await supabaseAuth.from('product_images')
+          .select('*').eq('product_id', parseInt(id)).eq('colour_id', c.id).order('position');
+        colImgs[c.id] = imgs || [];
+      }
+      setColourImages(colImgs);
     }
 
     if (inventory && inventory.length > 0) {
@@ -116,6 +137,57 @@ export default function EditProductPage({ params }: { params: Promise<{ id: stri
     }
   };
 
+  const addColour = async () => {
+    if (!newColourName.trim()) return;
+    const newOrder = colours.length;
+    const { data } = await supabaseAuth.from('product_colours').insert({
+      product_id: parseInt(id), name: newColourName.trim(),
+      hex_code: newColourHex, display_order: newOrder, is_available: true,
+    }).select().single();
+    if (data) {
+      setColours(prev => [...prev, data]);
+      setColourImages(prev => ({ ...prev, [data.id]: [] }));
+      setNewColourName(''); setNewColourHex('#000000');
+    }
+  };
+
+  const deleteColour = async (colourId: string) => {
+    if (!confirm('Delete this colour and its images?')) return;
+    await supabaseAuth.from('product_colours').delete().eq('id', colourId);
+    setColours(prev => prev.filter(c => c.id !== colourId));
+    setColourImages(prev => { const n = {...prev}; delete n[colourId]; return n; });
+  };
+
+  const handleColourImageUpload = async (e: React.ChangeEvent<HTMLInputElement>, colourId: string) => {
+    const files = e.target.files;
+    if (!files?.length) return;
+    const existing = colourImages[colourId] || [];
+    if (existing.length >= 4) { alert('Maximum 4 images per colour.'); return; }
+    setUploadingColourId(colourId);
+    for (const file of Array.from(files)) {
+      if ((colourImages[colourId]?.length || 0) >= 4) break;
+      const ext = file.name.split('.').pop()?.toLowerCase();
+      const fileName = `${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`;
+      const { error } = await supabaseAuth.storage.from('product-image').upload(fileName, file);
+      if (!error) {
+        const { data: urlData } = supabaseAuth.storage.from('product-image').getPublicUrl(fileName);
+        const pos = (colourImages[colourId]?.length || 0);
+        const { data: imgData } = await supabaseAuth.from('product_images').insert({
+          product_id: parseInt(id), url: urlData.publicUrl,
+          alt_text: `${form.name} - ${colours.find(c=>c.id===colourId)?.name}`,
+          position: pos, colour_id: colourId,
+        }).select().single();
+        if (imgData) setColourImages(prev => ({ ...prev, [colourId]: [...(prev[colourId]||[]), imgData] }));
+      }
+    }
+    setUploadingColourId(null);
+  };
+
+  const deleteColourImage = async (colourId: string, imageId: number) => {
+    await supabaseAuth.from('product_images').delete().eq('id', imageId);
+    setColourImages(prev => ({ ...prev, [colourId]: (prev[colourId]||[]).filter(i=>i.id!==imageId) }));
+  };
+
   const saveSizeInventory = async () => {
     for (const item of sizeInventory) {
       await supabase.from('product_size_inventory').upsert({
@@ -147,6 +219,7 @@ export default function EditProductPage({ params }: { params: Promise<{ id: stri
       available: form.available,
       made_to_order: form.made_to_order,
       lead_time: form.lead_time,
+      has_colours: hasColours,
     }).eq('id', id);
 
     if (error) { setError(error.message); setLoading(false); return; }
@@ -284,6 +357,60 @@ export default function EditProductPage({ params }: { params: Promise<{ id: stri
                   : <p style={{ fontFamily: "'Jost', sans-serif", fontSize: '0.85rem', color: '#9A8F87' }}>+ Upload images ({images.length}/{MAX_IMAGES} used)</p>
                 }
               </label>
+            )}
+          </div>
+
+          {/* Colour Variants */}
+          <div style={card}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1rem' }}>
+              <h3 style={{ ...cardHeading, marginBottom: 0 }}>Colour Variants</h3>
+              <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer', fontFamily: "'Jost', sans-serif", fontSize: '0.82rem', color: '#2C2C2C' }}>
+                <input type="checkbox" checked={hasColours} onChange={e => setHasColours(e.target.checked)} />
+                Enable colour variants for this product
+              </label>
+            </div>
+
+            {hasColours && (
+              <div>
+                {colours.map(colour => (
+                  <div key={colour.id} style={{ border: '1px solid #E8DDD3', padding: '1.25rem', marginBottom: '1rem' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '1rem' }}>
+                      <div style={{ width: 28, height: 28, borderRadius: '50%', backgroundColor: colour.hex_code, border: '2px solid #E8DDD3', flexShrink: 0 }} />
+                      <span style={{ fontFamily: "'Jost', sans-serif", fontSize: '0.88rem', fontWeight: 500, color: '#2C2C2C', flex: 1 }}>{colour.name}</span>
+                      <span style={{ fontFamily: "'Jost', sans-serif", fontSize: '0.72rem', color: '#9A8F87' }}>{colour.hex_code}</span>
+                      <button type="button" onClick={() => deleteColour(colour.id)} style={{ background: 'none', border: 'none', color: '#C0392B', cursor: 'pointer', fontFamily: "'Jost', sans-serif", fontSize: '0.72rem' }}>Remove</button>
+                    </div>
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '0.75rem', marginBottom: '0.75rem' }}>
+                      {(colourImages[colour.id] || []).map(img => (
+                        <div key={img.id} style={{ aspectRatio: '3/4', position: 'relative', overflow: 'hidden', background: '#F5F5F5' }}>
+                          <img src={img.url} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                          <button type="button" onClick={() => deleteColourImage(colour.id, img.id)} style={{ position: 'absolute', top: 3, right: 3, width: 20, height: 20, backgroundColor: '#2C2C2C', color: '#FFF', border: 'none', cursor: 'pointer', fontSize: '0.65rem', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>✕</button>
+                        </div>
+                      ))}
+                      {(colourImages[colour.id]?.length || 0) < 4 && (
+                        <label style={{ aspectRatio: '3/4', border: '2px dashed #E8DDD3', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', background: '#FAFAFA' }}>
+                          <input type="file" accept="image/*" multiple style={{ display: 'none' }} onChange={e => handleColourImageUpload(e, colour.id)} />
+                          {uploadingColourId === colour.id ? <span style={{ fontFamily: "'Jost', sans-serif", fontSize: '0.65rem', color: '#C9A882' }}>Uploading...</span> : <span style={{ fontFamily: "'Jost', sans-serif", fontSize: '0.65rem', color: '#9A8F87' }}>+ Add</span>}
+                        </label>
+                      )}
+                    </div>
+                  </div>
+                ))}
+
+                <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'flex-end', marginTop: '0.5rem' }}>
+                  <div style={{ flex: 1 }}>
+                    <label style={labelStyle}>Colour Name</label>
+                    <input style={inputStyle} placeholder="e.g. Midnight Navy" value={newColourName} onChange={e => setNewColourName(e.target.value)} />
+                  </div>
+                  <div>
+                    <label style={labelStyle}>Swatch</label>
+                    <input type="color" value={newColourHex} onChange={e => setNewColourHex(e.target.value)} style={{ width: '52px', height: '44px', border: '1px solid #E8DDD3', cursor: 'pointer', padding: '2px' }} />
+                  </div>
+                  <button type="button" onClick={addColour} style={{ padding: '0.85rem 1.5rem', backgroundColor: '#2C2C2C', color: '#FAF7F4', border: 'none', cursor: 'pointer', fontFamily: "'Jost', sans-serif", fontSize: '0.72rem', letterSpacing: '0.12em', textTransform: 'uppercase', whiteSpace: 'nowrap', height: '44px' }}>
+                    Add Colour
+                  </button>
+                </div>
+              </div>
             )}
           </div>
 

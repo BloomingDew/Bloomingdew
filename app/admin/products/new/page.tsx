@@ -7,6 +7,7 @@ import { getSession, supabaseAuth } from '../../../../lib/supabase-admin';
 import { supabase } from '../../../../lib/supabase';
 
 type Category = { id: number; name: string };
+type PendingColour = { name: string; hex_code: string };
 
 const DEFAULT_SIZES = ['6', '8', '10', '12', '14', '16', '18', '20'];
 const MAX_IMAGES = 4;
@@ -22,6 +23,10 @@ export default function NewProductPage() {
   );
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
+  const [hasColours, setHasColours] = useState(false);
+  const [pendingColours, setPendingColours] = useState<PendingColour[]>([]);
+  const [newColourName, setNewColourName] = useState('');
+  const [newColourHex, setNewColourHex] = useState('#000000');
 
   const [form, setForm] = useState({
     name: '', price: '', category_id: '', discount: '0',
@@ -77,6 +82,12 @@ export default function NewProductPage() {
     setLoading(true);
     setError('');
 
+    if (!form.category_id) {
+      setError('Please select a category before saving.');
+      setLoading(false);
+      return;
+    }
+
     const slug = form.name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
 
     const { data: product, error: productError } = await supabase
@@ -93,6 +104,7 @@ export default function NewProductPage() {
         available: form.available,
         made_to_order: form.made_to_order,
         lead_time: form.lead_time,
+        has_colours: hasColours,
       })
       .select()
       .single();
@@ -117,9 +129,16 @@ export default function NewProductPage() {
       sizeInventory.map(s => ({ product_id: product.id, size: s.size, quantity: s.quantity }))
     );
 
-    setSuccess('Product added successfully!');
+    // Save pending colours
+    if (hasColours && pendingColours.length > 0) {
+      await supabaseAuth.from('product_colours').insert(
+        pendingColours.map((c, i) => ({ product_id: product.id, name: c.name, hex_code: c.hex_code, display_order: i, is_available: true }))
+      );
+    }
+
+    setSuccess('Product created — add colour images from the edit page.');
     setLoading(false);
-    setTimeout(() => router.push('/admin'), 2500);
+    setTimeout(() => router.push(`/admin/products/${product.id}`), 2500);
   };
 
   const totalStock = sizeInventory.reduce((sum, s) => sum + s.quantity, 0);
@@ -155,8 +174,8 @@ export default function NewProductPage() {
                 )}
               </div>
               <div>
-                <label style={labelStyle}>Category</label>
-                <select style={inputStyle} value={form.category_id} onChange={e => setForm({ ...form, category_id: e.target.value })}>
+                <label style={labelStyle}>Category <span style={{ color: '#C0392B' }}>*</span></label>
+                <select style={{ ...inputStyle, borderColor: !form.category_id && error ? '#C0392B' : undefined }} value={form.category_id} onChange={e => setForm({ ...form, category_id: e.target.value })}>
                   <option value="">Select category</option>
                   {categories.map(cat => <option key={cat.id} value={cat.id}>{cat.name}</option>)}
                 </select>
@@ -228,6 +247,52 @@ export default function NewProductPage() {
                   : <p style={{ fontFamily: "'Jost', sans-serif", fontSize: '0.85rem', color: '#9A8F87' }}>+ Upload images ({images.length}/{MAX_IMAGES} used)</p>
                 }
               </label>
+            )}
+          </div>
+
+          {/* Colour Variants */}
+          <div style={card}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1rem' }}>
+              <h3 style={{ ...cardHeading, marginBottom: 0 }}>Colour Variants</h3>
+              <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer', fontFamily: "'Jost', sans-serif", fontSize: '0.82rem', color: '#2C2C2C' }}>
+                <input type="checkbox" checked={hasColours} onChange={e => setHasColours(e.target.checked)} />
+                Enable colour variants for this product
+              </label>
+            </div>
+
+            {hasColours && (
+              <div>
+                {pendingColours.map((colour, idx) => (
+                  <div key={idx} style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', padding: '0.75rem', border: '1px solid #E8DDD3', marginBottom: '0.5rem' }}>
+                    <div style={{ width: 24, height: 24, borderRadius: '50%', backgroundColor: colour.hex_code, border: '2px solid #E8DDD3', flexShrink: 0 }} />
+                    <span style={{ fontFamily: "'Jost', sans-serif", fontSize: '0.88rem', color: '#2C2C2C', flex: 1 }}>{colour.name}</span>
+                    <span style={{ fontFamily: "'Jost', sans-serif", fontSize: '0.72rem', color: '#9A8F87' }}>{colour.hex_code}</span>
+                    <button type="button" onClick={() => setPendingColours(prev => prev.filter((_, i) => i !== idx))} style={{ background: 'none', border: 'none', color: '#C0392B', cursor: 'pointer', fontFamily: "'Jost', sans-serif", fontSize: '0.72rem' }}>Remove</button>
+                  </div>
+                ))}
+
+                <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'flex-end', marginTop: '0.5rem' }}>
+                  <div style={{ flex: 1 }}>
+                    <label style={labelStyle}>Colour Name</label>
+                    <input style={inputStyle} placeholder="e.g. Midnight Navy" value={newColourName} onChange={e => setNewColourName(e.target.value)} />
+                  </div>
+                  <div>
+                    <label style={labelStyle}>Swatch</label>
+                    <input type="color" value={newColourHex} onChange={e => setNewColourHex(e.target.value)} style={{ width: '52px', height: '44px', border: '1px solid #E8DDD3', cursor: 'pointer', padding: '2px' }} />
+                  </div>
+                  <button type="button" onClick={() => {
+                    if (!newColourName.trim()) return;
+                    setPendingColours(prev => [...prev, { name: newColourName.trim(), hex_code: newColourHex }]);
+                    setNewColourName(''); setNewColourHex('#000000');
+                  }} style={{ padding: '0.85rem 1.5rem', backgroundColor: '#2C2C2C', color: '#FAF7F4', border: 'none', cursor: 'pointer', fontFamily: "'Jost', sans-serif", fontSize: '0.72rem', letterSpacing: '0.12em', textTransform: 'uppercase', whiteSpace: 'nowrap', height: '44px' }}>
+                    Add Colour
+                  </button>
+                </div>
+
+                <p style={{ fontFamily: "'Jost', sans-serif", fontSize: '0.72rem', color: '#9A8F87', marginTop: '0.75rem' }}>
+                  Colour images can be added from the edit page after saving.
+                </p>
+              </div>
             )}
           </div>
 

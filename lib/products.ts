@@ -15,7 +15,9 @@ export type Product = {
   fabric: string;
   care_instructions: string;
   sizes: string[];
-  images: { url: string; alt_text: string; position: number }[];
+  has_colours: boolean;
+  colours: { id: string; name: string; hex_code: string; display_order: number; is_available: boolean }[];
+  images: { url: string; alt_text: string; position: number; colour_id: string | null }[];
 };
 
 export async function getProducts(categorySlug?: string): Promise<Product[]> {
@@ -45,7 +47,8 @@ export async function getProductById(id: number): Promise<Product | null> {
     .select(`
       *,
       categories(name, slug),
-      product_images(url, alt_text, position)
+      product_images(url, alt_text, position, colour_id),
+      product_colours(id, name, hex_code, display_order, is_available)
     `)
     .eq('id', id)
     .single();
@@ -90,6 +93,8 @@ function normalise(data: any): Product {
     fabric: data.fabric || '',
     care_instructions: data.care_instructions || '',
     sizes: data.sizes || ['6', '8', '10', '12', '14', '16', '18', '20'],
+    has_colours: data.has_colours || false,
+    colours: (data.product_colours || []).filter((c: any) => c.is_available).sort((a: any, b: any) => a.display_order - b.display_order),
     images: (data.product_images || []).sort((a: any, b: any) => a.position - b.position),
   };
 }
