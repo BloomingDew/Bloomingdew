@@ -8,14 +8,20 @@ export default function ForgotPasswordPage() {
   const [email, setEmail] = useState('');
   const [sent, setSent] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [resetError, setResetError] = useState('');
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
-    await supabase.auth.resetPasswordForEmail(email, {
+    setResetError('');
+    const { error } = await supabase.auth.resetPasswordForEmail(email, {
       redirectTo: `${window.location.origin}/account/reset-password`,
     });
-    setSent(true);
+    if (error) {
+      setResetError(error.message);
+    } else {
+      setSent(true);
+    }
     setLoading(false);
   };
 
@@ -45,6 +51,7 @@ export default function ForgotPasswordPage() {
             <label style={labelStyle}>Email address</label>
             <input required type="email" value={email} onChange={e => setEmail(e.target.value)} style={inputStyle} placeholder="your@email.com" />
           </div>
+          {resetError && <p style={{ fontFamily: "'Jost', sans-serif", fontSize: '0.82rem', color: '#C0392B', textAlign: 'center' }}>{resetError}</p>}
           <button type="submit" disabled={loading} style={{
             padding: '1.1rem', backgroundColor: '#2C2C2C', color: '#FAF7F4',
             fontFamily: "'Jost', sans-serif", fontSize: '0.78rem',

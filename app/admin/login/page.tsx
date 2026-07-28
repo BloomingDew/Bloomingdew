@@ -23,7 +23,9 @@ export default function AdminLoginPage() {
     } else {
       // Use window.location for a hard redirect so the middleware
       // picks up the new session cookie on a fresh request
-      window.location.href = '/admin';
+      const params = new URLSearchParams(window.location.search);
+      const redirect = params.get('redirect');
+      window.location.href = (redirect && redirect.startsWith('/admin')) ? redirect : '/admin';
     }
   };
 
