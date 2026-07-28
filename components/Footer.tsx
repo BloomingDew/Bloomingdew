@@ -51,8 +51,9 @@ export default function Footer() {
         <div>
           <h4 style={footerHeading}>Get in Touch</h4>
           <ul style={{ listStyle: 'none', display: 'flex', flexDirection: 'column', gap: '0.6rem' }}>
-            <li style={{ fontSize: '0.85rem', color: '#9A8F87' }}>hello@bloomingdew.com</li>
             <li><a href="https://www.instagram.com/bloomingdeww/" target="_blank" rel="noopener noreferrer" style={{ fontSize: '0.85rem', color: '#9A8F87', textDecoration: 'none' }}>Instagram</a></li>
+            <li><a href="#" target="_blank" rel="noopener noreferrer" style={{ fontSize: '0.85rem', color: '#9A8F87', textDecoration: 'none' }}>TikTok</a></li>
+            <li><a href="#" target="_blank" rel="noopener noreferrer" style={{ fontSize: '0.85rem', color: '#9A8F87', textDecoration: 'none' }}>Facebook</a></li>
           </ul>
         </div>
       </div>
