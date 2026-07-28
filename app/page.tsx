@@ -209,8 +209,7 @@ export default function Home() {
       )}
 
       {/* ── Best Sellers ── */}
-      {featuredProducts.length > 0 && (
-        <section style={{ padding: '7rem 0 0', backgroundColor: '#FAF7F4' }}>
+      <section style={{ padding: '7rem 0 0', backgroundColor: '#FAF7F4' }}>
           <div style={{ maxWidth: '1280px', margin: '0 auto', padding: '0 2rem 2.5rem' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end' }}>
               <div>
@@ -261,7 +260,6 @@ export default function Home() {
             </div>
           )}
         </section>
-      )}
 
       {/* ── Editorial Banner ── */}
       <section style={{
