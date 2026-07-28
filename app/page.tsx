@@ -89,6 +89,7 @@ export default function Home() {
             color: '#1A1208', padding: '1rem 2.5rem',
             fontFamily: "'Jost', sans-serif", fontSize: '0.78rem',
             letterSpacing: '0.18em', textTransform: 'uppercase', fontWeight: 500,
+            alignSelf: 'flex-start', width: 'fit-content',
           }}>
             Shop the New Collection
           </Link>
