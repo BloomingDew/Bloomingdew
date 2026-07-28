@@ -15,12 +15,16 @@ export default function HomepageAdminPage() {
   const [products, setProducts] = useState<Product[]>([]);
   const [uploadingId, setUploadingId] = useState<number | null>(null);
   const [savedMsg, setSavedMsg] = useState('');
-  const [savedMsgSection, setSavedMsgSection] = useState<'category' | 'featured' | 'about' | ''>('');
+  const [savedMsgSection, setSavedMsgSection] = useState<'category' | 'featured' | 'about' | 'new_collection' | ''>('');
   const [aboutImage, setAboutImage] = useState<string | null>(null);
   const [uploadingAbout, setUploadingAbout] = useState(false);
   const [featuredError, setFeaturedError] = useState('');
   // featuredOrder stores product ids in display order; cosmetic only — no featured_position column in DB
   const [featuredOrder, setFeaturedOrder] = useState<number[]>([]);
+  const [newCollectionTitle, setNewCollectionTitle] = useState('New Collection');
+  const [newCollectionIds, setNewCollectionIds] = useState<number[]>([]);
+  const [newCollectionError, setNewCollectionError] = useState('');
+  const [newCollectionSearch, setNewCollectionSearch] = useState('');
 
   useEffect(() => {
     getSession().then(s => { if (!s) router.push('/admin/login'); });
@@ -28,16 +32,20 @@ export default function HomepageAdminPage() {
   }, []);
 
   const fetchData = async () => {
-    const [{ data: cats }, { data: prods }, { data: setting }] = await Promise.all([
+    const [{ data: cats }, { data: prods }, { data: setting }, { data: ncTitle }, { data: ncIds }] = await Promise.all([
       supabaseAuth.from('categories').select('id, name, slug, image_url').order('name'),
       supabaseAuth.from('products').select('id, name, price, featured, product_images(url)').eq('available', true).order('name'),
       supabaseAuth.from('site_settings').select('value').eq('key', 'about_image_url').single(),
+      supabaseAuth.from('site_settings').select('value').eq('key', 'new_collection_title').single(),
+      supabaseAuth.from('site_settings').select('value').eq('key', 'new_collection_product_ids').single(),
     ]);
     setCategories(cats || []);
     const loadedProducts = prods || [];
     setProducts(loadedProducts);
     setFeaturedOrder(loadedProducts.filter(p => p.featured).map(p => p.id));
     setAboutImage(setting?.value ?? null);
+    setNewCollectionTitle(ncTitle?.value ?? 'New Collection');
+    setNewCollectionIds(ncIds?.value ? JSON.parse(ncIds.value) : []);
   };
 
   const handleCategoryImageUpload = async (categoryId: number, e: React.ChangeEvent<HTMLInputElement>) => {
@@ -165,6 +173,40 @@ export default function HomepageAdminPage() {
   const featuredProducts = featuredOrder
     .map(id => products.find(p => p.id === id))
     .filter((p): p is Product => p !== undefined && p.featured);
+
+  const saveNewCollection = async () => {
+    await Promise.all([
+      supabaseAuth.from('site_settings').upsert({ key: 'new_collection_title', value: newCollectionTitle }, { onConflict: 'key' }),
+      supabaseAuth.from('site_settings').upsert({ key: 'new_collection_product_ids', value: JSON.stringify(newCollectionIds) }, { onConflict: 'key' }),
+    ]);
+    setSavedMsg('Saved!');
+    setSavedMsgSection('new_collection');
+    setTimeout(() => { setSavedMsg(''); setSavedMsgSection(''); }, 2000);
+  };
+
+  const toggleNewCollection = (productId: number) => {
+    setNewCollectionIds(prev => {
+      if (prev.includes(productId)) return prev.filter(id => id !== productId);
+      if (prev.length >= 8) {
+        setNewCollectionError('Maximum 8 products. Remove one first.');
+        setTimeout(() => setNewCollectionError(''), 3000);
+        return prev;
+      }
+      return [...prev, productId];
+    });
+  };
+
+  const moveNewCollection = (index: number, direction: -1 | 1) => {
+    setNewCollectionIds(prev => {
+      const next = [...prev];
+      const swapIdx = index + direction;
+      if (swapIdx < 0 || swapIdx >= next.length) return prev;
+      [next[index], next[swapIdx]] = [next[swapIdx], next[index]];
+      return next;
+    });
+  };
+
+  const newCollectionProducts = newCollectionIds.map(id => products.find(p => p.id === id)).filter((p): p is Product => p !== undefined);
 
   return (
     <div>
@@ -302,6 +344,108 @@ export default function HomepageAdminPage() {
                 Recommended: portrait orientation (4:5 ratio)
               </p>
             </div>
+          </div>
+        </div>
+
+        {/* New Collection */}
+        <div style={{ backgroundColor: '#FFFFFF', border: '1px solid #E8DDD3', padding: '2rem', marginBottom: '2rem' }}>
+          <div style={{ marginBottom: '1.5rem' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', marginBottom: '0.4rem' }}>
+              <input
+                value={newCollectionTitle}
+                onChange={e => setNewCollectionTitle(e.target.value)}
+                style={{ fontFamily: "'Playfair Display', serif", fontSize: '1.2rem', fontWeight: 500, color: '#2C2C2C', border: 'none', borderBottom: '1px solid #E8DDD3', outline: 'none', background: 'transparent', minWidth: '200px' }}
+              />
+              {savedMsg && savedMsgSection === 'new_collection' && (
+                <span style={{ fontFamily: "'Jost', sans-serif", fontSize: '0.82rem', color: '#2E7D32' }}>{savedMsg}</span>
+              )}
+            </div>
+            <p style={{ fontFamily: "'Jost', sans-serif", fontSize: '0.82rem', fontWeight: 300, color: '#9A8F87' }}>
+              Select up to 8 products for the New Collection section. Currently selected {newCollectionProducts.length} product{newCollectionProducts.length !== 1 ? 's' : ''}.
+            </p>
+            {newCollectionError && (
+              <p style={{ fontFamily: "'Jost', sans-serif", fontSize: '0.82rem', color: '#C62828', marginTop: '0.4rem' }}>{newCollectionError}</p>
+            )}
+          </div>
+
+          {/* Currently selected */}
+          {newCollectionProducts.length > 0 && (
+            <div style={{ marginBottom: '2rem' }}>
+              <p style={{ fontFamily: "'Jost', sans-serif", fontSize: '0.72rem', letterSpacing: '0.12em', textTransform: 'uppercase', color: '#C9A882', marginBottom: '1rem' }}>
+                Currently Selected
+              </p>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
+                {newCollectionProducts.map((p, idx) => (
+                  <div key={p.id} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.4rem 0.8rem', backgroundColor: '#FAF7F4', border: '1px solid #C9A882' }}>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '1px', marginRight: '0.25rem' }}>
+                      <button
+                        onClick={() => moveNewCollection(idx, -1)}
+                        disabled={idx === 0}
+                        style={{ background: 'none', border: 'none', cursor: idx === 0 ? 'default' : 'pointer', color: idx === 0 ? '#D4C4B5' : '#9A8F87', fontSize: '0.65rem', lineHeight: 1, padding: '1px 3px' }}
+                        title="Move up"
+                      >▲</button>
+                      <button
+                        onClick={() => moveNewCollection(idx, 1)}
+                        disabled={idx === newCollectionProducts.length - 1}
+                        style={{ background: 'none', border: 'none', cursor: idx === newCollectionProducts.length - 1 ? 'default' : 'pointer', color: idx === newCollectionProducts.length - 1 ? '#D4C4B5' : '#9A8F87', fontSize: '0.65rem', lineHeight: 1, padding: '1px 3px' }}
+                        title="Move down"
+                      >▼</button>
+                    </div>
+                    <span style={{ fontFamily: "'Jost', sans-serif", fontSize: '0.82rem', color: '#2C2C2C', flex: 1 }}>{p.name}</span>
+                    <button onClick={() => toggleNewCollection(p.id)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#9A8F87', fontSize: '0.8rem' }}>✕</button>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Search */}
+          <input
+            placeholder="Search products..."
+            value={newCollectionSearch}
+            onChange={e => setNewCollectionSearch(e.target.value)}
+            style={{ padding: '0.5rem 0.75rem', border: '1px solid #E8DDD3', fontFamily: "'Jost', sans-serif", fontSize: '0.82rem', outline: 'none', width: '100%', marginBottom: '1rem' }}
+          />
+
+          {/* All products grid */}
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))', gap: '1rem' }}>
+            {products.filter(p => p.name.toLowerCase().includes(newCollectionSearch.toLowerCase())).map(product => {
+              const selected = newCollectionIds.includes(product.id);
+              return (
+                <div key={product.id} style={{
+                  display: 'flex', gap: '0.75rem', alignItems: 'center',
+                  padding: '0.75rem', border: `1px solid ${selected ? '#C9A882' : '#E8DDD3'}`,
+                  backgroundColor: selected ? '#FAF7F4' : '#FFFFFF',
+                  cursor: 'pointer',
+                }} onClick={() => toggleNewCollection(product.id)}>
+                  <div style={{ width: '44px', height: '56px', flexShrink: 0, overflow: 'hidden', background: 'linear-gradient(150deg, #F0E8E0, #D4C4B5)' }}>
+                    {product.product_images?.[0] && (
+                      <img src={product.product_images[0].url} alt={product.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                    )}
+                  </div>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <p style={{ fontFamily: "'Jost', sans-serif", fontSize: '0.82rem', color: '#2C2C2C', marginBottom: '0.2rem', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                      {product.name}
+                    </p>
+                    <p style={{ fontFamily: "'Jost', sans-serif", fontSize: '0.75rem', color: '#9A8F87' }}>{formatAdminPrice(product.price)}</p>
+                  </div>
+                  <div style={{
+                    width: '20px', height: '20px', flexShrink: 0, borderRadius: '50%',
+                    border: `2px solid ${selected ? '#C9A882' : '#E8DDD3'}`,
+                    backgroundColor: selected ? '#C9A882' : 'transparent',
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  }}>
+                    {selected && <span style={{ color: '#FAF7F4', fontSize: '0.6rem' }}>✓</span>}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+
+          <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '1.5rem' }}>
+            <button onClick={saveNewCollection} style={{ padding: '0.6rem 1.8rem', backgroundColor: '#2C2C2C', color: '#FAF7F4', border: 'none', fontFamily: "'Jost', sans-serif", fontSize: '0.75rem', letterSpacing: '0.12em', textTransform: 'uppercase', cursor: 'pointer' }}>
+              Save
+            </button>
           </div>
         </div>
 
