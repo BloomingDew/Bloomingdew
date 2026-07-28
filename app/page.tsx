@@ -84,24 +84,14 @@ export default function Home() {
           }}>
             Handcrafted pieces that move with you — each garment made with intention, designed to be felt as much as seen.
           </p>
-          <div style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap' }}>
-            <Link href="/shop" style={{
-              display: 'inline-block', backgroundColor: '#C9A882',
-              color: '#1A1208', padding: '1rem 2.5rem',
-              fontFamily: "'Jost', sans-serif", fontSize: '0.78rem',
-              letterSpacing: '0.18em', textTransform: 'uppercase', fontWeight: 500,
-            }}>
-              Shop Now
-            </Link>
-            <Link href="/custom" style={{
-              display: 'inline-block', border: '1px solid #9A8F87',
-              color: '#9A8F87', padding: '1rem 2.5rem',
-              fontFamily: "'Jost', sans-serif", fontSize: '0.78rem',
-              letterSpacing: '0.18em', textTransform: 'uppercase', fontWeight: 400,
-            }}>
-              Custom Order
-            </Link>
-          </div>
+          <Link href="/shop" style={{
+            display: 'inline-block', backgroundColor: '#C9A882',
+            color: '#1A1208', padding: '1rem 2.5rem',
+            fontFamily: "'Jost', sans-serif", fontSize: '0.78rem',
+            letterSpacing: '0.18em', textTransform: 'uppercase', fontWeight: 500,
+          }}>
+            Shop the New Collection
+          </Link>
         </div>
 
         {/* Right — image placeholder / editorial frame */}
