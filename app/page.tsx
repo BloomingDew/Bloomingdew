@@ -218,76 +218,60 @@ export default function Home() {
         </section>
       )}
 
-      {/* ── Shop by Category ── */}
-      <section style={{ padding: '7rem 2rem', backgroundColor: '#FAF7F4' }}>
-        <div style={{ maxWidth: '1280px', margin: '0 auto' }}>
-          <div style={{ textAlign: 'center', marginBottom: '3.5rem' }}>
-            <p style={{
-              fontFamily: "'Jost', sans-serif", fontSize: '0.72rem',
-              letterSpacing: '0.28em', textTransform: 'uppercase',
-              color: '#C9A882', marginBottom: '0.6rem',
-            }}>
-              Browse
-            </p>
-            <h2 style={{
-              fontFamily: "'Playfair Display', serif",
-              fontSize: 'clamp(1.8rem, 3vw, 2.4rem)',
-              fontWeight: 500, color: '#2C2C2C',
-            }}>
-              Shop by Category
-            </h2>
+      {/* ── Best Sellers ── */}
+      {featuredProducts.length > 0 && (
+        <section style={{ padding: '7rem 0 0', backgroundColor: '#FAF7F4' }}>
+          <div style={{ maxWidth: '1280px', margin: '0 auto', padding: '0 2rem 2.5rem' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end' }}>
+              <div>
+                <p style={{
+                  fontFamily: "'Jost', sans-serif", fontSize: '0.72rem',
+                  letterSpacing: '0.28em', textTransform: 'uppercase',
+                  color: '#C9A882', marginBottom: '0.6rem',
+                }}>
+                  Customer Favourites
+                </p>
+                <h2 style={{
+                  fontFamily: "'Playfair Display', serif",
+                  fontSize: 'clamp(1.8rem, 3.5vw, 2.8rem)',
+                  fontWeight: 500, color: '#2C2C2C', lineHeight: 1.1,
+                }}>
+                  Best Sellers
+                </h2>
+              </div>
+              <Link href="/shop" style={{
+                fontFamily: "'Jost', sans-serif", fontSize: '0.75rem',
+                letterSpacing: '0.15em', textTransform: 'uppercase',
+                color: '#2C2C2C', borderBottom: '1px solid #2C2C2C', paddingBottom: '2px',
+              }}>
+                View All
+              </Link>
+            </div>
           </div>
 
           <div style={{
             display: 'grid',
-            gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))',
-            gap: '1.5rem',
+            gridTemplateColumns: `repeat(${Math.min(featuredProducts.length, 4)}, 1fr)`,
+            gap: '3px',
           }}>
-            {categories.map((cat) => (
-              <Link key={cat.slug} href={`/shop?category=${cat.slug}`} style={{ display: 'block', textDecoration: 'none' }}>
-                <div style={{
-                  aspectRatio: '3/4', position: 'relative', overflow: 'hidden',
-                  background: 'linear-gradient(160deg, #EDE4DA, #C9A882)',
-                  display: 'flex', alignItems: 'flex-end', padding: '1.5rem',
-                }} className="category-card">
-                  {cat.image_url && (
-                    <img src={cat.image_url} alt={cat.name} style={{
-                      position: 'absolute', inset: 0, width: '100%', height: '100%',
-                      objectFit: 'cover', transition: 'transform 0.6s ease',
-                    }} className="category-img" />
-                  )}
-                  {!cat.image_url && (
-                    <span style={{
-                      position: 'absolute', top: '50%', left: '50%',
-                      transform: 'translate(-50%,-50%)',
-                      fontFamily: "'Jost', sans-serif", fontSize: '0.7rem',
-                      letterSpacing: '0.2em', textTransform: 'uppercase', color: '#9A8F87',
-                    }}>Image coming soon</span>
-                  )}
-                  <div style={{
-                    position: 'absolute', inset: 0,
-                    background: 'linear-gradient(to top, rgba(0,0,0,0.55) 0%, transparent 55%)', zIndex: 1,
-                  }} />
-                  <div style={{ position: 'relative', zIndex: 2 }}>
-                    <p style={{
-                      fontFamily: "'Jost', sans-serif", fontSize: '0.65rem',
-                      letterSpacing: '0.2em', textTransform: 'uppercase',
-                      color: '#C9A882', marginBottom: '0.35rem',
-                    }}>Explore</p>
-                    <span style={{
-                      fontFamily: "'Playfair Display', serif", fontSize: '1.4rem',
-                      fontWeight: 500, color: '#FAF7F4',
-                    }}>{cat.name}</span>
-                  </div>
-                </div>
-              </Link>
+            {featuredProducts.slice(0, 4).map((product) => (
+              <NewCollectionCard key={product.id} product={product} />
             ))}
           </div>
-        </div>
-        <style>{`
-          .category-card:hover .category-img { transform: scale(1.06); }
-        `}</style>
-      </section>
+
+          {featuredProducts.length > 4 && (
+            <div style={{
+              display: 'grid',
+              gridTemplateColumns: `repeat(${Math.min(featuredProducts.length - 4, 4)}, 1fr)`,
+              gap: '3px', marginTop: '3px',
+            }}>
+              {featuredProducts.slice(4, 8).map((product) => (
+                <NewCollectionCard key={product.id} product={product} />
+              ))}
+            </div>
+          )}
+        </section>
+      )}
 
       {/* ── Editorial Banner ── */}
       <section style={{
