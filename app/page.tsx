@@ -22,25 +22,14 @@ export default function Home() {
       .eq('featured', true).eq('available', true).limit(8)
       .then(({ data }) => setFeaturedProducts(data || []));
 
-    // New collection
-    Promise.all([
-      supabase.from('site_settings').select('value').eq('key', 'new_collection_title').single(),
-      supabase.from('site_settings').select('value').eq('key', 'new_collection_product_ids').single(),
-    ]).then(async ([titleRes, idsRes]) => {
-      if (titleRes.data?.value) setNewCollectionTitle(titleRes.data.value);
-      const ids: number[] = idsRes.data?.value ? JSON.parse(idsRes.data.value) : [];
-      if (ids.length === 0) return;
-      const { data } = await supabase
-        .from('products')
-        .select('id, name, price, discount, product_images(url)')
-        .in('id', ids)
-        .eq('available', true);
-      if (data) {
-        // Preserve the admin-defined order
-        const ordered = ids.map(id => data.find((p: FeaturedProduct) => p.id === id)).filter(Boolean) as FeaturedProduct[];
-        setNewCollectionProducts(ordered);
-      }
-    });
+    // New collection — fetched via API to bypass RLS on site_settings
+    fetch('/api/new-collection')
+      .then(r => r.json())
+      .then(({ title, products }) => {
+        if (title) setNewCollectionTitle(title);
+        if (products?.length) setNewCollectionProducts(products);
+      })
+      .catch(() => {});
   }, []);
 
   return (
