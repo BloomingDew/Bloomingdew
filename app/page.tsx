@@ -186,7 +186,7 @@ export default function Home() {
 
           <div style={{
             display: 'grid',
-            gridTemplateColumns: `repeat(${Math.min(newCollectionProducts.length, 4)}, 1fr)`,
+            gridTemplateColumns: 'repeat(4, 1fr)',
             gap: '3px',
           }}>
             {newCollectionProducts.slice(0, 4).map((product) => (
@@ -197,7 +197,7 @@ export default function Home() {
           {newCollectionProducts.length > 4 && (
             <div style={{
               display: 'grid',
-              gridTemplateColumns: `repeat(${Math.min(newCollectionProducts.length - 4, 4)}, 1fr)`,
+              gridTemplateColumns: 'repeat(4, 1fr)',
               gap: '3px', marginTop: '3px',
             }}>
               {newCollectionProducts.slice(4, 8).map((product) => (
@@ -241,7 +241,7 @@ export default function Home() {
 
           <div style={{
             display: 'grid',
-            gridTemplateColumns: `repeat(${Math.min(featuredProducts.length, 4)}, 1fr)`,
+            gridTemplateColumns: 'repeat(4, 1fr)',
             gap: '3px',
           }}>
             {featuredProducts.slice(0, 4).map((product) => (
@@ -252,7 +252,7 @@ export default function Home() {
           {featuredProducts.length > 4 && (
             <div style={{
               display: 'grid',
-              gridTemplateColumns: `repeat(${Math.min(featuredProducts.length - 4, 4)}, 1fr)`,
+              gridTemplateColumns: 'repeat(4, 1fr)',
               gap: '3px', marginTop: '3px',
             }}>
               {featuredProducts.slice(4, 8).map((product) => (
