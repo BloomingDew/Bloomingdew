@@ -350,47 +350,6 @@ export default function Home() {
         `}</style>
       </section>
 
-      {/* ── Featured Pieces ── */}
-      {featuredProducts.length > 0 && (
-        <section style={{ padding: '7rem 2rem', backgroundColor: '#FFFFFF' }}>
-          <div style={{ maxWidth: '1280px', margin: '0 auto' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', marginBottom: '3.5rem' }}>
-              <div>
-                <p style={{
-                  fontFamily: "'Jost', sans-serif", fontSize: '0.72rem',
-                  letterSpacing: '0.28em', textTransform: 'uppercase',
-                  color: '#C9A882', marginBottom: '0.6rem',
-                }}>
-                  Curated for you
-                </p>
-                <h2 style={{
-                  fontFamily: "'Playfair Display', serif",
-                  fontSize: 'clamp(1.8rem, 3vw, 2.4rem)',
-                  fontWeight: 500, color: '#2C2C2C',
-                }}>
-                  Featured Pieces
-                </h2>
-              </div>
-              <Link href="/shop" style={{
-                fontFamily: "'Jost', sans-serif", fontSize: '0.75rem',
-                letterSpacing: '0.15em', textTransform: 'uppercase',
-                color: '#9A8F87', borderBottom: '1px solid #9A8F87', paddingBottom: '2px',
-              }}>View All</Link>
-            </div>
-
-            <div style={{
-              display: 'grid',
-              gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))',
-              gap: '2rem',
-            }}>
-              {featuredProducts.map((product) => (
-                <FeaturedCard key={product.id} product={product} />
-              ))}
-            </div>
-          </div>
-        </section>
-      )}
-
       {/* ── Brand Story ── */}
       <section style={{
         backgroundColor: '#E8DDD3', padding: '8rem 2rem',
