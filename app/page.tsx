@@ -12,6 +12,8 @@ type FeaturedProduct = { id: number; name: string; price: number; discount: numb
 export default function Home() {
   const [categories, setCategories] = useState<Category[]>([]);
   const [featuredProducts, setFeaturedProducts] = useState<FeaturedProduct[]>([]);
+  const [newCollectionTitle, setNewCollectionTitle] = useState('New Collection');
+  const [newCollectionProducts, setNewCollectionProducts] = useState<FeaturedProduct[]>([]);
 
   useEffect(() => {
     supabase.from('categories').select('id, name, slug, image_url').order('name')
@@ -19,6 +21,15 @@ export default function Home() {
     supabase.from('products').select('id, name, price, discount, product_images(url)')
       .eq('featured', true).eq('available', true).limit(8)
       .then(({ data }) => setFeaturedProducts(data || []));
+
+    // New collection — fetched via API to bypass RLS on site_settings
+    fetch('/api/new-collection')
+      .then(r => r.json())
+      .then(({ title, products }) => {
+        if (title) setNewCollectionTitle(title);
+        if (products?.length) setNewCollectionProducts(products);
+      })
+      .catch(() => {});
   }, []);
 
   return (
@@ -93,6 +104,52 @@ export default function Home() {
           </Link>
         </div>
       </section>
+
+      {/* New Collection */}
+      {newCollectionProducts.length > 0 && (
+        <section style={{ padding: '5rem 0 0' }}>
+          <div style={{ maxWidth: '1280px', margin: '0 auto', padding: '0 2rem 2rem' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: '2rem' }}>
+              <div>
+                <p style={{ fontFamily: "'Jost', sans-serif", fontSize: '0.72rem', letterSpacing: '0.25em', textTransform: 'uppercase', color: '#9A8F87', marginBottom: '0.5rem' }}>
+                  Just Arrived
+                </p>
+                <h2 style={{ fontFamily: "'Playfair Display', serif", fontSize: 'clamp(1.6rem, 3vw, 2.2rem)', fontWeight: 500, color: '#2C2C2C' }}>
+                  {newCollectionTitle}
+                </h2>
+              </div>
+              <Link href="/shop" style={{ fontFamily: "'Jost', sans-serif", fontSize: '0.75rem', letterSpacing: '0.15em', textTransform: 'uppercase', color: '#9A8F87', borderBottom: '1px solid #9A8F87', paddingBottom: '2px' }}>
+                View All
+              </Link>
+            </div>
+          </div>
+
+          {/* Full-width editorial grid */}
+          <div style={{
+            display: 'grid',
+            gridTemplateColumns: `repeat(${Math.min(newCollectionProducts.length, 4)}, 1fr)`,
+            gap: '2px',
+          }}>
+            {newCollectionProducts.slice(0, 4).map((product) => (
+              <NewCollectionCard key={product.id} product={product} />
+            ))}
+          </div>
+
+          {/* Second row if more than 4 */}
+          {newCollectionProducts.length > 4 && (
+            <div style={{
+              display: 'grid',
+              gridTemplateColumns: `repeat(${Math.min(newCollectionProducts.length - 4, 4)}, 1fr)`,
+              gap: '2px',
+              marginTop: '2px',
+            }}>
+              {newCollectionProducts.slice(4, 8).map((product) => (
+                <NewCollectionCard key={product.id} product={product} />
+              ))}
+            </div>
+          )}
+        </section>
+      )}
 
       {/* Categories */}
       <section style={{ padding: '6rem 2rem' }}>
@@ -277,6 +334,81 @@ export default function Home() {
       </section>
 
     </div>
+  );
+}
+
+function NewCollectionCard({ product }: { product: FeaturedProduct }) {
+  const [hovered, setHovered] = useState(false);
+  const { addItem, removeItem, isWishlisted } = useWishlist();
+  const { format } = useCurrency();
+  const wishlisted = isWishlisted(product.id);
+  const mainImage = product.product_images?.[0]?.url;
+  const salePriceUsd = product.discount > 0 ? product.price * (1 - product.discount / 100) : product.price;
+
+  const toggleWishlist = (e: React.MouseEvent) => {
+    e.preventDefault();
+    wishlisted
+      ? removeItem(product.id)
+      : addItem({ id: product.id, name: product.name, priceUsd: salePriceUsd, originalPriceUsd: product.discount > 0 ? product.price : undefined, category: '' });
+  };
+
+  return (
+    <Link href={`/products/${product.id}`} style={{ textDecoration: 'none', display: 'block' }}>
+      <div onMouseEnter={() => setHovered(true)} onMouseLeave={() => setHovered(false)}>
+        {/* Image — tall portrait, full bleed */}
+        <div style={{
+          aspectRatio: '3/4',
+          position: 'relative',
+          overflow: 'hidden',
+          background: 'linear-gradient(160deg, #EDE4DA, #C9A882)',
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+        }}>
+          {mainImage ? (
+            <img
+              src={mainImage}
+              alt={product.name}
+              style={{
+                position: 'absolute', inset: 0, width: '100%', height: '100%',
+                objectFit: 'cover',
+                transform: hovered ? 'scale(1.04)' : 'scale(1)',
+                transition: 'transform 0.5s ease',
+              }}
+            />
+          ) : (
+            <span style={{ fontFamily: "'Jost', sans-serif", fontSize: '0.7rem', letterSpacing: '0.15em', textTransform: 'uppercase', color: '#9A8F87' }}>
+              Photo coming soon
+            </span>
+          )}
+
+          {/* Wishlist heart */}
+          <button onClick={toggleWishlist} style={{
+            position: 'absolute', top: '0.75rem', right: '0.75rem',
+            backgroundColor: '#FAF7F4', border: 'none', cursor: 'pointer',
+            width: '34px', height: '34px', display: 'flex', alignItems: 'center', justifyContent: 'center',
+            opacity: hovered || wishlisted ? 1 : 0, transition: 'opacity 0.2s', zIndex: 2,
+          }}>
+            <svg width="16" height="16" viewBox="0 0 24 24" fill={wishlisted ? '#C9A882' : 'none'} stroke={wishlisted ? '#C9A882' : '#2C2C2C'} strokeWidth="1.5">
+              <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/>
+            </svg>
+          </button>
+        </div>
+
+        {/* Info below image */}
+        <div style={{ padding: '0.9rem 0.1rem 0' }}>
+          <p style={{ fontFamily: "'Jost', sans-serif", fontSize: '0.88rem', fontWeight: 400, color: '#2C2C2C', marginBottom: '0.3rem' }}>
+            {product.name}
+          </p>
+          {product.discount > 0 ? (
+            <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'baseline' }}>
+              <p style={{ fontFamily: "'Jost', sans-serif", fontSize: '0.85rem', color: '#C0392B' }}>{format(salePriceUsd)}</p>
+              <p style={{ fontFamily: "'Jost', sans-serif", fontSize: '0.78rem', fontWeight: 300, color: '#9A8F87', textDecoration: 'line-through' }}>{format(product.price)}</p>
+            </div>
+          ) : (
+            <p style={{ fontFamily: "'Jost', sans-serif", fontSize: '0.85rem', fontWeight: 300, color: '#9A8F87' }}>{format(product.price)}</p>
+          )}
+        </div>
+      </div>
+    </Link>
   );
 }
 
