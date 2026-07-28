@@ -11,8 +11,7 @@ export async function POST(req: NextRequest) {
 
   const { error } = await supabaseService
     .from('site_settings')
-    .update({ value })
-    .eq('key', key);
+    .upsert({ key, value }, { onConflict: 'key' });
 
   if (error) {
     return NextResponse.json({ error: error.message }, { status: 500 });

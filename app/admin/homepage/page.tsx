@@ -175,10 +175,15 @@ export default function HomepageAdminPage() {
     .filter((p): p is Product => p !== undefined && p.featured);
 
   const saveNewCollection = async () => {
-    await Promise.all([
-      supabaseAuth.from('site_settings').upsert({ key: 'new_collection_title', value: newCollectionTitle }, { onConflict: 'key' }),
-      supabaseAuth.from('site_settings').upsert({ key: 'new_collection_product_ids', value: JSON.stringify(newCollectionIds) }, { onConflict: 'key' }),
+    const [r1, r2] = await Promise.all([
+      fetch('/api/admin/site-settings', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ key: 'new_collection_title', value: newCollectionTitle }) }),
+      fetch('/api/admin/site-settings', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ key: 'new_collection_product_ids', value: JSON.stringify(newCollectionIds) }) }),
     ]);
+    if (!r1.ok || !r2.ok) {
+      setNewCollectionError('Save failed. Please try again.');
+      setTimeout(() => setNewCollectionError(''), 3000);
+      return;
+    }
     setSavedMsg('Saved!');
     setSavedMsgSection('new_collection');
     setTimeout(() => { setSavedMsg(''); setSavedMsgSection(''); }, 2000);
