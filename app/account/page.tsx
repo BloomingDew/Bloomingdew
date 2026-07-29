@@ -141,7 +141,7 @@ function AccountPageInner() {
             My Account
           </h1>
           <p style={{ fontFamily: "'Jost', sans-serif", fontSize: '0.85rem', fontWeight: 300, color: '#9A8F87' }}>
-            {user.email}
+            {`${profile?.first_name || ''} ${profile?.last_name || ''}`.trim() || 'Welcome back'}
           </p>
         </div>
         <button onClick={() => { signOut(); router.push('/'); }} style={{
@@ -234,7 +234,6 @@ function AccountPageInner() {
               </div>
               {[
                 { label: 'Name', value: `${profile?.first_name || ''} ${profile?.last_name || ''}`.trim() || '—' },
-                { label: 'Email', value: user.email || '—' },
                 { label: 'Phone', value: profile?.phone || '—' },
                 { label: 'Birthday', value: profile?.birthday ? new Date(profile.birthday).toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' }) : '—' },
               ].map(({ label, value }) => (
