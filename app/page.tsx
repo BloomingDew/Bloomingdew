@@ -5,7 +5,6 @@ import Link from 'next/link';
 import { useWishlist } from '../context/WishlistContext';
 import { useCurrency } from '../context/CurrencyContext';
 import { supabase } from '../lib/supabase';
-import { imgUrl } from '../lib/imageUrl';
 
 type Category = { id: number; name: string; slug: string; image_url: string | null };
 type FeaturedProduct = { id: number; name: string; price: number; discount: number; product_images: { url: string }[] };
@@ -484,7 +483,7 @@ function NewCollectionCard({ product }: { product: FeaturedProduct }) {
   const { addItem, removeItem, isWishlisted } = useWishlist();
   const { format } = useCurrency();
   const wishlisted = isWishlisted(product.id);
-  const mainImage = imgUrl(product.product_images?.[0]?.url, { width: 400, quality: 75 });
+  const mainImage = product.product_images?.[0]?.url;
   const salePriceUsd = product.discount > 0 ? product.price * (1 - product.discount / 100) : product.price;
 
   const toggleWishlist = (e: React.MouseEvent) => {
@@ -546,7 +545,7 @@ function FeaturedCard({ product }: { product: FeaturedProduct }) {
   const { addItem, removeItem, isWishlisted } = useWishlist();
   const { format } = useCurrency();
   const wishlisted = isWishlisted(product.id);
-  const mainImage = imgUrl(product.product_images?.[0]?.url, { width: 400, quality: 75 });
+  const mainImage = product.product_images?.[0]?.url;
 
   const salePriceUsd = product.discount > 0
     ? product.price * (1 - product.discount / 100)

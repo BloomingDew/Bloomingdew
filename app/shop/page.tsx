@@ -6,7 +6,6 @@ import Image from 'next/image';
 import { useWishlist } from '../../context/WishlistContext';
 import { useCurrency } from '../../context/CurrencyContext';
 import { getProducts, type Product } from '../../lib/products';
-import { imgUrl } from '../../lib/imageUrl';
 
 const categories = ['All', 'New In', 'Dresses', 'Sets', 'Tops', 'Skirts', 'Trousers'];
 const sortOptions = ['Featured', 'Price: Low to High', 'Price: High to Low', 'Newest'];
@@ -145,7 +144,7 @@ function ProductCard({ product }: { product: Product }) {
       : addItem({ id: product.id, name: product.name, priceUsd: salePriceUsd, originalPriceUsd: product.discount > 0 ? product.price : undefined, category: product.category });
   };
 
-  const mainImage = imgUrl(product.images[0]?.url, { width: 400, quality: 75 });
+  const mainImage = product.images[0]?.url;
 
   return (
     <Link href={`/products/${product.id}`} style={{ textDecoration: 'none' }}>
