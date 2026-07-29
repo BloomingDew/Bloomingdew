@@ -7,6 +7,7 @@ import { useWishlist } from '../../../context/WishlistContext';
 import { useCurrency } from '../../../context/CurrencyContext';
 import { getProductById, type Product } from '../../../lib/products';
 import { getAvailableStock, getAllSizesStock } from '../../../lib/inventory';
+import { imgUrl } from '../../../lib/imageUrl';
 
 const sizes = ['6', '8', '10', '12', '14', '16', '18', '20'];
 
@@ -203,7 +204,7 @@ export default function ProductPage({ params }: { params: Promise<{ id: string }
           }}>
             {displayedImages[activeImage] ? (
               <img
-                src={displayedImages[activeImage].url}
+                src={imgUrl(displayedImages[activeImage].url, { width: 900, quality: 80 })}
                 alt={displayedImages[activeImage].alt_text || product.name}
                 style={{ width: '100%', height: '100%', objectFit: 'contain', display: 'block' }}
                 onError={e => { (e.target as HTMLImageElement).style.display = 'none'; }}
@@ -225,7 +226,7 @@ export default function ProductPage({ params }: { params: Promise<{ id: string }
                   width: '72px', height: '88px', border: `2px solid ${activeImage === i ? '#2C2C2C' : 'transparent'}`,
                   padding: 0, cursor: 'pointer', overflow: 'hidden', background: 'none',
                 }}>
-                  <img src={img.url} alt={img.alt_text || ''} style={{ width: '100%', height: '100%', objectFit: 'contain', display: 'block', backgroundColor: '#FAF7F4' }} />
+                  <img src={imgUrl(img.url, { width: 150, quality: 70 })} alt={img.alt_text || ''} style={{ width: '100%', height: '100%', objectFit: 'contain', display: 'block', backgroundColor: '#FAF7F4' }} />
                 </button>
               ))}
             </div>
