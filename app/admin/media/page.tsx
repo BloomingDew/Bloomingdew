@@ -117,10 +117,15 @@ export default function MediaAdminPage() {
     const { data: urlData } = supabaseAuth.storage.from('product-image').getPublicUrl(fileName);
     const publicUrl = urlData.publicUrl;
 
-    const { error: dbError } = await supabaseAuth.from('site_settings').upsert({ key: 'about_image_url', value: publicUrl }, { onConflict: 'key' });
+    const res = await fetch('/api/admin/site-settings', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ key: 'about_image_url', value: publicUrl }),
+    });
 
-    if (dbError) {
-      alert(`Saved to storage but failed to update database: ${dbError.message}`);
+    if (!res.ok) {
+      const { error } = await res.json().catch(() => ({ error: 'Unknown error' }));
+      alert(`Saved to storage but failed to update database: ${error}`);
       setUploadingAbout(false);
       return;
     }
