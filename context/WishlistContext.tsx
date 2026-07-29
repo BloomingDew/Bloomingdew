@@ -43,7 +43,7 @@ export function WishlistProvider({ children }: { children: ReactNode }) {
         syncFromDB(session.user.id);
       }
     });
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
       if (session?.user) {
         setUserId(session.user.id);
         syncFromDB(session.user.id);
