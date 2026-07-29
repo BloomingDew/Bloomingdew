@@ -454,19 +454,19 @@ export default function HomepageAdminPage() {
           </div>
         </div>
 
-        {/* Featured Pieces */}
+        {/* Best Sellers */}
         <div style={{ backgroundColor: '#FFFFFF', border: '1px solid #E8DDD3', padding: '2rem' }}>
           <div style={{ marginBottom: '1.5rem' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', marginBottom: '0.4rem' }}>
               <h3 style={{ fontFamily: "'Playfair Display', serif", fontSize: '1.2rem', fontWeight: 500, color: '#2C2C2C' }}>
-                Featured Pieces
+                Best Sellers
               </h3>
               {savedMsg && savedMsgSection === 'featured' && (
                 <span style={{ fontFamily: "'Jost', sans-serif", fontSize: '0.82rem', color: '#2E7D32' }}>{savedMsg}</span>
               )}
             </div>
             <p style={{ fontFamily: "'Jost', sans-serif", fontSize: '0.82rem', fontWeight: 300, color: '#9A8F87' }}>
-              Select up to 8 products to feature on the homepage. Currently featuring {featuredProducts.length} product{featuredProducts.length !== 1 ? 's' : ''}.
+              Select up to 8 products to show in the Best Sellers section on the homepage. Currently selected {featuredProducts.length} product{featuredProducts.length !== 1 ? 's' : ''}.
             </p>
             {featuredError && (
               <p style={{ fontFamily: "'Jost', sans-serif", fontSize: '0.82rem', color: '#C62828', marginTop: '0.4rem' }}>{featuredError}</p>
