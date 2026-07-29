@@ -58,7 +58,6 @@ export default function ContactPage() {
           </h2>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '2rem' }}>
             {[
-              { label: 'Email', value: 'hello@bloomingdew.com', href: 'mailto:hello@bloomingdew.com' },
               { label: 'Instagram', value: '@bloomingdew', href: '#' },
               { label: 'Response Time', value: 'We aim to reply within 48 hours', href: null },
             ].map(({ label, value, href }) => (

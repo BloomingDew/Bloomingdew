@@ -6,6 +6,18 @@ import { COUNTRY_CURRENCY } from './lib/currency';
 export async function middleware(req: NextRequest) {
   const res = NextResponse.next();
   const { pathname } = req.nextUrl;
+  const hostname = req.headers.get('host') || '';
+
+  // --- Subdomain redirect ----------------------------------------------------
+  // If someone hits bloomingdew.com/admin (or www.), redirect them to
+  // admin.bloomingdew.com/admin so the admin always lives on its own subdomain.
+  const isMainDomain = hostname === 'bloomingdew.com' || hostname === 'www.bloomingdew.com';
+  if (isMainDomain && pathname.startsWith('/admin')) {
+    return NextResponse.redirect(
+      `https://admin.bloomingdew.com${pathname}${req.nextUrl.search}`,
+      308,
+    );
+  }
 
   // --- Currency detection (all storefront requests) ---------------------------
   // If the visitor has no currency preference yet, set one from their geo so the

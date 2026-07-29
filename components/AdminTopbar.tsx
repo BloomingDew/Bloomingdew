@@ -10,7 +10,7 @@ const navLinks = [
   { label: 'Products', href: '/admin' },
   { label: 'Orders', href: '/admin/orders' },
   { label: 'Enquiries', href: '/admin/enquiries' },
-  { label: 'Homepage', href: '/admin/homepage' },
+  { label: 'Media', href: '/admin/media' },
   { label: 'Email Templates', href: '/admin/email-templates' },
 ];
 

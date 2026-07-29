@@ -9,7 +9,7 @@ import { formatAdminPrice } from '../../../lib/adminCurrency';
 type Category = { id: number; name: string; slug: string; image_url: string | null };
 type Product = { id: number; name: string; price: number; featured: boolean; product_images: { url: string }[] };
 
-export default function HomepageAdminPage() {
+export default function MediaAdminPage() {
   const router = useRouter();
   const [categories, setCategories] = useState<Category[]>([]);
   const [products, setProducts] = useState<Product[]>([]);
@@ -117,10 +117,15 @@ export default function HomepageAdminPage() {
     const { data: urlData } = supabaseAuth.storage.from('product-image').getPublicUrl(fileName);
     const publicUrl = urlData.publicUrl;
 
-    const { error: dbError } = await supabaseAuth.from('site_settings').update({ value: publicUrl }).eq('key', 'about_image_url');
+    const res = await fetch('/api/admin/site-settings', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ key: 'about_image_url', value: publicUrl }),
+    });
 
-    if (dbError) {
-      alert(`Saved to storage but failed to update database: ${dbError.message}`);
+    if (!res.ok) {
+      const { error } = await res.json().catch(() => ({ error: 'Unknown error' }));
+      alert(`Saved to storage but failed to update database: ${error}`);
       setUploadingAbout(false);
       return;
     }
@@ -218,7 +223,7 @@ export default function HomepageAdminPage() {
       <div style={{ maxWidth: '1100px', margin: '0 auto', padding: '3rem 2rem' }}>
         <div style={{ marginBottom: '2.5rem' }}>
           <h2 style={{ fontFamily: "'Playfair Display', serif", fontSize: '1.6rem', fontWeight: 500, color: '#2C2C2C' }}>
-            Homepage Content
+            Media & Content
           </h2>
         </div>
 
