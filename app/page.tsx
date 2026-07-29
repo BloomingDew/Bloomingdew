@@ -498,12 +498,12 @@ function NewCollectionCard({ product }: { product: FeaturedProduct }) {
       <div onMouseEnter={() => setHovered(true)} onMouseLeave={() => setHovered(false)}>
         <div style={{
           aspectRatio: '3/4', position: 'relative', overflow: 'hidden',
-          background: 'linear-gradient(160deg, #EDE4DA, #C9A882)',
+          backgroundColor: '#FAF7F4',
           display: 'flex', alignItems: 'center', justifyContent: 'center',
         }}>
           {mainImage ? (
             <img src={mainImage} alt={product.name} style={{
-              position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover',
+              position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'contain',
               transform: hovered ? 'scale(1.04)' : 'scale(1)', transition: 'transform 0.5s ease',
             }} />
           ) : (
@@ -569,7 +569,7 @@ function FeaturedCard({ product }: { product: FeaturedProduct }) {
         }}>
           {mainImage ? (
             <img src={mainImage} alt={product.name} style={{
-              position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover',
+              position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'contain',
               transform: hovered ? 'scale(1.04)' : 'scale(1)', transition: 'transform 0.5s ease',
             }} onError={e => { (e.target as HTMLImageElement).style.display = 'none'; }} />
           ) : (

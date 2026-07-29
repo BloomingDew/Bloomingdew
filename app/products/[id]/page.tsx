@@ -198,14 +198,14 @@ export default function ProductPage({ params }: { params: Promise<{ id: string }
           {/* Main image */}
           <div style={{
             width: '100%', aspectRatio: '3/4',
-            background: 'linear-gradient(150deg, #F0E8E0, #D4C4B5)',
+            backgroundColor: '#FAF7F4',
             overflow: 'hidden', display: 'flex', alignItems: 'center', justifyContent: 'center',
           }}>
             {displayedImages[activeImage] ? (
               <img
                 src={displayedImages[activeImage].url}
                 alt={displayedImages[activeImage].alt_text || product.name}
-                style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
+                style={{ width: '100%', height: '100%', objectFit: 'contain', display: 'block' }}
                 onError={e => { (e.target as HTMLImageElement).style.display = 'none'; }}
               />
             ) : (
@@ -225,7 +225,7 @@ export default function ProductPage({ params }: { params: Promise<{ id: string }
                   width: '72px', height: '88px', border: `2px solid ${activeImage === i ? '#2C2C2C' : 'transparent'}`,
                   padding: 0, cursor: 'pointer', overflow: 'hidden', background: 'none',
                 }}>
-                  <img src={img.url} alt={img.alt_text || ''} style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
+                  <img src={img.url} alt={img.alt_text || ''} style={{ width: '100%', height: '100%', objectFit: 'contain', display: 'block', backgroundColor: '#FAF7F4' }} />
                 </button>
               ))}
             </div>

@@ -151,7 +151,7 @@ function ProductCard({ product }: { product: Product }) {
       <div onMouseEnter={() => setHovered(true)} onMouseLeave={() => setHovered(false)}>
         <div style={{
           aspectRatio: '3/4', marginBottom: '1rem', position: 'relative', overflow: 'hidden',
-          background: 'linear-gradient(150deg, #F0E8E0, #D4C4B5)',
+          backgroundColor: '#FAF7F4',
           display: 'flex', alignItems: 'center', justifyContent: 'center',
         }}>
           {mainImage ? (
@@ -160,7 +160,7 @@ function ProductCard({ product }: { product: Product }) {
               alt={product.name}
               fill
               sizes="(max-width: 600px) 50vw, (max-width: 1280px) 33vw, 300px"
-              style={{ objectFit: 'cover' }}
+              style={{ objectFit: 'contain' }}
               onError={e => { (e.currentTarget as HTMLImageElement).style.display = 'none'; }}
             />
           ) : (
