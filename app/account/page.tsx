@@ -5,7 +5,6 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { useUser } from '../../context/UserContext';
 import { supabase } from '../../lib/supabase';
-import { formatMoney } from '../../lib/currency';
 
 type Order = {
   id: string;
@@ -41,6 +40,8 @@ function AccountPageInner() {
   const [showAddAddress, setShowAddAddress] = useState(false);
   const [addressForm, setAddressForm] = useState({ label: 'Home', first_name: '', last_name: '', address: '', apartment: '', city: '', postcode: '', country: 'Nigeria', phone: '' });
   const [savingAddress, setSavingAddress] = useState(false);
+  const [saveAddressError, setSaveAddressError] = useState('');
+  const [saveProfileError, setSaveProfileError] = useState('');
 
   useEffect(() => {
     if (!loading && !user) router.push('/account/login');
@@ -64,29 +65,39 @@ function AccountPageInner() {
 
   const handleSaveProfile = async () => {
     setSaving(true);
+    setSaveProfileError('');
     const { error } = await updateProfile(profileForm);
     if (!error) { setSaveMsg('Saved!'); setTimeout(() => setSaveMsg(''), 2000); setEditProfile(false); }
+    else { setSaveProfileError(error); }
     setSaving(false);
   };
 
   const handleSaveAddress = async () => {
     if (!user) return;
     setSavingAddress(true);
-    const { data } = await supabase.from('addresses').insert({ ...addressForm, user_id: user.id, is_default: addresses.length === 0 }).select().single();
-    if (data) setAddresses(prev => [...prev, data]);
-    setShowAddAddress(false);
-    setAddressForm({ label: 'Home', first_name: '', last_name: '', address: '', apartment: '', city: '', postcode: '', country: 'Nigeria', phone: '' });
+    setSaveAddressError('');
+    const { data, error } = await supabase.from('addresses').insert({ ...addressForm, user_id: user.id, is_default: addresses.length === 0 }).select().single();
+    if (error) {
+      setSaveAddressError(error.message);
+    } else {
+      if (data) setAddresses(prev => [...prev, data]);
+      setShowAddAddress(false);
+      setAddressForm({ label: 'Home', first_name: '', last_name: '', address: '', apartment: '', city: '', postcode: '', country: 'Nigeria', phone: '' });
+    }
     setSavingAddress(false);
   };
 
   const deleteAddress = async (id: string) => {
-    await supabase.from('addresses').delete().eq('id', id);
+    const { error } = await supabase.from('addresses').delete().eq('id', id);
+    if (error) { console.error('Delete address failed:', error.message); return; }
     setAddresses(prev => prev.filter(a => a.id !== id));
   };
 
   const setDefault = async (id: string) => {
-    await supabase.from('addresses').update({ is_default: false }).eq('user_id', user!.id);
-    await supabase.from('addresses').update({ is_default: true }).eq('id', id);
+    const { error: clearError } = await supabase.from('addresses').update({ is_default: false }).eq('user_id', user!.id);
+    if (clearError) { console.error('Set default failed:', clearError.message); return; }
+    const { error: setError } = await supabase.from('addresses').update({ is_default: true }).eq('id', id);
+    if (setError) { console.error('Set default failed:', setError.message); return; }
     setAddresses(prev => prev.map(a => ({ ...a, is_default: a.id === id })));
   };
 
@@ -190,7 +201,7 @@ function AccountPageInner() {
                         {order.status?.replace('_', ' ')}
                       </span>
                       <p style={{ fontFamily: "'Jost', sans-serif", fontSize: '0.9rem', fontWeight: 500, color: '#2C2C2C' }}>
-                        {formatMoney(Number(order.total) || 0, 'USD')}
+                        ${(Number(order.total) || 0).toFixed(2)}
                       </p>
                     </div>
                   </div>
@@ -256,6 +267,7 @@ function AccountPageInner() {
                   <input type="date" style={fieldInput} value={profileForm.birthday} onChange={e => setProfileForm({ ...profileForm, birthday: e.target.value })} />
                 </div>
                 {saveMsg && <p style={{ fontFamily: "'Jost', sans-serif", fontSize: '0.82rem', color: '#2E7D32' }}>{saveMsg}</p>}
+                {saveProfileError && <p style={{ fontFamily: "'Jost', sans-serif", fontSize: '0.82rem', color: '#C0392B' }}>{saveProfileError}</p>}
                 <div style={{ display: 'flex', gap: '1rem' }}>
                   <button onClick={handleSaveProfile} disabled={saving} style={{ flex: 1, padding: '0.9rem', backgroundColor: '#2C2C2C', color: '#FAF7F4', fontFamily: "'Jost', sans-serif", fontSize: '0.75rem', letterSpacing: '0.15em', textTransform: 'uppercase', border: 'none', cursor: 'pointer' }}>
                     {saving ? 'Saving...' : 'Save'}
@@ -331,6 +343,7 @@ function AccountPageInner() {
                   <label style={fieldLabel}>Phone</label>
                   <input style={fieldInput} value={addressForm.phone} onChange={e => setAddressForm({ ...addressForm, phone: e.target.value })} placeholder="+234 801 234 5678" />
                 </div>
+                {saveAddressError && <p style={{ fontFamily: "'Jost', sans-serif", fontSize: '0.82rem', color: '#C0392B' }}>{saveAddressError}</p>}
                 <button onClick={handleSaveAddress} disabled={savingAddress || !addressForm.address || !addressForm.city} style={{
                   padding: '0.9rem', backgroundColor: '#2C2C2C', color: '#FAF7F4',
                   fontFamily: "'Jost', sans-serif", fontSize: '0.75rem',

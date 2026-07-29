@@ -49,6 +49,10 @@ export function WishlistProvider({ children }: { children: ReactNode }) {
         syncFromDB(session.user.id);
       } else {
         setUserId(null);
+        if (event === 'SIGNED_OUT') {
+          setItems([]);
+          localStorage.removeItem('bloomingdew_wishlist');
+        }
       }
     });
     return () => subscription.unsubscribe();

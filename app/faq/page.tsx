@@ -7,7 +7,7 @@ const faqs = [
     category: 'Ordering',
     questions: [
       { q: 'How long does it take to receive my order?', a: 'All pieces are made to order. Once you place your order, please allow 2–4 weeks for production, plus shipping time. You\'ll receive a dispatch notification with tracking when your piece is on its way.' },
-      { q: 'Can I change or cancel my order?', a: 'You can cancel or amend your order within 24 hours of placing it. After that, production will have begun and we\'re unable to make changes. Please contact us as soon as possible at hello@bloomingdew.com.' },
+      { q: 'Can I change or cancel my order?', a: 'You can cancel or amend your order within 24 hours of placing it. After that, production will have begun and we\'re unable to make changes. Please contact us as soon as possible via our contact page.' },
       { q: 'Do you restock sold-out items?', a: 'Because everything is made to order, items don\'t technically sell out. If a style is unavailable, it\'s usually because we\'re updating it. Feel free to reach out and we\'ll let you know when it returns.' },
     ],
   },
@@ -24,7 +24,7 @@ const faqs = [
     questions: [
       { q: 'Do you ship internationally?', a: 'Yes, we ship worldwide. Shipping times and costs vary by location — full details are on our Order Guide page.' },
       { q: 'Can I return my order?', a: 'Because every piece is made to order, we\'re unable to accept returns unless the item arrives damaged or faulty. If there\'s an issue, contact us within 7 days of receiving your order and we\'ll resolve it.' },
-      { q: 'My order arrived damaged — what do I do?', a: 'We\'re so sorry to hear that. Please email hello@bloomingdew.com with your order number and photos of the damage within 7 days of receiving it. We\'ll send a replacement or issue a full refund.' },
+      { q: 'My order arrived damaged — what do I do?', a: 'We\'re so sorry to hear that. Please reach out via our contact page with your order number and photos of the damage within 7 days of receiving it. We\'ll send a replacement or issue a full refund.' },
     ],
   },
   {
@@ -80,9 +80,9 @@ export default function FAQPage() {
           margin: '0 auto',
           lineHeight: 1.8,
         }}>
-          Can't find what you're looking for? Email us at{' '}
-          <a href="mailto:hello@bloomingdew.com" style={{ color: '#C9A882', borderBottom: '1px solid #C9A882' }}>
-            hello@bloomingdew.com
+          Can't find what you're looking for?{' '}
+          <a href="/contact" style={{ color: '#C9A882', borderBottom: '1px solid #C9A882' }}>
+            Get in touch
           </a>
         </p>
       </section>

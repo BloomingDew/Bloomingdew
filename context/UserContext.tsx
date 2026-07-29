@@ -43,6 +43,7 @@ export function UserProvider({ children }: { children: ReactNode }) {
       setUser(session?.user ?? null);
       if (session?.user) fetchProfile(session.user.id);
       else setProfile(null);
+      setLoading(false);
     });
 
     return () => subscription.unsubscribe();
@@ -58,6 +59,9 @@ export function UserProvider({ children }: { children: ReactNode }) {
     if (error) return { error: error.message };
     if (data.user) {
       await supabase.from('profiles').insert({ id: data.user.id, first_name: firstName, last_name: lastName });
+    }
+    if (!data.session) {
+      return { error: 'Check your email to confirm your account' };
     }
     return { error: null };
   };

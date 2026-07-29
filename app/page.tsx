@@ -14,6 +14,7 @@ export default function Home() {
   const [featuredProducts, setFeaturedProducts] = useState<FeaturedProduct[]>([]);
   const [newCollectionTitle, setNewCollectionTitle] = useState('New Collection');
   const [newCollectionProducts, setNewCollectionProducts] = useState<FeaturedProduct[]>([]);
+  const [marqueeOffset, setMarqueeOffset] = useState(0);
 
   useEffect(() => {
     supabase.from('categories').select('id, name, slug, image_url').order('name')
@@ -22,7 +23,6 @@ export default function Home() {
       .eq('featured', true).eq('available', true).limit(8)
       .then(({ data }) => setFeaturedProducts(data || []));
 
-    // New collection — fetched via API to bypass RLS on site_settings
     fetch('/api/new-collection')
       .then(r => r.json())
       .then(({ title, products }) => {
@@ -32,116 +32,174 @@ export default function Home() {
       .catch(() => {});
   }, []);
 
+  // Marquee animation
+  useEffect(() => {
+    let frame: number;
+    let pos = 0;
+    const animate = () => {
+      pos -= 0.4;
+      setMarqueeOffset(pos);
+      frame = requestAnimationFrame(animate);
+    };
+    frame = requestAnimationFrame(animate);
+    return () => cancelAnimationFrame(frame);
+  }, []);
+
+  const marqueeText = 'New Collection · Handmade in Nigeria · Made to Order · Free Shipping on Orders Over $250 · ';
+  const repeated = marqueeText.repeat(6);
+
   return (
-    <div>
+    <div style={{ overflowX: 'hidden' }}>
 
-      {/* Hero */}
-      <section style={{
-        position: 'relative',
-        height: '90vh',
-        backgroundColor: '#E8DDD3',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        overflow: 'hidden',
-      }}>
-        {/* Placeholder bg texture */}
+      {/* ── Hero ── */}
+      <section style={{ position: 'relative', minHeight: '100vh', backgroundColor: '#1A1208', display: 'grid', gridTemplateColumns: '1fr 1fr' }} className="hero-section">
+        {/* Left — text */}
         <div style={{
-          position: 'absolute',
-          inset: 0,
-          background: 'linear-gradient(135deg, #E8DDD3 0%, #D4C4B5 50%, #C9A882 100%)',
-          opacity: 0.6,
-        }} />
-
-        <div style={{
-          position: 'relative',
-          textAlign: 'center',
-          padding: '2rem',
-          maxWidth: '700px',
+          display: 'flex', flexDirection: 'column', justifyContent: 'center',
+          padding: 'clamp(3rem, 8vw, 7rem) clamp(2rem, 5vw, 5rem)',
+          zIndex: 2, position: 'relative',
         }}>
           <p style={{
-            fontFamily: "'Jost', sans-serif",
-            fontSize: '0.75rem',
-            letterSpacing: '0.25em',
-            textTransform: 'uppercase',
-            color: '#9A8F87',
-            marginBottom: '1.5rem',
+            fontFamily: "'Jost', sans-serif", fontSize: '0.72rem',
+            letterSpacing: '0.3em', textTransform: 'uppercase',
+            color: '#C9A882', marginBottom: '1.5rem',
           }}>
-            New Collection
+            Bloomingdew — SS 2025
           </p>
           <h1 style={{
             fontFamily: "'Playfair Display', serif",
-            fontSize: 'clamp(2.5rem, 6vw, 5rem)',
-            fontWeight: 500,
-            color: '#2C2C2C',
-            lineHeight: 1.15,
-            marginBottom: '1.5rem',
+            fontSize: 'clamp(2.8rem, 5vw, 4.5rem)',
+            fontWeight: 500, color: '#FAF7F4',
+            lineHeight: 1.1, marginBottom: '1.8rem',
+            letterSpacing: '-0.01em',
           }}>
-            Crafted with care,<br />worn with grace.
+            Wear the<br />
+            <em style={{ color: '#C9A882', fontStyle: 'italic' }}>feeling.</em>
           </h1>
           <p style={{
-            fontFamily: "'Jost', sans-serif",
-            fontSize: '1rem',
-            fontWeight: 300,
-            color: '#5C5450',
-            marginBottom: '2.5rem',
-            lineHeight: 1.7,
+            fontFamily: "'Jost', sans-serif", fontSize: '1rem',
+            fontWeight: 300, color: '#9A8F87',
+            lineHeight: 1.8, marginBottom: '3rem',
+            maxWidth: '380px',
           }}>
-            Handmade clothing designed for the woman who moves with intention.
+            Handcrafted pieces that move with you — each garment made with intention, designed to be felt as much as seen.
           </p>
           <Link href="/shop" style={{
-            display: 'inline-block',
-            backgroundColor: '#2C2C2C',
-            color: '#FAF7F4',
-            padding: '1rem 3rem',
-            fontFamily: "'Jost', sans-serif",
-            fontSize: '0.78rem',
-            letterSpacing: '0.18em',
-            textTransform: 'uppercase',
-            fontWeight: 400,
+            display: 'inline-block', backgroundColor: '#C9A882',
+            color: '#1A1208', padding: '1rem 2.5rem',
+            fontFamily: "'Jost', sans-serif", fontSize: '0.78rem',
+            letterSpacing: '0.18em', textTransform: 'uppercase', fontWeight: 500,
+            alignSelf: 'flex-start', width: 'fit-content',
           }}>
-            Shop Now
+            Shop the New Collection
           </Link>
         </div>
+
+        {/* Right — image placeholder / editorial frame */}
+        <div style={{
+          position: 'relative', overflow: 'hidden',
+          background: 'linear-gradient(160deg, #3D2B1F 0%, #1A1208 60%, #2C1A0E 100%)',
+          minHeight: '100vh',
+        }}>
+          {/* Decorative gold frame accent */}
+          <div style={{
+            position: 'absolute', top: '8%', left: '8%', right: '8%', bottom: '8%',
+            border: '1px solid #C9A88240', zIndex: 1, pointerEvents: 'none',
+          }} />
+          <div style={{
+            position: 'absolute', inset: 0, display: 'flex', alignItems: 'center',
+            justifyContent: 'center', zIndex: 2,
+          }}>
+            <p style={{
+              fontFamily: "'Playfair Display', serif", fontSize: '0.9rem',
+              color: '#C9A88260', letterSpacing: '0.2em', textTransform: 'uppercase',
+            }}>
+              Editorial image
+            </p>
+          </div>
+          {/* Gradient overlay linking to left panel */}
+          <div style={{
+            position: 'absolute', inset: 0,
+            background: 'linear-gradient(to right, #1A1208 0%, transparent 30%)',
+            zIndex: 3,
+          }} />
+        </div>
+
+        <style>{`
+          @media (max-width: 768px) {
+            .hero-section {
+              grid-template-columns: 1fr !important;
+              min-height: auto !important;
+            }
+            .hero-section > div:last-child {
+              min-height: 50vw;
+            }
+          }
+        `}</style>
       </section>
 
-      {/* New Collection */}
+      {/* ── Marquee Strip ── */}
+      <div style={{
+        backgroundColor: '#C9A882', overflow: 'hidden',
+        padding: '0.85rem 0', whiteSpace: 'nowrap',
+      }}>
+        <span style={{
+          display: 'inline-block',
+          transform: `translateX(${marqueeOffset % (marqueeText.length * 8.5)}px)`,
+          fontFamily: "'Jost', sans-serif", fontSize: '0.72rem',
+          letterSpacing: '0.2em', textTransform: 'uppercase',
+          color: '#1A1208', fontWeight: 500,
+        }}>
+          {repeated}
+        </span>
+      </div>
+
+      {/* ── New Collection ── */}
       {newCollectionProducts.length > 0 && (
-        <section style={{ padding: '5rem 0 0' }}>
-          <div style={{ maxWidth: '1280px', margin: '0 auto', padding: '0 2rem 2rem' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: '2rem' }}>
+        <section style={{ padding: '6rem 0 0', backgroundColor: '#FAF7F4' }}>
+          <div style={{ maxWidth: '1280px', margin: '0 auto', padding: '0 2rem 2.5rem' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end' }}>
               <div>
-                <p style={{ fontFamily: "'Jost', sans-serif", fontSize: '0.72rem', letterSpacing: '0.25em', textTransform: 'uppercase', color: '#9A8F87', marginBottom: '0.5rem' }}>
+                <p style={{
+                  fontFamily: "'Jost', sans-serif", fontSize: '0.72rem',
+                  letterSpacing: '0.28em', textTransform: 'uppercase',
+                  color: '#C9A882', marginBottom: '0.6rem',
+                }}>
                   Just Arrived
                 </p>
-                <h2 style={{ fontFamily: "'Playfair Display', serif", fontSize: 'clamp(1.6rem, 3vw, 2.2rem)', fontWeight: 500, color: '#2C2C2C' }}>
+                <h2 style={{
+                  fontFamily: "'Playfair Display', serif",
+                  fontSize: 'clamp(1.8rem, 3.5vw, 2.8rem)',
+                  fontWeight: 500, color: '#2C2C2C', lineHeight: 1.1,
+                }}>
                   {newCollectionTitle}
                 </h2>
               </div>
-              <Link href="/shop" style={{ fontFamily: "'Jost', sans-serif", fontSize: '0.75rem', letterSpacing: '0.15em', textTransform: 'uppercase', color: '#9A8F87', borderBottom: '1px solid #9A8F87', paddingBottom: '2px' }}>
+              <Link href="/shop" style={{
+                fontFamily: "'Jost', sans-serif", fontSize: '0.75rem',
+                letterSpacing: '0.15em', textTransform: 'uppercase',
+                color: '#2C2C2C', borderBottom: '1px solid #2C2C2C', paddingBottom: '2px',
+              }}>
                 View All
               </Link>
             </div>
           </div>
 
-          {/* Full-width editorial grid */}
           <div style={{
             display: 'grid',
-            gridTemplateColumns: `repeat(${Math.min(newCollectionProducts.length, 4)}, 1fr)`,
-            gap: '2px',
+            gridTemplateColumns: 'repeat(4, 1fr)',
+            gap: '3px',
           }}>
             {newCollectionProducts.slice(0, 4).map((product) => (
               <NewCollectionCard key={product.id} product={product} />
             ))}
           </div>
 
-          {/* Second row if more than 4 */}
           {newCollectionProducts.length > 4 && (
             <div style={{
               display: 'grid',
-              gridTemplateColumns: `repeat(${Math.min(newCollectionProducts.length - 4, 4)}, 1fr)`,
-              gap: '2px',
-              marginTop: '2px',
+              gridTemplateColumns: 'repeat(4, 1fr)',
+              gap: '3px', marginTop: '3px',
             }}>
               {newCollectionProducts.slice(4, 8).map((product) => (
                 <NewCollectionCard key={product.id} product={product} />
@@ -151,122 +209,258 @@ export default function Home() {
         </section>
       )}
 
-      {/* Categories */}
-      <section style={{ padding: '6rem 2rem' }}>
-        <div style={{ maxWidth: '1280px', margin: '0 auto' }}>
+      {/* ── Best Sellers ── */}
+      <section style={{ padding: '7rem 0 0', backgroundColor: '#FAF7F4' }}>
+          <div style={{ maxWidth: '1280px', margin: '0 auto', padding: '0 2rem 2.5rem' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end' }}>
+              <div>
+                <p style={{
+                  fontFamily: "'Jost', sans-serif", fontSize: '0.72rem',
+                  letterSpacing: '0.28em', textTransform: 'uppercase',
+                  color: '#C9A882', marginBottom: '0.6rem',
+                }}>
+                  Customer Favourites
+                </p>
+                <h2 style={{
+                  fontFamily: "'Playfair Display', serif",
+                  fontSize: 'clamp(1.8rem, 3.5vw, 2.8rem)',
+                  fontWeight: 500, color: '#2C2C2C', lineHeight: 1.1,
+                }}>
+                  Best Sellers
+                </h2>
+              </div>
+              <Link href="/shop" style={{
+                fontFamily: "'Jost', sans-serif", fontSize: '0.75rem',
+                letterSpacing: '0.15em', textTransform: 'uppercase',
+                color: '#2C2C2C', borderBottom: '1px solid #2C2C2C', paddingBottom: '2px',
+              }}>
+                View All
+              </Link>
+            </div>
+          </div>
+
+          <div style={{
+            display: 'grid',
+            gridTemplateColumns: 'repeat(4, 1fr)',
+            gap: '3px',
+          }}>
+            {featuredProducts.slice(0, 4).map((product) => (
+              <NewCollectionCard key={product.id} product={product} />
+            ))}
+          </div>
+
+          {featuredProducts.length > 4 && (
+            <div style={{
+              display: 'grid',
+              gridTemplateColumns: 'repeat(4, 1fr)',
+              gap: '3px', marginTop: '3px',
+            }}>
+              {featuredProducts.slice(4, 8).map((product) => (
+                <NewCollectionCard key={product.id} product={product} />
+              ))}
+            </div>
+          )}
+        </section>
+
+      {/* ── Editorial Banner ── */}
+      <section style={{
+        position: 'relative', overflow: 'hidden',
+        backgroundColor: '#1A1208', padding: '0',
+        display: 'grid', gridTemplateColumns: '1fr 1fr',
+        minHeight: '520px',
+      }} className="editorial-banner">
+        {/* Left — image */}
+        <div style={{
+          background: 'linear-gradient(135deg, #3D2B1F, #1A1208)',
+          minHeight: '520px', position: 'relative',
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+        }}>
+          <p style={{
+            fontFamily: "'Playfair Display', serif", fontSize: '0.9rem',
+            color: '#C9A88240', letterSpacing: '0.2em', textTransform: 'uppercase',
+          }}>Lookbook image</p>
+        </div>
+        {/* Right — text */}
+        <div style={{
+          display: 'flex', flexDirection: 'column', justifyContent: 'center',
+          padding: 'clamp(3rem, 6vw, 6rem) clamp(2rem, 5vw, 5rem)',
+        }}>
+          <p style={{
+            fontFamily: "'Jost', sans-serif", fontSize: '0.72rem',
+            letterSpacing: '0.28em', textTransform: 'uppercase',
+            color: '#C9A882', marginBottom: '1.2rem',
+          }}>
+            Custom Orders
+          </p>
           <h2 style={{
             fontFamily: "'Playfair Display', serif",
-            fontSize: '1.8rem',
-            fontWeight: 500,
-            textAlign: 'center',
-            marginBottom: '3rem',
-            color: '#2C2C2C',
+            fontSize: 'clamp(2rem, 3.5vw, 3.2rem)',
+            fontWeight: 500, color: '#FAF7F4',
+            lineHeight: 1.15, marginBottom: '1.5rem',
           }}>
-            Shop by Category
+            Made for you,<br />
+            <em style={{ color: '#C9A882' }}>exactly.</em>
           </h2>
-          <div style={{
-            display: 'grid',
-            gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))',
-            gap: '1rem',
+          <p style={{
+            fontFamily: "'Jost', sans-serif", fontSize: '0.95rem',
+            fontWeight: 300, color: '#9A8F87',
+            lineHeight: 1.8, marginBottom: '2.5rem', maxWidth: '380px',
           }}>
-            {categories.map((cat) => (
-              <Link key={cat.slug} href={`/shop?category=${cat.slug}`} style={{ display: 'block', textDecoration: 'none' }}>
-                <div style={{
-                  aspectRatio: '3/4', position: 'relative', overflow: 'hidden',
-                  background: 'linear-gradient(160deg, #EDE4DA, #C9A882)',
-                  display: 'flex', alignItems: 'flex-end', padding: '1.5rem',
-                }}>
-                  {cat.image_url && (
-                    <img src={cat.image_url} alt={cat.name} style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover' }} />
-                  )}
-                  {!cat.image_url && (
-                    <span style={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%,-50%)', fontFamily: "'Jost', sans-serif", fontSize: '0.7rem', letterSpacing: '0.2em', textTransform: 'uppercase', color: '#9A8F87' }}>
-                      Image coming soon
-                    </span>
-                  )}
-                  {/* Dark overlay for text readability */}
-                  <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(to top, rgba(0,0,0,0.4) 0%, transparent 60%)', zIndex: 1 }} />
-                  <span style={{ fontFamily: "'Playfair Display', serif", fontSize: '1.3rem', fontWeight: 500, color: cat.image_url ? '#FAF7F4' : '#2C2C2C', position: 'relative', zIndex: 2 }}>
-                    {cat.name}
-                  </span>
-                </div>
-              </Link>
-            ))}
-          </div>
+            Have a vision in mind? We craft bespoke pieces tailored to your measurements, your fabric, your story.
+          </p>
+          <Link href="/custom" style={{
+            display: 'inline-block', border: '1px solid #C9A882',
+            color: '#C9A882', padding: '0.95rem 2.5rem',
+            fontFamily: "'Jost', sans-serif", fontSize: '0.78rem',
+            letterSpacing: '0.18em', textTransform: 'uppercase',
+            alignSelf: 'flex-start',
+          }}>
+            Start Your Custom Order
+          </Link>
+        </div>
+        <style>{`
+          @media (max-width: 768px) { .editorial-banner { grid-template-columns: 1fr !important; } }
+        `}</style>
+      </section>
+
+      {/* ── Brand Story ── */}
+      <section style={{
+        backgroundColor: '#E8DDD3', padding: '8rem 2rem',
+        position: 'relative', overflow: 'hidden',
+      }}>
+        {/* large decorative letter */}
+        <div style={{
+          position: 'absolute', top: '-0.2em', left: '-0.05em',
+          fontFamily: "'Playfair Display', serif", fontSize: '28vw',
+          fontWeight: 700, color: '#D4C4B510', lineHeight: 1,
+          userSelect: 'none', pointerEvents: 'none',
+        }}>B</div>
+        <div style={{ maxWidth: '720px', margin: '0 auto', textAlign: 'center', position: 'relative' }}>
+          <p style={{
+            fontFamily: "'Jost', sans-serif", fontSize: '0.72rem',
+            letterSpacing: '0.28em', textTransform: 'uppercase',
+            color: '#9A8F87', marginBottom: '1.5rem',
+          }}>Our Story</p>
+          <h2 style={{
+            fontFamily: "'Playfair Display', serif",
+            fontSize: 'clamp(1.8rem, 4vw, 3rem)',
+            fontWeight: 500, color: '#2C2C2C',
+            lineHeight: 1.25, marginBottom: '1.5rem',
+          }}>
+            Every stitch is made with intention.
+          </h2>
+          <p style={{
+            fontFamily: "'Jost', sans-serif", fontSize: '1rem',
+            fontWeight: 300, color: '#5C5450',
+            lineHeight: 1.9, marginBottom: '2.5rem',
+          }}>
+            Bloomingdew was born from a love of fabric, form, and the women who wear both with ease.
+            Each piece is handcrafted in Nigeria — no shortcuts, no compromises. Just clothing made to last.
+          </p>
+          <Link href="/about" style={{
+            display: 'inline-block', backgroundColor: '#2C2C2C',
+            color: '#FAF7F4', padding: '1rem 2.8rem',
+            fontFamily: "'Jost', sans-serif", fontSize: '0.75rem',
+            letterSpacing: '0.18em', textTransform: 'uppercase',
+          }}>Meet the Maker</Link>
         </div>
       </section>
 
-      {/* Featured Products */}
-      <section style={{ padding: '2rem 2rem 6rem', backgroundColor: '#FFFFFF' }}>
-        <div style={{ maxWidth: '1280px', margin: '0 auto' }}>
-          <div style={{
-            display: 'flex',
-            justifyContent: 'space-between',
-            alignItems: 'baseline',
-            marginBottom: '3rem',
-          }}>
+      {/* ── Instagram Strip ── */}
+      <section style={{ padding: '6rem 2rem', backgroundColor: '#FAF7F4' }}>
+        <div style={{ maxWidth: '1280px', margin: '0 auto', textAlign: 'center' }}>
+          <a href="https://www.instagram.com/bloomingdeww/" target="_blank" rel="noopener noreferrer" style={{ textDecoration: 'none' }}>
+            <p style={{
+              fontFamily: "'Jost', sans-serif", fontSize: '0.72rem',
+              letterSpacing: '0.28em', textTransform: 'uppercase',
+              color: '#C9A882', marginBottom: '0.5rem',
+            }}>Follow us</p>
             <h2 style={{
               fontFamily: "'Playfair Display', serif",
-              fontSize: '1.8rem',
-              fontWeight: 500,
-              color: '#2C2C2C',
-            }}>
-              Featured Pieces
-            </h2>
-            <Link href="/shop" style={{
-              fontFamily: "'Jost', sans-serif",
-              fontSize: '0.75rem',
-              letterSpacing: '0.15em',
-              textTransform: 'uppercase',
-              color: '#9A8F87',
-              borderBottom: '1px solid #9A8F87',
-              paddingBottom: '2px',
-            }}>
-              View All
-            </Link>
-          </div>
+              fontSize: 'clamp(1.6rem, 3vw, 2.2rem)',
+              fontWeight: 500, color: '#2C2C2C', marginBottom: '0.4rem',
+            }}>@bloomingdeww</h2>
+            <p style={{
+              fontFamily: "'Jost', sans-serif", fontSize: '0.82rem',
+              fontWeight: 300, color: '#9A8F87', marginBottom: '3rem',
+            }}>On Instagram for new arrivals, behind the scenes & styling inspo.</p>
+          </a>
 
-          <div style={{
-            display: 'grid',
-            gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))',
-            gap: '1.5rem',
-          }}>
-            {featuredProducts.map((product) => (
-              <FeaturedCard key={product.id} product={product} />
+          {/* Placeholder grid for Instagram posts */}
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '4px' }} className="ig-grid">
+            {[0, 1, 2, 3].map(i => (
+              <a key={i} href="https://www.instagram.com/bloomingdeww/" target="_blank" rel="noopener noreferrer" style={{
+                display: 'block', aspectRatio: '1',
+                backgroundColor: i % 2 === 0 ? '#E8DDD3' : '#D4C4B5',
+                position: 'relative', overflow: 'hidden',
+                cursor: 'pointer',
+              }}>
+                <div style={{
+                  position: 'absolute', inset: 0, display: 'flex',
+                  alignItems: 'center', justifyContent: 'center',
+                  background: 'rgba(44,44,44,0)', transition: 'background 0.25s',
+                }} className="ig-hover">
+                  <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#FAF7F4" strokeWidth="1.5" style={{ opacity: 0, transition: 'opacity 0.25s' }} className="ig-icon">
+                    <rect x="2" y="2" width="20" height="20" rx="5" ry="5"/><path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z"/><line x1="17.5" y1="6.5" x2="17.51" y2="6.5"/>
+                  </svg>
+                </div>
+              </a>
             ))}
           </div>
+          <style>{`
+            @media (max-width: 600px) { .ig-grid { grid-template-columns: repeat(2, 1fr) !important; } }
+            .ig-hover:hover { background: rgba(44,44,44,0.35) !important; }
+            .ig-hover:hover .ig-icon { opacity: 1 !important; }
+          `}</style>
         </div>
       </section>
 
-      {/* Newsletter */}
-      <section style={{ padding: '5rem 2rem', backgroundColor: '#E8DDD3' }}>
-        <div style={{ maxWidth: '540px', margin: '0 auto', textAlign: 'center' }}>
-          <p style={{ fontFamily: "'Jost', sans-serif", fontSize: '0.72rem', letterSpacing: '0.25em', textTransform: 'uppercase', color: '#9A8F87', marginBottom: '1rem' }}>
-            Stay in the loop
-          </p>
-          <h2 style={{ fontFamily: "'Playfair Display', serif", fontSize: 'clamp(1.5rem, 3vw, 2rem)', fontWeight: 500, color: '#2C2C2C', marginBottom: '0.75rem' }}>
-            New pieces. First access.
+      {/* ── Newsletter ── */}
+      <section style={{ padding: '7rem 2rem', backgroundColor: '#1A1208', position: 'relative', overflow: 'hidden' }}>
+        <div style={{
+          position: 'absolute', top: '-10%', right: '-5%',
+          width: '40vw', height: '40vw', borderRadius: '50%',
+          background: 'radial-gradient(circle, #C9A88212, transparent 70%)',
+          pointerEvents: 'none',
+        }} />
+        <div style={{ maxWidth: '560px', margin: '0 auto', textAlign: 'center', position: 'relative' }}>
+          <p style={{
+            fontFamily: "'Jost', sans-serif", fontSize: '0.72rem',
+            letterSpacing: '0.28em', textTransform: 'uppercase',
+            color: '#C9A882', marginBottom: '1rem',
+          }}>Stay in the loop</p>
+          <h2 style={{
+            fontFamily: "'Playfair Display', serif",
+            fontSize: 'clamp(1.8rem, 3.5vw, 2.6rem)',
+            fontWeight: 500, color: '#FAF7F4',
+            lineHeight: 1.2, marginBottom: '1rem',
+          }}>
+            New pieces.<br />First access.
           </h2>
-          <p style={{ fontFamily: "'Jost', sans-serif", fontSize: '0.88rem', fontWeight: 300, color: '#5C5450', marginBottom: '2rem', lineHeight: 1.7 }}>
+          <p style={{
+            fontFamily: "'Jost', sans-serif", fontSize: '0.9rem',
+            fontWeight: 300, color: '#9A8F87',
+            lineHeight: 1.8, marginBottom: '2.5rem',
+          }}>
             Sign up to hear about new collections, behind-the-scenes, and exclusive early access.
           </p>
-          <form style={{ display: 'flex', gap: '0', maxWidth: '420px', margin: '0 auto' }} className="newsletter-form">
+          <form style={{ display: 'flex', gap: '0', maxWidth: '440px', margin: '0 auto' }} className="newsletter-form">
             <input
               type="email"
               placeholder="Your email address"
               style={{
                 flex: 1, padding: '1rem 1.2rem',
-                border: '1px solid #C9A882', borderRight: 'none',
-                backgroundColor: '#FAF7F4', color: '#2C2C2C',
+                border: '1px solid #9A8F8750', borderRight: 'none',
+                backgroundColor: '#ffffff08', color: '#FAF7F4',
                 fontFamily: "'Jost', sans-serif", fontSize: '0.85rem',
                 fontWeight: 300, outline: 'none',
               }}
             />
             <button type="submit" style={{
-              padding: '1rem 1.5rem', backgroundColor: '#2C2C2C', color: '#FAF7F4',
+              padding: '1rem 1.5rem', backgroundColor: '#C9A882', color: '#1A1208',
               border: 'none', fontFamily: "'Jost', sans-serif",
               fontSize: '0.72rem', letterSpacing: '0.15em', textTransform: 'uppercase',
-              cursor: 'pointer', whiteSpace: 'nowrap',
+              cursor: 'pointer', whiteSpace: 'nowrap', fontWeight: 500,
             }}>
               Sign Up
             </button>
@@ -275,62 +469,9 @@ export default function Home() {
         <style>{`
           @media (max-width: 480px) {
             .newsletter-form { flex-direction: column; }
-            .newsletter-form input { border-right: 1px solid #C9A882 !important; border-bottom: none; }
+            .newsletter-form input { border-right: 1px solid #9A8F8750 !important; border-bottom: none; }
           }
         `}</style>
-      </section>
-
-      {/* Brand Story Teaser */}
-      <section style={{
-        padding: '7rem 2rem',
-        backgroundColor: '#2C2C2C',
-        textAlign: 'center',
-      }}>
-        <div style={{ maxWidth: '600px', margin: '0 auto' }}>
-          <p style={{
-            fontFamily: "'Jost', sans-serif",
-            fontSize: '0.75rem',
-            letterSpacing: '0.25em',
-            textTransform: 'uppercase',
-            color: '#C9A882',
-            marginBottom: '1.5rem',
-          }}>
-            Our Story
-          </p>
-          <h2 style={{
-            fontFamily: "'Playfair Display', serif",
-            fontSize: 'clamp(1.8rem, 4vw, 2.8rem)',
-            fontWeight: 500,
-            color: '#FAF7F4',
-            lineHeight: 1.3,
-            marginBottom: '1.5rem',
-          }}>
-            Every stitch is made with intention.
-          </h2>
-          <p style={{
-            fontFamily: "'Jost', sans-serif",
-            fontSize: '0.95rem',
-            fontWeight: 300,
-            color: '#9A8F87',
-            lineHeight: 1.9,
-            marginBottom: '2.5rem',
-          }}>
-            Bloomingdew was born from a love of fabric, form, and the women who wear both with ease.
-            Each piece is handcrafted — no shortcuts, no compromises.
-          </p>
-          <Link href="/about" style={{
-            display: 'inline-block',
-            border: '1px solid #C9A882',
-            color: '#C9A882',
-            padding: '0.9rem 2.5rem',
-            fontFamily: "'Jost', sans-serif",
-            fontSize: '0.75rem',
-            letterSpacing: '0.18em',
-            textTransform: 'uppercase',
-          }}>
-            Meet the Maker
-          </Link>
-        </div>
       </section>
 
     </div>
@@ -355,32 +496,21 @@ function NewCollectionCard({ product }: { product: FeaturedProduct }) {
   return (
     <Link href={`/products/${product.id}`} style={{ textDecoration: 'none', display: 'block' }}>
       <div onMouseEnter={() => setHovered(true)} onMouseLeave={() => setHovered(false)}>
-        {/* Image — tall portrait, full bleed */}
         <div style={{
-          aspectRatio: '3/4',
-          position: 'relative',
-          overflow: 'hidden',
+          aspectRatio: '3/4', position: 'relative', overflow: 'hidden',
           background: 'linear-gradient(160deg, #EDE4DA, #C9A882)',
           display: 'flex', alignItems: 'center', justifyContent: 'center',
         }}>
           {mainImage ? (
-            <img
-              src={mainImage}
-              alt={product.name}
-              style={{
-                position: 'absolute', inset: 0, width: '100%', height: '100%',
-                objectFit: 'cover',
-                transform: hovered ? 'scale(1.04)' : 'scale(1)',
-                transition: 'transform 0.5s ease',
-              }}
-            />
+            <img src={mainImage} alt={product.name} style={{
+              position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover',
+              transform: hovered ? 'scale(1.04)' : 'scale(1)', transition: 'transform 0.5s ease',
+            }} />
           ) : (
             <span style={{ fontFamily: "'Jost', sans-serif", fontSize: '0.7rem', letterSpacing: '0.15em', textTransform: 'uppercase', color: '#9A8F87' }}>
               Photo coming soon
             </span>
           )}
-
-          {/* Wishlist heart */}
           <button onClick={toggleWishlist} style={{
             position: 'absolute', top: '0.75rem', right: '0.75rem',
             backgroundColor: '#FAF7F4', border: 'none', cursor: 'pointer',
@@ -392,9 +522,7 @@ function NewCollectionCard({ product }: { product: FeaturedProduct }) {
             </svg>
           </button>
         </div>
-
-        {/* Info below image */}
-        <div style={{ padding: '0.9rem 0.1rem 0' }}>
+        <div style={{ padding: '0.9rem 0.2rem 0' }}>
           <p style={{ fontFamily: "'Jost', sans-serif", fontSize: '0.88rem', fontWeight: 400, color: '#2C2C2C', marginBottom: '0.3rem' }}>
             {product.name}
           </p>
@@ -440,14 +568,15 @@ function FeaturedCard({ product }: { product: FeaturedProduct }) {
           position: 'relative', overflow: 'hidden',
         }}>
           {mainImage ? (
-            <img src={mainImage} alt={product.name} style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover' }} onError={e => { (e.target as HTMLImageElement).style.display = 'none'; }} />
+            <img src={mainImage} alt={product.name} style={{
+              position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover',
+              transform: hovered ? 'scale(1.04)' : 'scale(1)', transition: 'transform 0.5s ease',
+            }} onError={e => { (e.target as HTMLImageElement).style.display = 'none'; }} />
           ) : (
             <span style={{ fontFamily: "'Jost', sans-serif", fontSize: '0.7rem', letterSpacing: '0.15em', textTransform: 'uppercase', color: '#9A8F87' }}>
               Photo coming soon
             </span>
           )}
-
-          {/* Heart */}
           <button onClick={toggleWishlist} style={{
             position: 'absolute', top: '0.75rem', right: '0.75rem',
             backgroundColor: '#FAF7F4', border: 'none', cursor: 'pointer',
