@@ -117,7 +117,7 @@ export default function HomepageAdminPage() {
     const { data: urlData } = supabaseAuth.storage.from('product-image').getPublicUrl(fileName);
     const publicUrl = urlData.publicUrl;
 
-    const { error: dbError } = await supabaseAuth.from('site_settings').update({ value: publicUrl }).eq('key', 'about_image_url');
+    const { error: dbError } = await supabaseAuth.from('site_settings').upsert({ key: 'about_image_url', value: publicUrl }, { onConflict: 'key' });
 
     if (dbError) {
       alert(`Saved to storage but failed to update database: ${dbError.message}`);
