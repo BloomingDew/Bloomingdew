@@ -9,7 +9,7 @@ import { formatAdminPrice } from '../../../lib/adminCurrency';
 type Category = { id: number; name: string; slug: string; image_url: string | null };
 type Product = { id: number; name: string; price: number; featured: boolean; product_images: { url: string }[] };
 
-export default function HomepageAdminPage() {
+export default function MediaAdminPage() {
   const router = useRouter();
   const [categories, setCategories] = useState<Category[]>([]);
   const [products, setProducts] = useState<Product[]>([]);
@@ -218,7 +218,7 @@ export default function HomepageAdminPage() {
       <div style={{ maxWidth: '1100px', margin: '0 auto', padding: '3rem 2rem' }}>
         <div style={{ marginBottom: '2.5rem' }}>
           <h2 style={{ fontFamily: "'Playfair Display', serif", fontSize: '1.6rem', fontWeight: 500, color: '#2C2C2C' }}>
-            Homepage Content
+            Media & Content
           </h2>
         </div>
 
