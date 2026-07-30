@@ -7,7 +7,7 @@ import { useWishlist } from '../../context/WishlistContext';
 import { useCurrency } from '../../context/CurrencyContext';
 import { getProducts, type Product } from '../../lib/products';
 
-const categories = ['All', 'New In', 'Dresses', 'Sets', 'Tops', 'Skirts'];
+const categories = ['All', 'New In', 'Dresses', 'Sets', 'Sale'];
 const sortOptions = ['Featured', 'Price: Low to High', 'Price: High to Low', 'Newest'];
 
 export default function ShopPage() {
@@ -28,9 +28,11 @@ export default function ShopPage() {
 
   useEffect(() => { load(); }, [load]);
 
-  const filtered = products.filter(
-    (p) => activeCategory === 'All' || p.category === activeCategory
-  );
+  const filtered = products.filter((p) => {
+    if (activeCategory === 'All') return true;
+    if (activeCategory === 'Sale') return p.discount > 0;
+    return p.category === activeCategory;
+  });
 
   const sorted = [...filtered].sort((a, b) => {
     if (activeSort === 'Price: Low to High') return a.price - b.price;
