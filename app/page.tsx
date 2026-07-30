@@ -6,19 +6,15 @@ import { useWishlist } from '../context/WishlistContext';
 import { useCurrency } from '../context/CurrencyContext';
 import { supabase } from '../lib/supabase';
 
-type Category = { id: number; name: string; slug: string; image_url: string | null };
 type FeaturedProduct = { id: number; name: string; price: number; discount: number; product_images: { url: string }[] };
 
 export default function Home() {
-  const [categories, setCategories] = useState<Category[]>([]);
   const [featuredProducts, setFeaturedProducts] = useState<FeaturedProduct[]>([]);
   const [newCollectionTitle, setNewCollectionTitle] = useState('New Collection');
   const [newCollectionProducts, setNewCollectionProducts] = useState<FeaturedProduct[]>([]);
   const [marqueeOffset, setMarqueeOffset] = useState(0);
 
   useEffect(() => {
-    supabase.from('categories').select('id, name, slug, image_url').order('name')
-      .then(({ data }) => setCategories(data || []));
     supabase.from('products').select('id, name, price, discount, product_images(url)')
       .eq('featured', true).eq('available', true).limit(8)
       .then(({ data }) => setFeaturedProducts(data || []));

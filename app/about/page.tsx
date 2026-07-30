@@ -2,14 +2,15 @@
 
 import Link from 'next/link';
 import { useState, useEffect } from 'react';
-import { supabase } from '../../lib/supabase';
 
 export default function AboutPage() {
   const [aboutImage, setAboutImage] = useState<string | null>(null);
 
   useEffect(() => {
-    supabase.from('site_settings').select('value').eq('key', 'about_image_url').single()
-      .then(({ data }) => setAboutImage(data?.value ?? null));
+    fetch('/api/about-image')
+      .then(r => r.json())
+      .then(({ url }) => setAboutImage(url ?? null))
+      .catch(() => {});
   }, []);
 
   return (

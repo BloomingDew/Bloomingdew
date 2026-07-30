@@ -6,14 +6,11 @@ import { getSession, supabaseAuth } from '../../../lib/supabase-admin';
 import { supabase } from '../../../lib/supabase';
 import { formatAdminPrice } from '../../../lib/adminCurrency';
 
-type Category = { id: number; name: string; slug: string; image_url: string | null };
 type Product = { id: number; name: string; price: number; featured: boolean; product_images: { url: string }[] };
 
 export default function MediaAdminPage() {
   const router = useRouter();
-  const [categories, setCategories] = useState<Category[]>([]);
   const [products, setProducts] = useState<Product[]>([]);
-  const [uploadingId, setUploadingId] = useState<number | null>(null);
   const [savedMsg, setSavedMsg] = useState('');
   const [savedMsgSection, setSavedMsgSection] = useState<'category' | 'featured' | 'about' | 'new_collection' | ''>('');
   const [aboutImage, setAboutImage] = useState<string | null>(null);
@@ -32,14 +29,12 @@ export default function MediaAdminPage() {
   }, []);
 
   const fetchData = async () => {
-    const [{ data: cats }, { data: prods }, { data: setting }, { data: ncTitle }, { data: ncIds }] = await Promise.all([
-      supabaseAuth.from('categories').select('id, name, slug, image_url').order('name'),
+    const [{ data: prods }, { data: setting }, { data: ncTitle }, { data: ncIds }] = await Promise.all([
       supabaseAuth.from('products').select('id, name, price, featured, product_images(url)').eq('available', true).order('name'),
       supabaseAuth.from('site_settings').select('value').eq('key', 'about_image_url').single(),
       supabaseAuth.from('site_settings').select('value').eq('key', 'new_collection_title').single(),
       supabaseAuth.from('site_settings').select('value').eq('key', 'new_collection_product_ids').single(),
     ]);
-    setCategories(cats || []);
     const loadedProducts = prods || [];
     setProducts(loadedProducts);
     setFeaturedOrder(loadedProducts.filter(p => p.featured).map(p => p.id));
@@ -48,55 +43,10 @@ export default function MediaAdminPage() {
     setNewCollectionIds(ncIds?.value ? JSON.parse(ncIds.value) : []);
   };
 
-  const handleCategoryImageUpload = async (categoryId: number, e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    setUploadingId(categoryId);
-
-    const ext = file.name.split('.').pop()?.toLowerCase();
-    const fileName = `category-${categoryId}-${Date.now()}.${ext}`;
-    const { error: uploadError } = await supabaseAuth.storage.from('product-image').upload(fileName, file, { upsert: true });
-
-    if (uploadError) {
-      console.error('Upload error:', uploadError.message);
-      alert(`Upload failed: ${uploadError.message}`);
-      setUploadingId(null);
-      return;
-    }
-
-    const { data: urlData } = supabaseAuth.storage.from('product-image').getPublicUrl(fileName);
-    const publicUrl = urlData.publicUrl;
-
-    const { error: dbError } = await supabaseAuth.from('categories').update({ image_url: publicUrl }).eq('id', categoryId);
-
-    if (dbError) {
-      console.error('DB error:', dbError.message);
-      alert(`Saved to storage but failed to update database: ${dbError.message}`);
-      setUploadingId(null);
-      return;
-    }
-
-    setCategories(prev => prev.map(c => c.id === categoryId ? { ...c, image_url: publicUrl } : c));
-    setUploadingId(null);
-  };
-
   const extractStoragePath = (url: string): string | null => {
     const marker = 'product-image/';
     const idx = url.indexOf(marker);
     return idx !== -1 ? url.slice(idx + marker.length) : null;
-  };
-
-  const removeCategoryImage = async (categoryId: number) => {
-    const cat = categories.find(c => c.id === categoryId);
-    if (cat?.image_url) {
-      const path = extractStoragePath(cat.image_url);
-      if (path) {
-        const { error } = await supabaseAuth.storage.from('product-image').remove([path]);
-        if (error) console.error('Storage delete error:', error.message);
-      }
-    }
-    await supabaseAuth.from('categories').update({ image_url: null }).eq('id', categoryId);
-    setCategories(prev => prev.map(c => c.id === categoryId ? { ...c, image_url: null } : c));
   };
 
   const handleAboutImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -145,7 +95,15 @@ export default function MediaAdminPage() {
         if (error) console.error('Storage delete error:', error.message);
       }
     }
-    await supabaseAuth.from('site_settings').update({ value: null }).eq('key', 'about_image_url');
+    const res = await fetch('/api/admin/site-settings', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ key: 'about_image_url', value: null }),
+    });
+    if (!res.ok) {
+      alert('Failed to remove the image. Please try again.');
+      return;
+    }
     setAboutImage(null);
   };
 
@@ -227,136 +185,6 @@ export default function MediaAdminPage() {
           </h2>
         </div>
 
-        {/* Shop by Category */}
-        <div style={{ backgroundColor: '#FFFFFF', border: '1px solid #E8DDD3', padding: '2rem', marginBottom: '2rem' }}>
-          <div style={{ marginBottom: '1.5rem' }}>
-            <h3 style={{ fontFamily: "'Playfair Display', serif", fontSize: '1.2rem', fontWeight: 500, color: '#2C2C2C', marginBottom: '0.4rem' }}>
-              Shop by Category
-            </h3>
-            <p style={{ fontFamily: "'Jost', sans-serif", fontSize: '0.82rem', fontWeight: 300, color: '#9A8F87' }}>
-              Upload an image for each category. These appear as the category blocks on the homepage.
-            </p>
-          </div>
-
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: '1.5rem' }}>
-            {categories.map(cat => (
-              <div key={cat.id}>
-                {/* Image preview */}
-                <div style={{
-                  aspectRatio: '3/4', backgroundColor: '#F5F5F5', border: '1px solid #E8DDD3',
-                  marginBottom: '0.75rem', position: 'relative', overflow: 'hidden',
-                  display: 'flex', alignItems: 'center', justifyContent: 'center',
-                }}>
-                  {cat.image_url ? (
-                    <>
-                      <img src={cat.image_url} alt={cat.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-                      <button
-                        onClick={() => removeCategoryImage(cat.id)}
-                        style={{
-                          position: 'absolute', top: '6px', right: '6px',
-                          backgroundColor: '#2C2C2C', color: '#FAF7F4', border: 'none',
-                          width: '24px', height: '24px', cursor: 'pointer', fontSize: '0.7rem',
-                          display: 'flex', alignItems: 'center', justifyContent: 'center',
-                        }}>✕</button>
-                    </>
-                  ) : (
-                    <span style={{ fontFamily: "'Jost', sans-serif", fontSize: '0.65rem', letterSpacing: '0.1em', textTransform: 'uppercase', color: '#9A8F87' }}>
-                      No image
-                    </span>
-                  )}
-                  {uploadingId === cat.id && (
-                    <div style={{ position: 'absolute', inset: 0, backgroundColor: 'rgba(250,247,244,0.8)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                      <span style={{ fontFamily: "'Jost', sans-serif", fontSize: '0.72rem', color: '#C9A882' }}>Uploading...</span>
-                    </div>
-                  )}
-                </div>
-
-                <p style={{ fontFamily: "'Playfair Display', serif", fontSize: '0.92rem', color: '#2C2C2C', marginBottom: '0.5rem' }}>
-                  {cat.name}
-                </p>
-
-                <label style={{
-                  display: 'block', padding: '0.5rem 0', textAlign: 'center',
-                  border: '1px solid #E8DDD3', cursor: 'pointer',
-                  fontFamily: "'Jost', sans-serif", fontSize: '0.72rem',
-                  letterSpacing: '0.1em', textTransform: 'uppercase', color: '#9A8F87',
-                  backgroundColor: '#FAFAFA',
-                }}>
-                  <input type="file" accept="image/*" style={{ display: 'none' }} onChange={e => handleCategoryImageUpload(cat.id, e)} />
-                  {cat.image_url ? 'Replace' : '+ Upload'}
-                </label>
-              </div>
-            ))}
-          </div>
-        </div>
-
-        {/* About Page Image */}
-        <div style={{ backgroundColor: '#FFFFFF', border: '1px solid #E8DDD3', padding: '2rem', marginBottom: '2rem' }}>
-          <div style={{ marginBottom: '1.5rem' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', marginBottom: '0.4rem' }}>
-              <h3 style={{ fontFamily: "'Playfair Display', serif", fontSize: '1.2rem', fontWeight: 500, color: '#2C2C2C' }}>
-                About Page Image
-              </h3>
-              {savedMsg && savedMsgSection === 'about' && (
-                <span style={{ fontFamily: "'Jost', sans-serif", fontSize: '0.82rem', color: '#2E7D32' }}>{savedMsg}</span>
-              )}
-            </div>
-            <p style={{ fontFamily: "'Jost', sans-serif", fontSize: '0.82rem', fontWeight: 300, color: '#9A8F87' }}>
-              The portrait image shown on the About page alongside the brand story.
-            </p>
-          </div>
-
-          <div style={{ display: 'flex', gap: '2rem', alignItems: 'flex-start' }}>
-            {/* Preview */}
-            <div style={{
-              width: '180px', flexShrink: 0,
-              aspectRatio: '4/5', backgroundColor: '#F5F5F5', border: '1px solid #E8DDD3',
-              position: 'relative', overflow: 'hidden',
-              display: 'flex', alignItems: 'center', justifyContent: 'center',
-            }}>
-              {aboutImage ? (
-                <>
-                  <img src={aboutImage} alt="About page" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-                  <button
-                    onClick={removeAboutImage}
-                    style={{
-                      position: 'absolute', top: '6px', right: '6px',
-                      backgroundColor: '#2C2C2C', color: '#FAF7F4', border: 'none',
-                      width: '24px', height: '24px', cursor: 'pointer', fontSize: '0.7rem',
-                      display: 'flex', alignItems: 'center', justifyContent: 'center',
-                    }}>✕</button>
-                </>
-              ) : (
-                <span style={{ fontFamily: "'Jost', sans-serif", fontSize: '0.65rem', letterSpacing: '0.1em', textTransform: 'uppercase', color: '#9A8F87' }}>
-                  No image
-                </span>
-              )}
-              {uploadingAbout && (
-                <div style={{ position: 'absolute', inset: 0, backgroundColor: 'rgba(250,247,244,0.8)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                  <span style={{ fontFamily: "'Jost', sans-serif", fontSize: '0.72rem', color: '#C9A882' }}>Uploading...</span>
-                </div>
-              )}
-            </div>
-
-            {/* Upload button */}
-            <div>
-              <label style={{
-                display: 'inline-block', padding: '0.6rem 1.5rem',
-                border: '1px solid #E8DDD3', cursor: 'pointer',
-                fontFamily: "'Jost', sans-serif", fontSize: '0.72rem',
-                letterSpacing: '0.1em', textTransform: 'uppercase', color: '#9A8F87',
-                backgroundColor: '#FAFAFA',
-              }}>
-                <input type="file" accept="image/*" style={{ display: 'none' }} onChange={handleAboutImageUpload} />
-                {aboutImage ? 'Replace Image' : '+ Upload Image'}
-              </label>
-              <p style={{ fontFamily: "'Jost', sans-serif", fontSize: '0.75rem', fontWeight: 300, color: '#9A8F87', marginTop: '0.75rem' }}>
-                Recommended: portrait orientation (4:5 ratio)
-              </p>
-            </div>
-          </div>
-        </div>
-
         {/* New Collection */}
         <div style={{ backgroundColor: '#FFFFFF', border: '1px solid #E8DDD3', padding: '2rem', marginBottom: '2rem' }}>
           <div style={{ marginBottom: '1.5rem' }}>
@@ -371,7 +199,7 @@ export default function MediaAdminPage() {
               )}
             </div>
             <p style={{ fontFamily: "'Jost', sans-serif", fontSize: '0.82rem', fontWeight: 300, color: '#9A8F87' }}>
-              Select up to 8 products for the New Collection section. Currently selected {newCollectionProducts.length} product{newCollectionProducts.length !== 1 ? 's' : ''}.
+              The first product section on the homepage (under the hero, labeled &quot;Just Arrived&quot;). Edit the title above and select up to 8 products. Currently selected {newCollectionProducts.length} product{newCollectionProducts.length !== 1 ? 's' : ''}. If no products are selected, the section is hidden on the homepage.
             </p>
             {newCollectionError && (
               <p style={{ fontFamily: "'Jost', sans-serif", fontSize: '0.82rem', color: '#C62828', marginTop: '0.4rem' }}>{newCollectionError}</p>
@@ -460,7 +288,7 @@ export default function MediaAdminPage() {
         </div>
 
         {/* Best Sellers */}
-        <div style={{ backgroundColor: '#FFFFFF', border: '1px solid #E8DDD3', padding: '2rem' }}>
+        <div style={{ backgroundColor: '#FFFFFF', border: '1px solid #E8DDD3', padding: '2rem', marginBottom: '2rem' }}>
           <div style={{ marginBottom: '1.5rem' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', marginBottom: '0.4rem' }}>
               <h3 style={{ fontFamily: "'Playfair Display', serif", fontSize: '1.2rem', fontWeight: 500, color: '#2C2C2C' }}>
@@ -471,7 +299,7 @@ export default function MediaAdminPage() {
               )}
             </div>
             <p style={{ fontFamily: "'Jost', sans-serif", fontSize: '0.82rem', fontWeight: 300, color: '#9A8F87' }}>
-              Select up to 8 products to show in the Best Sellers section on the homepage. Currently selected {featuredProducts.length} product{featuredProducts.length !== 1 ? 's' : ''}.
+              The second product section on the homepage (labeled &quot;Customer Favourites&quot;). Select up to 8 products. Currently selected {featuredProducts.length} product{featuredProducts.length !== 1 ? 's' : ''}.
             </p>
             {featuredError && (
               <p style={{ fontFamily: "'Jost', sans-serif", fontSize: '0.82rem', color: '#C62828', marginTop: '0.4rem' }}>{featuredError}</p>
@@ -540,6 +368,73 @@ export default function MediaAdminPage() {
                 </div>
               </div>
             ))}
+          </div>
+        </div>
+
+        {/* About Page Image */}
+        <div style={{ backgroundColor: '#FFFFFF', border: '1px solid #E8DDD3', padding: '2rem' }}>
+          <div style={{ marginBottom: '1.5rem' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', marginBottom: '0.4rem' }}>
+              <h3 style={{ fontFamily: "'Playfair Display', serif", fontSize: '1.2rem', fontWeight: 500, color: '#2C2C2C' }}>
+                About Page Image
+              </h3>
+              {savedMsg && savedMsgSection === 'about' && (
+                <span style={{ fontFamily: "'Jost', sans-serif", fontSize: '0.82rem', color: '#2E7D32' }}>{savedMsg}</span>
+              )}
+            </div>
+            <p style={{ fontFamily: "'Jost', sans-serif", fontSize: '0.82rem', fontWeight: 300, color: '#9A8F87' }}>
+              Shown on the About page (&quot;Our Story&quot;), next to the &quot;The woman behind Bloomingdew&quot; text. Not on the homepage.
+            </p>
+          </div>
+
+          <div style={{ display: 'flex', gap: '2rem', alignItems: 'flex-start' }}>
+            {/* Preview */}
+            <div style={{
+              width: '180px', flexShrink: 0,
+              aspectRatio: '4/5', backgroundColor: '#F5F5F5', border: '1px solid #E8DDD3',
+              position: 'relative', overflow: 'hidden',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+            }}>
+              {aboutImage ? (
+                <>
+                  <img src={aboutImage} alt="About page" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                  <button
+                    onClick={removeAboutImage}
+                    style={{
+                      position: 'absolute', top: '6px', right: '6px',
+                      backgroundColor: '#2C2C2C', color: '#FAF7F4', border: 'none',
+                      width: '24px', height: '24px', cursor: 'pointer', fontSize: '0.7rem',
+                      display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    }}>✕</button>
+                </>
+              ) : (
+                <span style={{ fontFamily: "'Jost', sans-serif", fontSize: '0.65rem', letterSpacing: '0.1em', textTransform: 'uppercase', color: '#9A8F87' }}>
+                  No image
+                </span>
+              )}
+              {uploadingAbout && (
+                <div style={{ position: 'absolute', inset: 0, backgroundColor: 'rgba(250,247,244,0.8)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                  <span style={{ fontFamily: "'Jost', sans-serif", fontSize: '0.72rem', color: '#C9A882' }}>Uploading...</span>
+                </div>
+              )}
+            </div>
+
+            {/* Upload button */}
+            <div>
+              <label style={{
+                display: 'inline-block', padding: '0.6rem 1.5rem',
+                border: '1px solid #E8DDD3', cursor: 'pointer',
+                fontFamily: "'Jost', sans-serif", fontSize: '0.72rem',
+                letterSpacing: '0.1em', textTransform: 'uppercase', color: '#9A8F87',
+                backgroundColor: '#FAFAFA',
+              }}>
+                <input type="file" accept="image/*" style={{ display: 'none' }} onChange={handleAboutImageUpload} />
+                {aboutImage ? 'Replace Image' : '+ Upload Image'}
+              </label>
+              <p style={{ fontFamily: "'Jost', sans-serif", fontSize: '0.75rem', fontWeight: 300, color: '#9A8F87', marginTop: '0.75rem' }}>
+                Recommended: portrait orientation (4:5 ratio)
+              </p>
+            </div>
           </div>
         </div>
       </div>
