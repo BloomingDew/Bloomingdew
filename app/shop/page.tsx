@@ -7,7 +7,7 @@ import { useWishlist } from '../../context/WishlistContext';
 import { useCurrency } from '../../context/CurrencyContext';
 import { getProducts, type Product } from '../../lib/products';
 
-const categories = ['All', 'New In', 'Dresses', 'Sets', 'Tops', 'Skirts', 'Trousers'];
+const categories = ['All', 'New In', 'Dresses', 'Sets', 'Tops', 'Skirts'];
 const sortOptions = ['Featured', 'Price: Low to High', 'Price: High to Low', 'Newest'];
 
 export default function ShopPage() {
