@@ -1,10 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getAdminUser, supabaseService } from '../../../../lib/admin-server';
+import { getAdmin, supabaseService } from '../../../../lib/admin-server';
+import { logActivity } from '../../../../lib/activity';
 
 export async function POST(req: NextRequest) {
-  const admin = await getAdminUser();
+  const admin = await getAdmin();
   if (!admin) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  }
+  if (admin.role !== 'owner') {
+    return NextResponse.json({ error: 'Your admin role cannot change site settings.' }, { status: 403 });
   }
 
   const { key, value } = await req.json();
@@ -17,12 +21,19 @@ export async function POST(req: NextRequest) {
     'new_collection_product_ids',
     'marquee_text',
     'hero_image_url',
+    'low_stock_threshold',
   ];
   if (!ALLOWED_KEYS.includes(key)) {
     return NextResponse.json({ error: `Unknown setting: ${key}` }, { status: 400 });
   }
   if (value !== null && typeof value !== 'string') {
     return NextResponse.json({ error: 'Value must be a string or null.' }, { status: 400 });
+  }
+  if (key === 'low_stock_threshold' && value !== null) {
+    const n = Number(value);
+    if (!Number.isInteger(n) || n < 0 || n > 1000) {
+      return NextResponse.json({ error: 'Threshold must be a whole number between 0 and 1000.' }, { status: 400 });
+    }
   }
   if (key === 'new_collection_product_ids' && value !== null) {
     try {
@@ -41,5 +52,6 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 
+  logActivity({ adminEmail: admin.user.email, action: 'update', entity: 'site-setting', entityId: key });
   return NextResponse.json({ success: true });
 }

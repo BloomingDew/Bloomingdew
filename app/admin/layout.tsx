@@ -1,5 +1,6 @@
 import type { Metadata } from 'next';
 import AdminTopbar from '../../components/AdminTopbar';
+import Toaster from '../../components/Toast';
 
 export const metadata: Metadata = {
   title: 'Bloomingdew Admin',
@@ -10,6 +11,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
     <div style={{ minHeight: '100vh', backgroundColor: '#F5F5F5' }}>
       <AdminTopbar />
       {children}
+      <Toaster />
     </div>
   );
 }

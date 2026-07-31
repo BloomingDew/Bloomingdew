@@ -4,6 +4,7 @@ import Stripe from 'stripe';
 import { supabaseService } from './admin-server';
 import { sendOrderConfirmationEmail } from './email';
 import { formatMoney, toMinorUnits } from './currency';
+import { validateDiscountCode, incrementUse } from './discounts';
 
 export type IncomingItem = { id: number; size: string; quantity: number };
 
@@ -101,13 +102,15 @@ export type FinalizeResult =
 
 export async function savePendingOrder(
   paymentIntentId: string,
-  ctx: { items: IncomingItem[]; shipping: Shipping; userId?: string | null; subtotal: number },
+  ctx: { items: IncomingItem[]; shipping: Shipping; userId?: string | null; subtotal: number; discountCode?: string | null },
 ): Promise<void> {
   const { error } = await supabaseService.from('pending_orders').upsert(
     {
       payment_intent_id: paymentIntentId,
       items: ctx.items,
-      shipping: ctx.shipping,
+      // The discount code rides inside the existing shipping jsonb payload (no
+      // new column); the authoritative copy lives in the PaymentIntent metadata.
+      shipping: ctx.discountCode ? { ...ctx.shipping, discountCode: ctx.discountCode } : ctx.shipping,
       user_id: ctx.userId ?? null,
       subtotal: ctx.subtotal,
     },
@@ -164,8 +167,33 @@ export async function finalizeOrder(params: {
   if (pi.status !== 'succeeded') {
     return { ok: false, status: 402, error: 'Payment not completed.' };
   }
-  if (pi.amount_received !== pricing.amountMinor) {
-    console.error('[finalizeOrder] amount mismatch', { received: pi.amount_received, expected: pricing.amountMinor });
+
+  // 2b. Discounts: the code applied at intent creation lives in the PI metadata
+  // (set server-side, never by the client). Re-validate it and verify the amount
+  // actually received equals subtotal minus discount.
+  const discountCode = typeof pi.metadata?.discount_code === 'string' && pi.metadata.discount_code
+    ? pi.metadata.discount_code
+    : null;
+  let discountUsd = 0;
+  if (discountCode) {
+    const result = await validateDiscountCode(discountCode, pricing.subtotal);
+    if (result.valid) {
+      discountUsd = result.discountUsd;
+    } else {
+      // The code was valid when the intent was created (and charged accordingly)
+      // but no longer validates (e.g. expired or hit max uses in between). Fall
+      // back to the amount recorded in metadata so a legitimately paid order is
+      // not stranded; the amount check below still guards the charge.
+      const metaDiscount = Number(pi.metadata?.discount_usd);
+      discountUsd = Number.isFinite(metaDiscount) ? Math.min(Math.max(metaDiscount, 0), pricing.subtotal) : 0;
+      console.warn('[finalizeOrder] discount re-validation failed, using metadata amount', {
+        code: discountCode, reason: result.reason, metaDiscount,
+      });
+    }
+  }
+  const expectedMinor = Math.max(0, pricing.amountMinor - Math.round(discountUsd * 100));
+  if (pi.amount_received !== expectedMinor) {
+    console.error('[finalizeOrder] amount mismatch', { received: pi.amount_received, expected: expectedMinor, discountCode });
     return { ok: false, status: 409, error: 'Payment amount mismatch.' };
   }
 
@@ -202,7 +230,9 @@ export async function finalizeOrder(params: {
       items: orderItems,
       subtotal: pricing.subtotal,
       shipping_cost: 0,
-      total: pricing.subtotal,
+      total: Math.max(0, pricing.subtotal - discountUsd),
+      discount_code: discountCode,
+      discount_usd: discountCode ? discountUsd : null,
       status: 'paid',
       payment_intent_id: paymentIntentId,
       payment_method: 'stripe',
@@ -218,6 +248,18 @@ export async function finalizeOrder(params: {
       error: 'Payment succeeded but the order could not be recorded. Please contact hello@bloomingdew.com with reference ' + paymentIntentId,
     };
   }
+
+  // 4b. Count the discount redemption now that the order is recorded.
+  if (discountCode) await incrementUse(discountCode);
+
+  // 4c. Best-effort: mark any matching abandoned checkout as recovered.
+  try {
+    await supabaseService
+      .from('abandoned_checkouts')
+      .update({ status: 'recovered', updated_at: new Date().toISOString() })
+      .eq('status', 'started')
+      .ilike('email', shipping.email);
+  } catch {}
 
   // 5. Decrement stock (best-effort; failures logged for reconciliation).
   for (const line of pricing.lines) {
@@ -260,7 +302,7 @@ export async function finalizeOrder(params: {
       customerName: `${shipping.firstName} ${shipping.lastName}`.trim(),
       customerEmail: shipping.email,
       items: orderItems,
-      orderTotal: pricing.subtotal,
+      orderTotal: Math.max(0, pricing.subtotal - discountUsd),
       shipping: {
         address: shipping.address,
         apartment: shipping.apartment,

@@ -9,9 +9,12 @@ import { signOut } from '../lib/supabase-admin';
 const navLinks = [
   { label: 'Products', href: '/admin' },
   { label: 'Orders', href: '/admin/orders' },
+  { label: 'Customers', href: '/admin/customers' },
   { label: 'Enquiries', href: '/admin/enquiries' },
+  { label: 'Discounts', href: '/admin/discounts' },
+  { label: 'Collections', href: '/admin/collections' },
   { label: 'Media', href: '/admin/media' },
-  { label: 'Email Templates', href: '/admin/email-templates' },
+  { label: 'Emails', href: '/admin/email-templates' },
 ];
 
 export default function AdminTopbar() {

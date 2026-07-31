@@ -40,7 +40,9 @@ export default function Home() {
 
   useEffect(() => {
     supabase.from('products').select('id, name, price, discount, product_images(url)')
-      .eq('featured', true).eq('available', true).limit(8)
+      .eq('featured', true).eq('available', true)
+      .order('featured_position', { ascending: true, nullsFirst: false })
+      .limit(8)
       .then(({ data }) => setFeaturedProducts(data || []));
 
     fetch('/api/new-collection')

@@ -6,6 +6,7 @@ import Link from 'next/link';
 import { getSession, supabaseAuth } from '../../../../lib/supabase-admin';
 import { supabase } from '../../../../lib/supabase';
 import { compressImage } from '../../../../lib/compressImage';
+import { toast } from '../../../../components/Toast';
 
 type Category = { id: number; name: string };
 type ProductImage = { id: number; url: string; alt_text: string; position: number };
@@ -93,7 +94,7 @@ export default function EditProductPage({ params }: { params: Promise<{ id: stri
     const files = e.target.files;
     if (!files || files.length === 0) return;
     if (images.length >= MAX_IMAGES) {
-      alert(`Maximum ${MAX_IMAGES} images per product.`);
+      toast(`Maximum ${MAX_IMAGES} images per product.`, 'error');
       return;
     }
     setUploadingImage(true);
@@ -121,7 +122,7 @@ export default function EditProductPage({ params }: { params: Promise<{ id: stri
           // DB row failed — remove the orphaned storage file and surface it.
           await supabaseAuth.storage.from('product-image').remove([fileName]);
           const { error: msg } = await res.json().catch(() => ({ error: 'Unknown error' }));
-          alert(`Image upload failed: ${msg}`);
+          toast(`Image upload failed: ${msg}`, 'error');
         }
       }
     }
@@ -146,7 +147,7 @@ export default function EditProductPage({ params }: { params: Promise<{ id: stri
     });
     if (!res.ok) {
       const { error: msg } = await res.json().catch(() => ({ error: 'Unknown error' }));
-      alert(`Failed to delete image: ${msg}`);
+      toast(`Failed to delete image: ${msg}`, 'error');
       return;
     }
     const updated = images.filter(i => i.id !== imageId)
@@ -177,7 +178,7 @@ export default function EditProductPage({ params }: { params: Promise<{ id: stri
     });
     if (!res.ok) {
       const { error: msg } = await res.json().catch(() => ({ error: 'Unknown error' }));
-      alert(`Failed to add colour: ${msg}`);
+      toast(`Failed to add colour: ${msg}`, 'error');
       return;
     }
     const { colour } = await res.json();
@@ -195,7 +196,7 @@ export default function EditProductPage({ params }: { params: Promise<{ id: stri
     });
     if (!res.ok) {
       const { error: msg } = await res.json().catch(() => ({ error: 'Unknown error' }));
-      alert(`Failed to delete colour: ${msg}`);
+      toast(`Failed to delete colour: ${msg}`, 'error');
       return;
     }
     setColours(prev => prev.filter(c => c.id !== colourId));
@@ -206,7 +207,7 @@ export default function EditProductPage({ params }: { params: Promise<{ id: stri
     const files = e.target.files;
     if (!files?.length) return;
     const existing = colourImages[colourId] || [];
-    if (existing.length >= 4) { alert('Maximum 4 images per colour.'); return; }
+    if (existing.length >= 4) { toast('Maximum 4 images per colour.', 'error'); return; }
     setUploadingColourId(colourId);
     for (const file of Array.from(files)) {
       if ((colourImages[colourId]?.length || 0) >= 4) break;
@@ -232,7 +233,7 @@ export default function EditProductPage({ params }: { params: Promise<{ id: stri
         } else {
           await supabaseAuth.storage.from('product-image').remove([fileName]);
           const { error: msg } = await res.json().catch(() => ({ error: 'Unknown error' }));
-          alert(`Image upload failed: ${msg}`);
+          toast(`Image upload failed: ${msg}`, 'error');
         }
       }
     }
@@ -248,7 +249,7 @@ export default function EditProductPage({ params }: { params: Promise<{ id: stri
     });
     if (!res.ok) {
       const { error: msg } = await res.json().catch(() => ({ error: 'Unknown error' }));
-      alert(`Failed to delete image: ${msg}`);
+      toast(`Failed to delete image: ${msg}`, 'error');
       return;
     }
     setColourImages(prev => ({ ...prev, [colourId]: (prev[colourId]||[]).filter(i=>i.id!==imageId) }));
@@ -294,6 +295,7 @@ export default function EditProductPage({ params }: { params: Promise<{ id: stri
     }
 
     setSuccess('Product updated!');
+    setDirty(false);
     setLoading(false);
     setTimeout(() => setSuccess(''), 2500);
   };
@@ -307,13 +309,32 @@ export default function EditProductPage({ params }: { params: Promise<{ id: stri
     });
     if (!res.ok) {
       const { error: msg } = await res.json().catch(() => ({ error: 'Unknown error' }));
-      alert(`Failed to delete: ${msg}`);
+      toast(`Failed to delete: ${msg}`, 'error');
       return;
     }
     router.push('/admin');
   };
 
   const totalStock = sizeInventory.reduce((sum, s) => sum + s.quantity, 0);
+
+  // Warn before leaving with unsaved form/stock changes.
+  const [dirty, setDirty] = useState(false);
+  useEffect(() => {
+    if (!dirty) return;
+    const warn = (e: BeforeUnloadEvent) => { e.preventDefault(); };
+    window.addEventListener('beforeunload', warn);
+    return () => window.removeEventListener('beforeunload', warn);
+  }, [dirty]);
+
+  // Stock-change history for this product.
+  const [movements, setMovements] = useState<{ id: number; size: string; delta: number; reason: string; admin_email: string | null; created_at: string }[]>([]);
+  const [showMovements, setShowMovements] = useState(false);
+  useEffect(() => {
+    fetch(`/api/admin/inventory-movements?productId=${id}`)
+      .then(r => r.ok ? r.json() : { movements: [] })
+      .then(({ movements: rows }) => setMovements(rows || []))
+      .catch(() => {});
+  }, [id]);
 
   return (
     <div>
@@ -334,7 +355,7 @@ export default function EditProductPage({ params }: { params: Promise<{ id: stri
           </div>
         </div>
 
-        <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
+        <form onSubmit={handleSubmit} onChange={() => setDirty(true)} style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
 
           {/* Product Info */}
           <div style={card}>
@@ -572,6 +593,34 @@ export default function EditProductPage({ params }: { params: Promise<{ id: stri
             </button>
           </div>
         </form>
+
+        {/* Stock history */}
+        {movements.length > 0 && (
+          <div style={{ ...card, marginTop: '1.5rem' }}>
+            <button type="button" onClick={() => setShowMovements(!showMovements)} style={{
+              display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%',
+              background: 'none', border: 'none', cursor: 'pointer', padding: 0,
+            }}>
+              <span style={cardHeading as React.CSSProperties}>Stock History</span>
+              <span style={{ color: '#9A8F87', fontSize: '0.8rem' }}>{showMovements ? '▲' : '▼'}</span>
+            </button>
+            {showMovements && (
+              <div style={{ marginTop: '0.5rem', display: 'flex', flexDirection: 'column', gap: '0.3rem' }}>
+                {movements.map(m => (
+                  <div key={m.id} style={{ display: 'flex', gap: '0.75rem', alignItems: 'baseline', padding: '0.4rem 0', borderBottom: '1px solid #F5F5F5' }}>
+                    <span style={{ fontFamily: "'Jost', sans-serif", fontSize: '0.72rem', color: '#9A8F87', minWidth: '120px' }}>
+                      {new Date(m.created_at).toLocaleString('en-GB', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}
+                    </span>
+                    <span style={{ fontFamily: "'Jost', sans-serif", fontSize: '0.82rem', color: '#2C2C2C', flex: 1 }}>
+                      Size {m.size}: <span style={{ color: m.delta > 0 ? '#2E7D32' : '#C0392B', fontWeight: 500 }}>{m.delta > 0 ? `+${m.delta}` : m.delta}</span>
+                      <span style={{ color: '#9A8F87' }}> · {m.reason}{m.admin_email ? ` · ${m.admin_email.split('@')[0]}` : ''}</span>
+                    </span>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
       </div>
     </div>
   );

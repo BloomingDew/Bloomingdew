@@ -6,6 +6,7 @@ import Link from 'next/link';
 import { getSession, supabaseAuth } from '../../../../lib/supabase-admin';
 import { supabase } from '../../../../lib/supabase';
 import { compressImage } from '../../../../lib/compressImage';
+import { toast } from '../../../../components/Toast';
 
 type Category = { id: number; name: string };
 type PendingColour = { name: string; hex_code: string };
@@ -44,7 +45,7 @@ export default function NewProductPage() {
     const files = e.target.files;
     if (!files || files.length === 0) return;
     if (images.length >= MAX_IMAGES) {
-      alert(`Maximum ${MAX_IMAGES} images per product.`);
+      toast(`Maximum ${MAX_IMAGES} images per product.`, 'error');
       return;
     }
     setUploadingImage(true);

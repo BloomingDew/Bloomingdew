@@ -10,6 +10,7 @@ type Props = {
     address: string; apartment: string; city: string; postcode: string; country: string;
   };
   userId: string | null;
+  discountCode?: string | null;
   loading: boolean;
   setLoading: (v: boolean) => void;
   onSuccess: (orderId: string) => void;
@@ -20,7 +21,7 @@ declare global {
   interface Window { Square?: any }
 }
 
-export default function SquarePaymentForm({ amount, items, shipping, userId, loading, setLoading, onSuccess, onError }: Props) {
+export default function SquarePaymentForm({ amount, items, shipping, userId, discountCode, loading, setLoading, onSuccess, onError }: Props) {
   const cardRef = useRef<HTMLDivElement>(null);
   const cardInstance = useRef<any>(null);
   const paymentsRef = useRef<any>(null);
@@ -99,6 +100,7 @@ export default function SquarePaymentForm({ amount, items, shipping, userId, loa
           items,
           shipping,
           userId,
+          discountCode: discountCode || null,
         }),
       });
 
