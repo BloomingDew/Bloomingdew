@@ -1,6 +1,7 @@
 'use client';
 
 import Link from 'next/link';
+import Image from 'next/image';
 import { usePathname, useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import { signOut } from '../lib/supabase-admin';
@@ -64,14 +65,10 @@ export default function AdminTopbar() {
       top: 0,
       zIndex: 100,
     }}>
-      {/* Logo */}
-      <Link href="/admin" style={{
-        fontFamily: "'Playfair Display', serif",
-        fontSize: '1.1rem', color: '#FAF7F4',
-        fontWeight: 500, textDecoration: 'none',
-        whiteSpace: 'nowrap',
-      }}>
-        Bloomingdew
+      {/* Logo — links to the main storefront */}
+      <Link href="/" target="_blank" aria-label="View the Bloomingdew storefront" style={{ display: 'flex', alignItems: 'center' }}>
+        {/* Logo art is black; invert it to read on the dark topbar */}
+        <Image src="/logo.png" alt="Bloomingdew" width={40} height={30} style={{ height: '30px', width: 'auto', filter: 'invert(1)' }} />
       </Link>
 
       {/* Nav */}
@@ -117,13 +114,6 @@ export default function AdminTopbar() {
 
       {/* Right */}
       <div style={{ display: 'flex', gap: '1.5rem', alignItems: 'center' }}>
-        <Link href="/" target="_blank" style={{
-          fontFamily: "'Jost', sans-serif", fontSize: '0.72rem',
-          letterSpacing: '0.1em', textTransform: 'uppercase',
-          color: '#9A8F87', textDecoration: 'none',
-        }}>
-          View Site
-        </Link>
         <button onClick={handleSignOut} style={{
           fontFamily: "'Jost', sans-serif", fontSize: '0.72rem',
           letterSpacing: '0.1em', textTransform: 'uppercase',
