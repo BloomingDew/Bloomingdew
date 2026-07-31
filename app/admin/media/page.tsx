@@ -13,9 +13,13 @@ export default function MediaAdminPage() {
   const router = useRouter();
   const [products, setProducts] = useState<Product[]>([]);
   const [savedMsg, setSavedMsg] = useState('');
-  const [savedMsgSection, setSavedMsgSection] = useState<'category' | 'featured' | 'about' | 'new_collection' | ''>('');
+  const [savedMsgSection, setSavedMsgSection] = useState<'category' | 'featured' | 'about' | 'new_collection' | 'hero' | ''>('');
   const [aboutImage, setAboutImage] = useState<string | null>(null);
   const [uploadingAbout, setUploadingAbout] = useState(false);
+  const [heroImage, setHeroImage] = useState<string | null>(null);
+  const [uploadingHero, setUploadingHero] = useState(false);
+  const [marqueeText, setMarqueeText] = useState('New Collection · Handmade in Nigeria · Made to Order');
+  const [heroError, setHeroError] = useState('');
   const [featuredError, setFeaturedError] = useState('');
   // featuredOrder stores product ids in display order; cosmetic only — no featured_position column in DB
   const [featuredOrder, setFeaturedOrder] = useState<number[]>([]);
@@ -30,11 +34,13 @@ export default function MediaAdminPage() {
   }, []);
 
   const fetchData = async () => {
-    const [{ data: prods }, { data: setting }, { data: ncTitle }, { data: ncIds }] = await Promise.all([
+    const [{ data: prods }, { data: setting }, { data: ncTitle }, { data: ncIds }, { data: marquee }, { data: hero }] = await Promise.all([
       supabaseAuth.from('products').select('id, name, price, featured, product_images(url)').eq('available', true).order('name'),
       supabaseAuth.from('site_settings').select('value').eq('key', 'about_image_url').single(),
       supabaseAuth.from('site_settings').select('value').eq('key', 'new_collection_title').single(),
       supabaseAuth.from('site_settings').select('value').eq('key', 'new_collection_product_ids').single(),
+      supabaseAuth.from('site_settings').select('value').eq('key', 'marquee_text').single(),
+      supabaseAuth.from('site_settings').select('value').eq('key', 'hero_image_url').single(),
     ]);
     const loadedProducts = prods || [];
     setProducts(loadedProducts);
@@ -42,12 +48,84 @@ export default function MediaAdminPage() {
     setAboutImage(setting?.value ?? null);
     setNewCollectionTitle(ncTitle?.value ?? 'New Collection');
     setNewCollectionIds(ncIds?.value ? JSON.parse(ncIds.value) : []);
+    if (marquee?.value) setMarqueeText(marquee.value);
+    setHeroImage(hero?.value ?? null);
   };
 
   const extractStoragePath = (url: string): string | null => {
     const marker = 'product-image/';
     const idx = url.indexOf(marker);
     return idx !== -1 ? url.slice(idx + marker.length) : null;
+  };
+
+  const handleHeroImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setUploadingHero(true);
+
+    const compressed = await compressImage(file);
+    const ext = compressed.name.split('.').pop()?.toLowerCase();
+    const fileName = `hero-image-${Date.now()}.${ext}`;
+    const { error: uploadError } = await supabaseAuth.storage.from('product-image').upload(fileName, compressed, { upsert: true });
+
+    if (uploadError) {
+      alert(`Upload failed: ${uploadError.message}`);
+      setUploadingHero(false);
+      return;
+    }
+
+    const { data: urlData } = supabaseAuth.storage.from('product-image').getPublicUrl(fileName);
+    const res = await fetch('/api/admin/site-settings', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ key: 'hero_image_url', value: urlData.publicUrl }),
+    });
+
+    if (!res.ok) {
+      const { error } = await res.json().catch(() => ({ error: 'Unknown error' }));
+      alert(`Saved to storage but failed to update database: ${error}`);
+      setUploadingHero(false);
+      return;
+    }
+
+    setHeroImage(urlData.publicUrl);
+    setUploadingHero(false);
+    setSavedMsg('Saved!');
+    setSavedMsgSection('hero');
+    setTimeout(() => { setSavedMsg(''); setSavedMsgSection(''); }, 2000);
+  };
+
+  const removeHeroImage = async () => {
+    const res = await fetch('/api/admin/site-settings', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ key: 'hero_image_url', value: null }),
+    });
+    if (!res.ok) {
+      alert('Failed to remove the image. Please try again.');
+      return;
+    }
+    if (heroImage) {
+      const path = extractStoragePath(heroImage);
+      if (path) await supabaseAuth.storage.from('product-image').remove([path]);
+    }
+    setHeroImage(null);
+  };
+
+  const saveMarquee = async () => {
+    const res = await fetch('/api/admin/site-settings', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ key: 'marquee_text', value: marqueeText.trim() }),
+    });
+    if (!res.ok) {
+      setHeroError('Save failed. Please try again.');
+      setTimeout(() => setHeroError(''), 3000);
+      return;
+    }
+    setSavedMsg('Saved!');
+    setSavedMsgSection('hero');
+    setTimeout(() => { setSavedMsg(''); setSavedMsgSection(''); }, 2000);
   };
 
   const handleAboutImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -197,6 +275,98 @@ export default function MediaAdminPage() {
           <h2 style={{ fontFamily: "'Playfair Display', serif", fontSize: '1.6rem', fontWeight: 500, color: '#2C2C2C' }}>
             Media & Content
           </h2>
+        </div>
+
+        {/* Homepage Hero & Marquee */}
+        <div style={{ backgroundColor: '#FFFFFF', border: '1px solid #E8DDD3', padding: '2rem', marginBottom: '2rem' }}>
+          <div style={{ marginBottom: '1.5rem' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', marginBottom: '0.4rem' }}>
+              <h3 style={{ fontFamily: "'Playfair Display', serif", fontSize: '1.2rem', fontWeight: 500, color: '#2C2C2C' }}>
+                Homepage Hero &amp; Marquee
+              </h3>
+              {savedMsg && savedMsgSection === 'hero' && (
+                <span style={{ fontFamily: "'Jost', sans-serif", fontSize: '0.82rem', color: '#2E7D32' }}>{savedMsg}</span>
+              )}
+            </div>
+            <p style={{ fontFamily: "'Jost', sans-serif", fontSize: '0.82rem', fontWeight: 300, color: '#9A8F87' }}>
+              The large editorial image on the right side of the homepage hero, and the scrolling
+              gold text strip underneath it.
+            </p>
+            {heroError && (
+              <p style={{ fontFamily: "'Jost', sans-serif", fontSize: '0.82rem', color: '#C62828', marginTop: '0.4rem' }}>{heroError}</p>
+            )}
+          </div>
+
+          <div style={{ display: 'flex', gap: '2rem', alignItems: 'flex-start', flexWrap: 'wrap' }}>
+            {/* Hero image preview + upload */}
+            <div style={{ display: 'flex', gap: '1.5rem', alignItems: 'flex-start' }}>
+              <div style={{
+                width: '180px', flexShrink: 0,
+                aspectRatio: '4/5', backgroundColor: '#F5F5F5', border: '1px solid #E8DDD3',
+                position: 'relative', overflow: 'hidden',
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+              }}>
+                {heroImage ? (
+                  <>
+                    <img src={heroImage} alt="Homepage hero" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                    <button
+                      onClick={removeHeroImage}
+                      style={{
+                        position: 'absolute', top: '6px', right: '6px',
+                        backgroundColor: '#2C2C2C', color: '#FAF7F4', border: 'none',
+                        width: '24px', height: '24px', cursor: 'pointer', fontSize: '0.7rem',
+                        display: 'flex', alignItems: 'center', justifyContent: 'center',
+                      }}>✕</button>
+                  </>
+                ) : (
+                  <span style={{ fontFamily: "'Jost', sans-serif", fontSize: '0.65rem', letterSpacing: '0.1em', textTransform: 'uppercase', color: '#9A8F87' }}>
+                    No image
+                  </span>
+                )}
+                {uploadingHero && (
+                  <div style={{ position: 'absolute', inset: 0, backgroundColor: 'rgba(250,247,244,0.8)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                    <span style={{ fontFamily: "'Jost', sans-serif", fontSize: '0.72rem', color: '#C9A882' }}>Uploading...</span>
+                  </div>
+                )}
+              </div>
+              <div>
+                <label style={{
+                  display: 'inline-block', padding: '0.6rem 1.5rem',
+                  border: '1px solid #E8DDD3', cursor: 'pointer',
+                  fontFamily: "'Jost', sans-serif", fontSize: '0.72rem',
+                  letterSpacing: '0.1em', textTransform: 'uppercase', color: '#9A8F87',
+                  backgroundColor: '#FAFAFA',
+                }}>
+                  <input type="file" accept="image/*" style={{ display: 'none' }} onChange={handleHeroImageUpload} />
+                  {heroImage ? 'Replace Image' : '+ Upload Image'}
+                </label>
+                <p style={{ fontFamily: "'Jost', sans-serif", fontSize: '0.75rem', fontWeight: 300, color: '#9A8F87', marginTop: '0.75rem', maxWidth: '220px' }}>
+                  Recommended: tall portrait image (fills the right half of the hero)
+                </p>
+              </div>
+            </div>
+
+            {/* Marquee text */}
+            <div style={{ flex: '1 1 320px', minWidth: '280px' }}>
+              <p style={{ fontFamily: "'Jost', sans-serif", fontSize: '0.72rem', letterSpacing: '0.12em', textTransform: 'uppercase', color: '#C9A882', marginBottom: '0.6rem' }}>
+                Marquee Text
+              </p>
+              <input
+                value={marqueeText}
+                onChange={e => setMarqueeText(e.target.value)}
+                placeholder="New Collection · Handmade in Nigeria · Made to Order"
+                style={{ width: '100%', padding: '0.6rem 0.8rem', border: '1px solid #E8DDD3', fontFamily: "'Jost', sans-serif", fontSize: '0.85rem', color: '#2C2C2C', outline: 'none', boxSizing: 'border-box' }}
+              />
+              <p style={{ fontFamily: "'Jost', sans-serif", fontSize: '0.75rem', fontWeight: 300, color: '#9A8F87', marginTop: '0.6rem' }}>
+                Separate phrases with &quot;·&quot; — the text repeats in a continuous scroll on the homepage.
+              </p>
+              <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '1rem' }}>
+                <button onClick={saveMarquee} style={{ padding: '0.6rem 1.8rem', backgroundColor: '#2C2C2C', color: '#FAF7F4', border: 'none', fontFamily: "'Jost', sans-serif", fontSize: '0.75rem', letterSpacing: '0.12em', textTransform: 'uppercase', cursor: 'pointer' }}>
+                  Save Text
+                </button>
+              </div>
+            </div>
+          </div>
         </div>
 
         {/* New Collection */}
