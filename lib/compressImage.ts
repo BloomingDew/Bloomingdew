@@ -6,10 +6,15 @@
 const MAX_DIMENSION = 1600;
 const JPEG_QUALITY = 0.85;
 
-export async function compressImage(file: File): Promise<File> {
+export async function compressImage(
+  file: File,
+  opts?: { maxDimension?: number; quality?: number },
+): Promise<File> {
+  const maxDimension = opts?.maxDimension ?? MAX_DIMENSION;
+  const quality = opts?.quality ?? JPEG_QUALITY;
   try {
     const bitmap = await createImageBitmap(file);
-    const scale = Math.min(1, MAX_DIMENSION / Math.max(bitmap.width, bitmap.height));
+    const scale = Math.min(1, maxDimension / Math.max(bitmap.width, bitmap.height));
 
     // Already small and not worth re-encoding.
     if (scale === 1 && file.size < 500 * 1024) return file;
@@ -22,7 +27,7 @@ export async function compressImage(file: File): Promise<File> {
     ctx.drawImage(bitmap, 0, 0, canvas.width, canvas.height);
 
     const blob = await new Promise<Blob | null>(resolve =>
-      canvas.toBlob(resolve, 'image/jpeg', JPEG_QUALITY),
+      canvas.toBlob(resolve, 'image/jpeg', quality),
     );
     if (!blob) return file;
 
