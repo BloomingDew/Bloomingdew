@@ -45,8 +45,8 @@ export default function Navbar() {
             </Link>
           </div>
 
-          {/* Center — Logo */}
-          <Link href="/" style={{
+          {/* Center — wordmark (hidden on mobile where the logo mark carries the brand) */}
+          <Link href="/" className="nav-wordmark" style={{
             fontFamily: "'Playfair Display', serif", fontSize: '1.6rem', fontWeight: 500,
             letterSpacing: '0.08em', color: '#2C2C2C',
             position: 'absolute', left: '50%', transform: 'translateX(-50%)', whiteSpace: 'nowrap',
@@ -197,6 +197,11 @@ export default function Navbar() {
 
         <style>{`
           .mobile-menu-btn { display: none; }
+          @media (max-width: 900px) {
+            /* The absolutely-centered wordmark collides with the logo and the
+               right-side icons on narrow screens — the logo mark is the brand. */
+            .nav-wordmark { display: none; }
+          }
           @media (max-width: 768px) {
             .desktop-nav { display: none; }
             .mobile-menu-btn { display: block; }
