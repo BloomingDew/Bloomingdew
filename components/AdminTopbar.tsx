@@ -65,8 +65,8 @@ export default function AdminTopbar() {
       top: 0,
       zIndex: 100,
     }}>
-      {/* Logo — links to the main storefront */}
-      <Link href="/" target="_blank" aria-label="View the Bloomingdew storefront" style={{ display: 'flex', alignItems: 'center' }}>
+      {/* Logo — links to the admin home (Products) */}
+      <Link href="/admin" aria-label="Admin home" style={{ display: 'flex', alignItems: 'center' }}>
         {/* Logo art is black; invert it to read on the dark topbar */}
         <Image src="/logo.png" alt="Bloomingdew" width={40} height={30} style={{ height: '30px', width: 'auto', filter: 'invert(1)' }} />
       </Link>
