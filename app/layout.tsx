@@ -2,6 +2,7 @@
 
 import './globals.css';
 import { usePathname } from 'next/navigation';
+import { Analytics } from '@vercel/analytics/next';
 import Navbar from '../components/Navbar';
 import Footer from '../components/Footer';
 import CartDrawer from '../components/CartDrawer';
@@ -19,6 +20,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       <html lang="en">
         <body>
           {children}
+          <Analytics />
         </body>
       </html>
     );
@@ -41,6 +43,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         </CartProvider>
         </UserProvider>
         </CurrencyProvider>
+        <Analytics />
       </body>
     </html>
   );
