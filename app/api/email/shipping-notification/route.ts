@@ -10,9 +10,22 @@ export async function POST(req: NextRequest) {
   try {
     const { customerName, customerEmail, items, trackingNumber, trackingUrl } = await req.json();
 
-    const itemsList = items.map((i: any) => `• ${i.name} (Size ${i.size}) x${i.quantity}`).join('\n');
+    if (typeof customerEmail !== 'string' || !Array.isArray(items)) {
+      return NextResponse.json({ error: 'customerEmail and items are required.' }, { status: 400 });
+    }
+
+    // Only allow real web links in the tracking line.
+    const safeTrackingUrl =
+      typeof trackingUrl === 'string' && /^https?:\/\//i.test(trackingUrl.trim())
+        ? trackingUrl.trim()
+        : null;
+
+    const itemsList = items
+      .map((i: { name?: string; size?: string; quantity?: number }) =>
+        `• ${i?.name ?? ''} (Size ${i?.size ?? ''}) x${i?.quantity ?? 1}`)
+      .join('\n');
     const trackingInfo = trackingNumber
-      ? `Your tracking number is: ${trackingNumber}${trackingUrl ? `\nTrack your order here: ${trackingUrl}` : ''}`
+      ? `Your tracking number is: ${trackingNumber}${safeTrackingUrl ? `\nTrack your order here: ${safeTrackingUrl}` : ''}`
       : '';
 
     const email = await buildEmail('shipping-notification', {
@@ -32,8 +45,8 @@ export async function POST(req: NextRequest) {
     });
 
     return NextResponse.json({ success: true });
-  } catch (err: any) {
+  } catch (err) {
     console.error('Shipping notification email error:', err);
-    return NextResponse.json({ error: err.message }, { status: 500 });
+    return NextResponse.json({ error: 'Failed to send the shipping email.' }, { status: 500 });
   }
 }

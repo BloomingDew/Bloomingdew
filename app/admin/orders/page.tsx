@@ -3,7 +3,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { getSession } from '../../../lib/supabase-admin';
-import { supabase } from '../../../lib/supabase';
 import { formatAdminPrice } from '../../../lib/adminCurrency';
 
 type Order = {
@@ -63,13 +62,34 @@ export default function OrdersPage() {
   }, []);
 
   const fetchOrders = async () => {
-    const { data } = await supabase.from('orders').select('*').order('created_at', { ascending: false });
-    setOrders(data || []);
+    try {
+      const res = await fetch('/api/admin/orders');
+      if (!res.ok) throw new Error();
+      const { orders: data } = await res.json();
+      setOrders(data || []);
+    } catch {
+      setOrders([]);
+    }
     setLoading(false);
   };
 
+  const patchOrder = async (orderId: string, updates: Record<string, string>) => {
+    const res = await fetch('/api/admin/orders', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ id: orderId, ...updates }),
+    });
+    if (!res.ok) {
+      const { error } = await res.json().catch(() => ({ error: 'Unknown error' }));
+      alert(`Failed to save: ${error}`);
+      return false;
+    }
+    return true;
+  };
+
   const updateStatus = async (orderId: string, status: string) => {
-    await supabase.from('orders').update({ status }).eq('id', orderId);
+    const ok = await patchOrder(orderId, { status });
+    if (!ok) return;
     setOrders(prev => prev.map(o => o.id === orderId ? { ...o, status } : o));
 
     if (status === 'shipped') {
@@ -95,12 +115,14 @@ export default function OrdersPage() {
   };
 
   const saveNotes = async (orderId: string, notes: string) => {
-    await supabase.from('orders').update({ notes }).eq('id', orderId);
+    const ok = await patchOrder(orderId, { notes });
+    if (!ok) return;
     setUnsavedNotes(prev => { const next = new Set(prev); next.delete(orderId); return next; });
   };
 
   const saveTracking = async (orderId: string, tracking_number: string, tracking_url: string) => {
-    await supabase.from('orders').update({ tracking_number, tracking_url }).eq('id', orderId);
+    const ok = await patchOrder(orderId, { tracking_number, tracking_url });
+    if (!ok) return;
     setOrders(prev => prev.map(o => o.id === orderId ? { ...o, tracking_number, tracking_url } : o));
   };
 

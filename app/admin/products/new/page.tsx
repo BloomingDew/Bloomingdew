@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { getSession, supabaseAuth } from '../../../../lib/supabase-admin';
 import { supabase } from '../../../../lib/supabase';
+import { compressImage } from '../../../../lib/compressImage';
 
 type Category = { id: number; name: string };
 type PendingColour = { name: string; hex_code: string };
@@ -48,16 +49,21 @@ export default function NewProductPage() {
     }
     setUploadingImage(true);
 
-    for (const file of Array.from(files)) {
-      if (images.length >= MAX_IMAGES) break;
-      const ext = file.name.split('.').pop()?.toLowerCase();
+    // Compress client-side (phone photos are often 3-12 MB) and upload in
+    // parallel; results are appended in the original selection order.
+    const slots = Math.max(0, MAX_IMAGES - images.length);
+    const selected = Array.from(files).slice(0, slots);
+    const uploaded = await Promise.all(selected.map(async (file) => {
+      const compressed = await compressImage(file);
+      const ext = compressed.name.split('.').pop()?.toLowerCase();
       const fileName = `${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`;
-      const { error } = await supabaseAuth.storage.from('product-image').upload(fileName, file);
-      if (!error) {
-        const { data } = supabaseAuth.storage.from('product-image').getPublicUrl(fileName);
-        setImages(prev => [...prev, { url: data.publicUrl, alt_text: form.name || file.name, path: fileName }]);
-      }
-    }
+      const { error } = await supabaseAuth.storage.from('product-image').upload(fileName, compressed);
+      if (error) return null;
+      const { data } = supabaseAuth.storage.from('product-image').getPublicUrl(fileName);
+      return { url: data.publicUrl, alt_text: form.name || file.name, path: fileName };
+    }));
+    const successful = uploaded.filter((u): u is NonNullable<typeof u> => u !== null);
+    if (successful.length > 0) setImages(prev => [...prev, ...successful].slice(0, MAX_IMAGES));
     setUploadingImage(false);
   };
 
@@ -90,55 +96,47 @@ export default function NewProductPage() {
 
     const slug = form.name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
 
-    const { data: product, error: productError } = await supabase
-      .from('products')
-      .insert({
-        name: form.name, slug,
-        price: parseFloat(form.price),
-        discount: parseInt(form.discount) || 0,
-        sizes: DEFAULT_SIZES,
-        category_id: form.category_id ? parseInt(form.category_id) : null,
-        description: form.description,
-        fabric: form.fabric,
-        care_instructions: form.care_instructions,
-        available: form.available,
-        made_to_order: form.made_to_order,
-        lead_time: form.lead_time,
-        has_colours: hasColours,
-      })
-      .select()
-      .single();
+    const res = await fetch('/api/admin/products', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        product: {
+          name: form.name, slug,
+          price: parseFloat(form.price),
+          discount: parseInt(form.discount) || 0,
+          sizes: DEFAULT_SIZES,
+          category_id: form.category_id ? parseInt(form.category_id) : null,
+          description: form.description,
+          fabric: form.fabric,
+          care_instructions: form.care_instructions,
+          available: form.available,
+          made_to_order: form.made_to_order,
+          lead_time: form.lead_time,
+          has_colours: hasColours,
+        },
+        images: images.map(img => ({ url: img.url, alt_text: img.alt_text || form.name })),
+        sizeInventory,
+        colours: hasColours ? pendingColours : [],
+      }),
+    });
 
-    if (productError) {
-      // Clean up any already-uploaded images from Storage
-      for (const img of images) {
-        if (img.path) await supabaseAuth.storage.from('product-image').remove([img.path]);
+    const result = await res.json().catch(() => ({ error: 'Unknown error' }));
+
+    if (!res.ok) {
+      // If the product itself failed (no id returned), clean up uploaded images.
+      if (!result.id) {
+        for (const img of images) {
+          if (img.path) await supabaseAuth.storage.from('product-image').remove([img.path]);
+        }
       }
-      setError(productError.message); setLoading(false); return;
-    }
-
-    // Save images
-    if (images.length > 0) {
-      await supabase.from('product_images').insert(
-        images.map((img, i) => ({ product_id: product.id, url: img.url, alt_text: img.alt_text || form.name, position: i }))
-      );
-    }
-
-    // Save per-size inventory
-    await supabase.from('product_size_inventory').insert(
-      sizeInventory.map(s => ({ product_id: product.id, size: s.size, quantity: s.quantity }))
-    );
-
-    // Save pending colours
-    if (hasColours && pendingColours.length > 0) {
-      await supabaseAuth.from('product_colours').insert(
-        pendingColours.map((c, i) => ({ product_id: product.id, name: c.name, hex_code: c.hex_code, display_order: i, is_available: true }))
-      );
+      setError(result.error || 'Failed to create product.');
+      setLoading(false);
+      return;
     }
 
     setSuccess('Product created — add colour images from the edit page.');
     setLoading(false);
-    setTimeout(() => router.push(`/admin/products/${product.id}`), 2500);
+    setTimeout(() => router.push(`/admin/products/${result.id}`), 2500);
   };
 
   const totalStock = sizeInventory.reduce((sum, s) => sum + s.quantity, 0);

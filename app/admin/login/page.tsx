@@ -50,12 +50,12 @@ export default function AdminLoginPage() {
             <input
               type="email" required value={email}
               onChange={e => setEmail(e.target.value)}
-              style={inputStyle} placeholder="info@bloomingdew.com"
+              style={inputStyle} placeholder="Email address"
             />
           </div>
           <div>
             <label style={labelStyle}>Password</label>
-            <PasswordInput required value={password} onChange={e => setPassword(e.target.value)} style={inputStyle} placeholder="••••••••" />
+            <PasswordInput required value={password} onChange={e => setPassword(e.target.value)} style={inputStyle} placeholder="Password" />
           </div>
 
           {error && (

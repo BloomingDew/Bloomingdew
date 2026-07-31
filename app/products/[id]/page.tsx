@@ -2,6 +2,7 @@
 
 import { useState, use, useEffect, useCallback } from 'react';
 import Link from 'next/link';
+import Image from 'next/image';
 import { useCart } from '../../../context/CartContext';
 import { useWishlist } from '../../../context/WishlistContext';
 import { useCurrency } from '../../../context/CurrencyContext';
@@ -165,7 +166,7 @@ export default function ProductPage({ params }: { params: Promise<{ id: string }
 
   const details = [
     product.fabric && product.fabric,
-    'Handmade to order',
+    product.made_to_order ? 'Handmade to order' : 'Ready to ship',
     `Available in sizes ${(product.sizes || []).join(', ')}`,
     product.care_instructions && product.care_instructions,
     'Made in Nigeria',
@@ -198,15 +199,17 @@ export default function ProductPage({ params }: { params: Promise<{ id: string }
           {/* Main image */}
           <div style={{
             width: '100%', aspectRatio: '3/4',
-            backgroundColor: '#FAF7F4',
+            backgroundColor: '#FAF7F4', position: 'relative',
             overflow: 'hidden', display: 'flex', alignItems: 'center', justifyContent: 'center',
           }}>
             {displayedImages[activeImage] ? (
-              <img
+              <Image
                 src={displayedImages[activeImage].url}
                 alt={displayedImages[activeImage].alt_text || product.name}
-                style={{ width: '100%', height: '100%', objectFit: 'contain', display: 'block' }}
-                onError={e => { (e.target as HTMLImageElement).style.display = 'none'; }}
+                fill
+                priority
+                sizes="(max-width: 900px) 100vw, 50vw"
+                style={{ objectFit: 'contain' }}
               />
             ) : (
               <span style={{
@@ -225,7 +228,7 @@ export default function ProductPage({ params }: { params: Promise<{ id: string }
                   width: '72px', height: '88px', border: `2px solid ${activeImage === i ? '#2C2C2C' : 'transparent'}`,
                   padding: 0, cursor: 'pointer', overflow: 'hidden', background: 'none',
                 }}>
-                  <img src={img.url} alt={img.alt_text || ''} style={{ width: '100%', height: '100%', objectFit: 'contain', display: 'block', backgroundColor: '#FAF7F4' }} />
+                  <Image src={img.url} alt={img.alt_text || ''} width={72} height={88} style={{ width: '100%', height: '100%', objectFit: 'contain', display: 'block', backgroundColor: '#FAF7F4' }} />
                 </button>
               ))}
             </div>

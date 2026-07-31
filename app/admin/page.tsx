@@ -50,21 +50,30 @@ export default function AdminPage() {
   };
 
   const fetchAlerts = async () => {
-    const [{ data: stock }, { count: enquiries }, { count: orders }, { data: delivered }] = await Promise.all([
-      supabase.from('product_size_inventory').select('product_id, size, quantity, products(name)').lte('quantity', 3).gte('quantity', 0),
-      supabase.from('enquiries').select('*', { count: 'exact', head: true }).eq('status', 'unread'),
-      supabase.from('orders').select('*', { count: 'exact', head: true }).eq('status', 'pending'),
-      supabase.from('orders').select('total').eq('status', 'delivered'),
-    ]);
-    setLowStock(stock || []);
-    setUnreadEnquiries(enquiries || 0);
-    setPendingOrders(orders || 0);
-    const revenue = (delivered || []).filter(o => o.total != null).reduce((sum, o) => sum + (o.total || 0), 0);
-    setCompletedRevenue(revenue);
+    try {
+      const res = await fetch('/api/admin/counts');
+      if (!res.ok) return;
+      const { unreadEnquiries, pendingOrders, deliveredRevenue, lowStock } = await res.json();
+      setLowStock(lowStock || []);
+      setUnreadEnquiries(unreadEnquiries || 0);
+      setPendingOrders(pendingOrders || 0);
+      setCompletedRevenue(deliveredRevenue ?? 0);
+    } catch {
+      // Leave the defaults; the dashboard still works without alert counts.
+    }
   };
 
   const toggleAvailable = async (id: number, current: boolean) => {
-    await supabase.from('products').update({ available: !current }).eq('id', id);
+    const res = await fetch('/api/admin/products', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ ids: [id], available: !current }),
+    });
+    if (!res.ok) {
+      const { error } = await res.json().catch(() => ({ error: 'Unknown error' }));
+      alert(`Failed to update: ${error}`);
+      return;
+    }
     setProducts(prev => prev.map(p => p.id === id ? { ...p, available: !current } : p));
   };
 
@@ -80,16 +89,32 @@ export default function AdminPage() {
 
   const bulkSetAvailable = async (available: boolean) => {
     if (!available && !window.confirm(`Hide ${selected.length} product${selected.length !== 1 ? 's' : ''}?`)) return;
-    await supabase.from('products').update({ available }).in('id', selected);
+    const res = await fetch('/api/admin/products', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ ids: selected, available }),
+    });
+    if (!res.ok) {
+      const { error } = await res.json().catch(() => ({ error: 'Unknown error' }));
+      alert(`Failed to update: ${error}`);
+      return;
+    }
     setProducts(prev => prev.map(p => selected.includes(p.id) ? { ...p, available } : p));
     setSelected([]);
   };
 
   const bulkDelete = async () => {
     if (!window.confirm(`Delete ${selected.length} product${selected.length !== 1 ? 's' : ''}? This cannot be undone.`)) return;
-    await supabase.from('product_images').delete().in('product_id', selected);
-    await supabase.from('product_size_inventory').delete().in('product_id', selected);
-    await supabase.from('products').delete().in('id', selected);
+    const res = await fetch('/api/admin/products', {
+      method: 'DELETE',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ ids: selected }),
+    });
+    if (!res.ok) {
+      const { error } = await res.json().catch(() => ({ error: 'Unknown error' }));
+      alert(`Failed to delete: ${error}`);
+      return;
+    }
     setProducts(prev => prev.filter(p => !selected.includes(p.id)));
     setSelected([]);
   };

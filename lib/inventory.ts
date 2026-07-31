@@ -6,8 +6,10 @@ const RESERVATION_MINUTES = 30;
 export async function getAllSizesStock(productId: number, sizes: string[]): Promise<Record<string, number>> {
   const results: Record<string, number> = {};
   await Promise.all(sizes.map(async size => {
-    const { data } = await supabase.rpc('get_available_stock', { p_product_id: productId, p_size: size });
-    results[size] = data ?? 0;
+    const { data, error } = await supabase.rpc('get_available_stock', { p_product_id: productId, p_size: size });
+    // On a failed lookup, leave the size unknown rather than marking it sold
+    // out — createReservation re-checks real stock when the item is added.
+    if (!error && data !== null) results[size] = data;
   }));
   return results;
 }

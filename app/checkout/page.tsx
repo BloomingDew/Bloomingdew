@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
+import Image from 'next/image';
 import { useCart } from '../../context/CartContext';
 import { useUser } from '../../context/UserContext';
 import { useCurrency } from '../../context/CurrencyContext';
@@ -18,16 +19,19 @@ export default function CheckoutPage() {
   const router = useRouter();
   const [step, setStep] = useState<'shipping' | 'payment'>('shipping');
   const [loading, setLoading] = useState(false);
+  const [redirecting, setRedirecting] = useState(false);
   const [itemImages, setItemImages] = useState<Record<number, string>>({});
   const [timeLeft, setTimeLeft] = useState<string | null>(null);
+  const [reservationExpired, setReservationExpired] = useState(false);
 
   useEffect(() => {
     const reservedItems = items.filter(i => !i.madeToOrder && i.expiresAt);
-    if (reservedItems.length === 0) { setTimeLeft(null); return; }
+    if (reservedItems.length === 0) { setTimeLeft(null); setReservationExpired(false); return; }
     const earliest = new Date(Math.min(...reservedItems.map(i => new Date(i.expiresAt!).getTime())));
     const tick = () => {
       const diff = earliest.getTime() - Date.now();
-      if (diff <= 0) { setTimeLeft(null); return; }
+      if (diff <= 0) { setTimeLeft(null); setReservationExpired(true); return; }
+      setReservationExpired(false);
       const m = Math.floor(diff / 60000);
       const s = Math.floor((diff % 60000) / 1000);
       setTimeLeft(`${m}:${s.toString().padStart(2, '0')}`);
@@ -77,6 +81,7 @@ export default function CheckoutPage() {
 
   // Square: payment + order saved in one API call, returns orderId directly
   const handleSquareSuccess = (orderId: string) => {
+    setRedirecting(true);
     clearCart();
     router.push(`/order-confirmation?ref=${encodeURIComponent(orderId)}`);
   };
@@ -106,6 +111,7 @@ export default function CheckoutPage() {
         return;
       }
 
+      setRedirecting(true);
       clearCart();
       router.push(`/order-confirmation?ref=${encodeURIComponent(data.orderId || paymentIntentId)}`);
     } catch {
@@ -120,7 +126,7 @@ export default function CheckoutPage() {
   // payment routing (Paystack/Stripe presentment) lands in a later PR.
   const orderTotal = totalPriceUsd;
 
-  if (items.length === 0 && !loading) {
+  if (items.length === 0 && !loading && !redirecting) {
     return (
       <div style={{ textAlign: 'center', padding: '8rem 2rem' }}>
         <h2 style={{ fontFamily: "'Playfair Display', serif", fontSize: '1.8rem', color: '#2C2C2C', marginBottom: '1rem' }}>
@@ -286,7 +292,22 @@ export default function CheckoutPage() {
                 ))}
               </div>
 
-              {paymentProvider === 'square' ? (
+              {reservationExpired ? (
+                <div style={{ backgroundColor: '#FFF3E0', border: '1px solid #FFB74D', padding: '1.2rem 1.5rem' }}>
+                  <p style={{ fontFamily: "'Jost', sans-serif", fontSize: '0.85rem', color: '#E65100', lineHeight: 1.7 }}>
+                    Your reservation has expired, so we can no longer guarantee these
+                    items are in stock. Please return to your bag to re-add them.
+                  </p>
+                  <Link href="/shop" style={{
+                    display: 'inline-block', marginTop: '0.8rem',
+                    fontFamily: "'Jost', sans-serif", fontSize: '0.72rem',
+                    letterSpacing: '0.12em', textTransform: 'uppercase',
+                    color: '#E65100', borderBottom: '1px solid #E65100', textDecoration: 'none',
+                  }}>
+                    Back to Shop
+                  </Link>
+                </div>
+              ) : paymentProvider === 'square' ? (
                 <SquarePaymentForm
                   amount={orderTotal}
                   items={items.map(i => ({ id: i.id, name: i.name, size: i.size, quantity: i.quantity, price: i.priceUsd }))}
@@ -318,7 +339,10 @@ export default function CheckoutPage() {
 
               {/* Terms */}
               <p style={{ fontFamily: "'Jost', sans-serif", fontSize: '0.78rem', fontWeight: 300, color: '#9A8F87', lineHeight: 1.7, marginTop: '1.5rem' }}>
-                By placing your order you agree to our terms of service. All pieces are made to order — please allow 2–4 weeks for production.
+                By placing your order you agree to our terms of service.
+                {items.some(i => i.madeToOrder)
+                  ? ' Made-to-order pieces take 2–4 weeks for production.'
+                  : ''}
               </p>
             </div>
           )}
@@ -339,7 +363,7 @@ export default function CheckoutPage() {
                   position: 'relative', overflow: 'hidden',
                 }}>
                   {itemImages[item.id] && (
-                    <img src={itemImages[item.id]} alt={item.name} style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} onError={e => { (e.target as HTMLImageElement).style.display = 'none'; }} />
+                    <Image src={itemImages[item.id]} alt={item.name} fill sizes="64px" style={{ objectFit: 'cover' }} />
                   )}
                   <span style={{
                     position: 'absolute', top: '-8px', right: '-8px',
@@ -355,7 +379,7 @@ export default function CheckoutPage() {
                   <p style={{ fontFamily: "'Jost', sans-serif", fontSize: '0.85rem', fontWeight: 400, color: '#2C2C2C', marginBottom: '0.2rem' }}>{item.name}</p>
                   <p style={{ fontFamily: "'Jost', sans-serif", fontSize: '0.75rem', color: '#9A8F87' }}>Size: {item.size}</p>
                 </div>
-                <span style={{ fontFamily: "'Jost', sans-serif", fontSize: '0.85rem', color: '#2C2C2C' }}>{format(item.priceUsd)}</span>
+                <span style={{ fontFamily: "'Jost', sans-serif", fontSize: '0.85rem', color: '#2C2C2C' }}>{format(item.priceUsd * item.quantity)}</span>
               </div>
             ))}
           </div>

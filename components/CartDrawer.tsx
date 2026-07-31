@@ -6,12 +6,14 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useState, useEffect } from 'react';
 
-function CountdownTimer({ expiresAt }: { expiresAt: Date }) {
+function CountdownTimer({ expiresAt }: { expiresAt: Date | string }) {
   const [timeLeft, setTimeLeft] = useState('');
+  // expiresAt is a plain string after cart rehydration from localStorage.
+  const expiryMs = new Date(expiresAt).getTime();
 
   useEffect(() => {
     const update = () => {
-      const diff = expiresAt.getTime() - Date.now();
+      const diff = expiryMs - Date.now();
       if (diff <= 0) { setTimeLeft('Expired'); return; }
       const mins = Math.floor(diff / 60000);
       const secs = Math.floor((diff % 60000) / 1000);
@@ -20,9 +22,9 @@ function CountdownTimer({ expiresAt }: { expiresAt: Date }) {
     update();
     const interval = setInterval(update, 1000);
     return () => clearInterval(interval);
-  }, [expiresAt]);
+  }, [expiryMs]);
 
-  const isUrgent = expiresAt.getTime() - Date.now() < 5 * 60 * 1000;
+  const isUrgent = expiryMs - Date.now() < 5 * 60 * 1000;
 
   return (
     <span style={{

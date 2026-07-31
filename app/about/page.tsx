@@ -1,6 +1,7 @@
 'use client';
 
 import Link from 'next/link';
+import Image from 'next/image';
 import { useState, useEffect } from 'react';
 
 export default function AboutPage() {
@@ -63,10 +64,12 @@ export default function AboutPage() {
           {/* About image */}
           <div style={{ aspectRatio: '4/5', position: 'relative', overflow: 'hidden', background: 'linear-gradient(150deg, #F0E8E0, #D4C4B5)' }}>
             {aboutImage && (
-              <img
+              <Image
                 src={aboutImage}
                 alt="The woman behind Bloomingdew"
-                style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
+                fill
+                sizes="(max-width: 768px) 100vw, 550px"
+                style={{ objectFit: 'cover' }}
               />
             )}
           </div>

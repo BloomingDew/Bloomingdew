@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { getSession, supabaseAuth } from '../../../lib/supabase-admin';
 import { supabase } from '../../../lib/supabase';
 import { formatAdminPrice } from '../../../lib/adminCurrency';
+import { compressImage } from '../../../lib/compressImage';
 
 type Product = { id: number; name: string; price: number; featured: boolean; product_images: { url: string }[] };
 
@@ -54,9 +55,10 @@ export default function MediaAdminPage() {
     if (!file) return;
     setUploadingAbout(true);
 
-    const ext = file.name.split('.').pop()?.toLowerCase();
+    const compressed = await compressImage(file);
+    const ext = compressed.name.split('.').pop()?.toLowerCase();
     const fileName = `about-image-${Date.now()}.${ext}`;
-    const { error: uploadError } = await supabaseAuth.storage.from('product-image').upload(fileName, file, { upsert: true });
+    const { error: uploadError } = await supabaseAuth.storage.from('product-image').upload(fileName, compressed, { upsert: true });
 
     if (uploadError) {
       alert(`Upload failed: ${uploadError.message}`);
@@ -88,13 +90,8 @@ export default function MediaAdminPage() {
   };
 
   const removeAboutImage = async () => {
-    if (aboutImage) {
-      const path = extractStoragePath(aboutImage);
-      if (path) {
-        const { error } = await supabaseAuth.storage.from('product-image').remove([path]);
-        if (error) console.error('Storage delete error:', error.message);
-      }
-    }
+    // Clear the DB reference first — if this fails, the file stays and the
+    // About page keeps working. Storage cleanup only happens after.
     const res = await fetch('/api/admin/site-settings', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -103,6 +100,13 @@ export default function MediaAdminPage() {
     if (!res.ok) {
       alert('Failed to remove the image. Please try again.');
       return;
+    }
+    if (aboutImage) {
+      const path = extractStoragePath(aboutImage);
+      if (path) {
+        const { error } = await supabaseAuth.storage.from('product-image').remove([path]);
+        if (error) console.error('Storage delete error:', error.message);
+      }
     }
     setAboutImage(null);
   };
@@ -114,7 +118,17 @@ export default function MediaAdminPage() {
       setTimeout(() => setFeaturedError(''), 3000);
       return;
     }
-    await supabaseAuth.from('products').update({ featured: !current }).eq('id', productId);
+    const res = await fetch('/api/admin/products', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ ids: [productId], featured: !current }),
+    });
+    if (!res.ok) {
+      const { error } = await res.json().catch(() => ({ error: 'Unknown error' }));
+      setFeaturedError(`Save failed: ${error}`);
+      setTimeout(() => setFeaturedError(''), 3000);
+      return;
+    }
     setProducts(prev => prev.map(p => p.id === productId ? { ...p, featured: !current } : p));
     setFeaturedOrder(prev =>
       !current ? [...prev, productId] : prev.filter(id => id !== productId)

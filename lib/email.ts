@@ -16,6 +16,17 @@ function getSupabase() {
   );
 }
 
+// Escape customer-controlled values so typed names/items can't inject HTML
+// into the branded email body.
+function escapeHtml(value: string): string {
+  return value
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
 // Fetch template from DB and replace variables
 export async function buildEmail(templateId: string, variables: Record<string, string>): Promise<{ subject: string; html: string } | null> {
   const supabase = getSupabase();
@@ -25,11 +36,11 @@ export async function buildEmail(templateId: string, variables: Record<string, s
   let subject = data.subject;
   let body = data.body;
 
-  // Replace all variables
+  // Replace all variables (values HTML-escaped; the template itself is trusted)
   for (const [key, value] of Object.entries(variables)) {
     const regex = new RegExp(key.replace(/[{}]/g, '\\$&'), 'g');
     subject = subject.replace(regex, value);
-    body = body.replace(regex, value);
+    body = body.replace(regex, escapeHtml(value));
   }
 
   // Wrap body in branded HTML template
@@ -100,7 +111,7 @@ export async function sendOrderConfirmationEmail(payload: OrderConfirmationPaylo
   const email = await buildEmail('order-confirmation', {
     '{{customerName}}': payload.customerName,
     '{{items}}': itemsList,
-    '{{orderTotal}}': `₦${Number(payload.orderTotal).toLocaleString()}`,
+    '{{orderTotal}}': `$${Number(payload.orderTotal).toFixed(2)}`,
     '{{shippingAddress}}': shippingAddress,
   });
   if (!email) return false;

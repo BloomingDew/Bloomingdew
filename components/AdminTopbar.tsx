@@ -4,7 +4,6 @@ import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import { signOut } from '../lib/supabase-admin';
-import { supabase } from '../lib/supabase';
 
 const navLinks = [
   { label: 'Products', href: '/admin' },
@@ -22,18 +21,15 @@ export default function AdminTopbar() {
 
   useEffect(() => {
     async function fetchCounts() {
-      const [{ count: eCount }, { count: oCount }] = await Promise.all([
-        supabase
-          .from('enquiries')
-          .select('*', { count: 'exact', head: true })
-          .eq('read', false),
-        supabase
-          .from('orders')
-          .select('*', { count: 'exact', head: true })
-          .eq('status', 'pending'),
-      ]);
-      setEnquiryCount(eCount ?? 0);
-      setOrderCount(oCount ?? 0);
+      try {
+        const res = await fetch('/api/admin/counts');
+        if (!res.ok) return;
+        const { unreadEnquiries, pendingOrders } = await res.json();
+        setEnquiryCount(unreadEnquiries ?? 0);
+        setOrderCount(pendingOrders ?? 0);
+      } catch {
+        // Badges stay at 0 if counts are unavailable.
+      }
     }
     fetchCounts();
   }, []);

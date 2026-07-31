@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
+import Image from 'next/image';
 import { useWishlist } from '../context/WishlistContext';
 import { useCurrency } from '../context/CurrencyContext';
 import { supabase } from '../lib/supabase';
@@ -12,7 +13,28 @@ export default function Home() {
   const [featuredProducts, setFeaturedProducts] = useState<FeaturedProduct[]>([]);
   const [newCollectionTitle, setNewCollectionTitle] = useState('New Collection');
   const [newCollectionProducts, setNewCollectionProducts] = useState<FeaturedProduct[]>([]);
-  const [marqueeOffset, setMarqueeOffset] = useState(0);
+  const [newsletterEmail, setNewsletterEmail] = useState('');
+  const [newsletterStatus, setNewsletterStatus] = useState<'idle' | 'sending' | 'sent' | 'error'>('idle');
+
+  const handleNewsletterSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setNewsletterStatus('sending');
+    try {
+      const res = await fetch('/api/enquiry', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          type: 'newsletter',
+          first_name: 'Newsletter',
+          email: newsletterEmail,
+          message: 'Newsletter signup from the homepage.',
+        }),
+      });
+      setNewsletterStatus(res.ok ? 'sent' : 'error');
+    } catch {
+      setNewsletterStatus('error');
+    }
+  };
 
   useEffect(() => {
     supabase.from('products').select('id, name, price, discount, product_images(url)')
@@ -26,19 +48,6 @@ export default function Home() {
         if (products?.length) setNewCollectionProducts(products);
       })
       .catch(() => {});
-  }, []);
-
-  // Marquee animation
-  useEffect(() => {
-    let frame: number;
-    let pos = 0;
-    const animate = () => {
-      pos -= 0.4;
-      setMarqueeOffset(pos);
-      frame = requestAnimationFrame(animate);
-    };
-    frame = requestAnimationFrame(animate);
-    return () => cancelAnimationFrame(frame);
   }, []);
 
   const marqueeText = 'New Collection · Handmade in Nigeria · Made to Order · Free Shipping on Orders Over $250 · ';
@@ -135,19 +144,31 @@ export default function Home() {
       </section>
 
       {/* ── Marquee Strip ── */}
+      {/* Pure CSS animation — the old rAF/setState version re-rendered the
+          entire page 60x/sec. Two copies scroll -50% for a seamless loop. */}
       <div style={{
         backgroundColor: '#C9A882', overflow: 'hidden',
         padding: '0.85rem 0', whiteSpace: 'nowrap',
       }}>
-        <span style={{
-          display: 'inline-block',
-          transform: `translateX(${marqueeOffset % (marqueeText.length * 8.5)}px)`,
-          fontFamily: "'Jost', sans-serif", fontSize: '0.72rem',
-          letterSpacing: '0.2em', textTransform: 'uppercase',
-          color: '#1A1208', fontWeight: 500,
-        }}>
-          {repeated}
-        </span>
+        <div className="marquee-track" style={{ display: 'inline-block' }}>
+          {[0, 1].map(i => (
+            <span key={i} style={{
+              display: 'inline-block',
+              fontFamily: "'Jost', sans-serif", fontSize: '0.72rem',
+              letterSpacing: '0.2em', textTransform: 'uppercase',
+              color: '#1A1208', fontWeight: 500,
+            }}>
+              {repeated}
+            </span>
+          ))}
+        </div>
+        <style>{`
+          .marquee-track { animation: marquee-scroll 90s linear infinite; }
+          @keyframes marquee-scroll {
+            from { transform: translateX(0); }
+            to { transform: translateX(-50%); }
+          }
+        `}</style>
       </div>
 
       {/* ── New Collection ── */}
@@ -440,27 +461,46 @@ export default function Home() {
           }}>
             Sign up to hear about new collections, behind-the-scenes, and exclusive early access.
           </p>
-          <form style={{ display: 'flex', gap: '0', maxWidth: '440px', margin: '0 auto' }} className="newsletter-form">
-            <input
-              type="email"
-              placeholder="Your email address"
-              style={{
-                flex: 1, padding: '1rem 1.2rem',
-                border: '1px solid #9A8F8750', borderRight: 'none',
-                backgroundColor: '#ffffff08', color: '#FAF7F4',
-                fontFamily: "'Jost', sans-serif", fontSize: '0.85rem',
-                fontWeight: 300, outline: 'none',
-              }}
-            />
-            <button type="submit" style={{
-              padding: '1rem 1.5rem', backgroundColor: '#C9A882', color: '#1A1208',
-              border: 'none', fontFamily: "'Jost', sans-serif",
-              fontSize: '0.72rem', letterSpacing: '0.15em', textTransform: 'uppercase',
-              cursor: 'pointer', whiteSpace: 'nowrap', fontWeight: 500,
+          {newsletterStatus === 'sent' ? (
+            <p style={{
+              fontFamily: "'Jost', sans-serif", fontSize: '0.9rem',
+              fontWeight: 300, color: '#C9A882', letterSpacing: '0.05em',
             }}>
-              Sign Up
-            </button>
-          </form>
+              Thank you — you&apos;re on the list.
+            </p>
+          ) : (
+            <form onSubmit={handleNewsletterSubmit} style={{ display: 'flex', gap: '0', maxWidth: '440px', margin: '0 auto' }} className="newsletter-form">
+              <input
+                type="email"
+                required
+                value={newsletterEmail}
+                onChange={e => setNewsletterEmail(e.target.value)}
+                placeholder="Your email address"
+                style={{
+                  flex: 1, padding: '1rem 1.2rem',
+                  border: '1px solid #9A8F8750', borderRight: 'none',
+                  backgroundColor: '#ffffff08', color: '#FAF7F4',
+                  fontFamily: "'Jost', sans-serif", fontSize: '0.85rem',
+                  fontWeight: 300, outline: 'none',
+                }}
+              />
+              <button type="submit" disabled={newsletterStatus === 'sending'} style={{
+                padding: '1rem 1.5rem', backgroundColor: '#C9A882', color: '#1A1208',
+                border: 'none', fontFamily: "'Jost', sans-serif",
+                fontSize: '0.72rem', letterSpacing: '0.15em', textTransform: 'uppercase',
+                cursor: newsletterStatus === 'sending' ? 'default' : 'pointer',
+                whiteSpace: 'nowrap', fontWeight: 500,
+                opacity: newsletterStatus === 'sending' ? 0.7 : 1,
+              }}>
+                {newsletterStatus === 'sending' ? 'Signing up…' : 'Sign Up'}
+              </button>
+            </form>
+          )}
+          {newsletterStatus === 'error' && (
+            <p style={{ fontFamily: "'Jost', sans-serif", fontSize: '0.8rem', color: '#C0392B', marginTop: '0.8rem' }}>
+              Something went wrong. Please try again.
+            </p>
+          )}
         </div>
         <style>{`
           @media (max-width: 480px) {
@@ -498,10 +538,12 @@ function NewCollectionCard({ product }: { product: FeaturedProduct }) {
           display: 'flex', alignItems: 'center', justifyContent: 'center',
         }}>
           {mainImage ? (
-            <img src={mainImage} alt={product.name} style={{
-              position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'contain',
-              transform: hovered ? 'scale(1.04)' : 'scale(1)', transition: 'transform 0.5s ease',
-            }} />
+            <Image src={mainImage} alt={product.name} fill
+              sizes="(max-width: 768px) 50vw, 25vw"
+              style={{
+                objectFit: 'contain',
+                transform: hovered ? 'scale(1.04)' : 'scale(1)', transition: 'transform 0.5s ease',
+              }} />
           ) : (
             <span style={{ fontFamily: "'Jost', sans-serif", fontSize: '0.7rem', letterSpacing: '0.15em', textTransform: 'uppercase', color: '#9A8F87' }}>
               Photo coming soon
@@ -531,71 +573,6 @@ function NewCollectionCard({ product }: { product: FeaturedProduct }) {
             <p style={{ fontFamily: "'Jost', sans-serif", fontSize: '0.85rem', fontWeight: 300, color: '#9A8F87' }}>{format(product.price)}</p>
           )}
         </div>
-      </div>
-    </Link>
-  );
-}
-
-function FeaturedCard({ product }: { product: FeaturedProduct }) {
-  const [hovered, setHovered] = useState(false);
-  const { addItem, removeItem, isWishlisted } = useWishlist();
-  const { format } = useCurrency();
-  const wishlisted = isWishlisted(product.id);
-  const mainImage = product.product_images?.[0]?.url;
-
-  const salePriceUsd = product.discount > 0
-    ? product.price * (1 - product.discount / 100)
-    : product.price;
-
-  const toggleWishlist = (e: React.MouseEvent) => {
-    e.preventDefault();
-    wishlisted
-      ? removeItem(product.id)
-      : addItem({ id: product.id, name: product.name, priceUsd: salePriceUsd, originalPriceUsd: product.discount > 0 ? product.price : undefined, category: '' });
-  };
-
-  return (
-    <Link href={`/products/${product.id}`} style={{ textDecoration: 'none' }}>
-      <div onMouseEnter={() => setHovered(true)} onMouseLeave={() => setHovered(false)}>
-        <div style={{
-          aspectRatio: '3/4', marginBottom: '1rem',
-          background: 'linear-gradient(150deg, #F0E8E0, #D4C4B5)',
-          display: 'flex', alignItems: 'center', justifyContent: 'center',
-          position: 'relative', overflow: 'hidden',
-        }}>
-          {mainImage ? (
-            <img src={mainImage} alt={product.name} style={{
-              position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'contain',
-              transform: hovered ? 'scale(1.04)' : 'scale(1)', transition: 'transform 0.5s ease',
-            }} onError={e => { (e.target as HTMLImageElement).style.display = 'none'; }} />
-          ) : (
-            <span style={{ fontFamily: "'Jost', sans-serif", fontSize: '0.7rem', letterSpacing: '0.15em', textTransform: 'uppercase', color: '#9A8F87' }}>
-              Photo coming soon
-            </span>
-          )}
-          <button onClick={toggleWishlist} style={{
-            position: 'absolute', top: '0.75rem', right: '0.75rem',
-            backgroundColor: '#FAF7F4', border: 'none', cursor: 'pointer',
-            width: '34px', height: '34px', display: 'flex', alignItems: 'center', justifyContent: 'center',
-            opacity: hovered || wishlisted ? 1 : 0, transition: 'opacity 0.2s', zIndex: 2,
-          }}>
-            <svg width="16" height="16" viewBox="0 0 24 24" fill={wishlisted ? '#C9A882' : 'none'} stroke={wishlisted ? '#C9A882' : '#2C2C2C'} strokeWidth="1.5">
-              <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/>
-            </svg>
-          </button>
-        </div>
-        <p style={{ fontFamily: "'Jost', sans-serif", fontSize: '0.85rem', fontWeight: 400, color: '#2C2C2C', marginBottom: '0.3rem' }}>
-          {product.name}
-        </p>
-        {product.discount > 0 ? (
-          <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'baseline' }}>
-            <p style={{ fontFamily: "'Jost', sans-serif", fontSize: '0.85rem', fontWeight: 400, color: '#C0392B' }}>{format(salePriceUsd)}</p>
-            <p style={{ fontFamily: "'Jost', sans-serif", fontSize: '0.78rem', fontWeight: 300, color: '#9A8F87', textDecoration: 'line-through' }}>{format(product.price)}</p>
-            <p style={{ fontFamily: "'Jost', sans-serif", fontSize: '0.72rem', color: '#C0392B' }}>-{product.discount}%</p>
-          </div>
-        ) : (
-          <p style={{ fontFamily: "'Jost', sans-serif", fontSize: '0.85rem', fontWeight: 300, color: '#9A8F87' }}>{format(product.price)}</p>
-        )}
       </div>
     </Link>
   );

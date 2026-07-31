@@ -1,7 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { SquareClient, SquareEnvironment } from 'square';
-import { createClient } from '@supabase/supabase-js';
-import { randomUUID } from 'crypto';
+import { createHash } from 'crypto';
+import { priceOrder } from '../../../../lib/orders-server';
+import { supabaseService } from '../../../../lib/admin-server';
+import { rateLimit } from '../../../../lib/rate-limit';
 
 const square = new SquareClient({
   token: process.env.SQUARE_ACCESS_TOKEN!,
@@ -10,16 +12,20 @@ const square = new SquareClient({
     : SquareEnvironment.Sandbox,
 });
 
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-);
+// The Square location's settlement currency. The order totals are USD-based;
+// if the Square account settles in another currency this charges that many
+// units of it (pre-existing behavior kept for GBP accounts).
+const SQUARE_CURRENCY = process.env.SQUARE_CURRENCY || 'GBP';
 
 export async function POST(req: NextRequest) {
+  const ip = req.headers.get('x-forwarded-for')?.split(',')[0]?.trim() || 'unknown';
+  if (!rateLimit(`square:${ip}`, 5, 60_000).allowed) {
+    return NextResponse.json({ error: 'Too many attempts. Please wait a moment.' }, { status: 429 });
+  }
+
   let body: {
     sourceId: string;
-    amountUsd: number;
-    items: { id: number; name: string; size: string; quantity: number; price: number }[];
+    items: { id: number; size: string; quantity: number }[];
     shipping: {
       firstName: string; lastName: string; email: string; phone: string;
       address: string; apartment: string; city: string; postcode: string; country: string;
@@ -33,26 +39,42 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Invalid request.' }, { status: 400 });
   }
 
-  const { sourceId, amountUsd, items, shipping, userId } = body;
+  const { sourceId, items, shipping, userId } = body;
 
-  if (!sourceId || !amountUsd || !items?.length || !shipping?.email) {
+  if (!sourceId || !items?.length || !shipping?.email) {
     return NextResponse.json({ error: 'Missing required fields.' }, { status: 400 });
   }
 
-  // Square charges in the smallest currency unit (cents for USD/GBP)
-  const amountCents = BigInt(Math.round(amountUsd * 100));
+  // Never trust client prices — re-price every line from the database.
+  let pricing;
+  try {
+    pricing = await priceOrder(items);
+  } catch {
+    return NextResponse.json({ error: 'One or more items are unavailable.' }, { status: 400 });
+  }
+
+  // Charge exactly what checkout displays: the cart subtotal. Shipping is not
+  // charged anywhere today (the Stripe flow also charges subtotal only).
+  const subtotal = pricing.subtotal;
+  const shippingCost = 0;
+  const total = subtotal;
+  const amountCents = BigInt(Math.round(total * 100));
+
+  // Derive the idempotency key from the single-use card token so a retried
+  // request cannot charge twice.
+  const idempotencyKey = createHash('sha256').update(sourceId).digest('hex').slice(0, 45);
 
   try {
     const result = await square.payments.create({
       sourceId,
-      idempotencyKey: randomUUID(),
+      idempotencyKey,
       amountMoney: {
         amount: amountCents,
-        currency: 'GBP',
+        currency: SQUARE_CURRENCY as 'GBP',
       },
       locationId: process.env.NEXT_PUBLIC_SQUARE_LOCATION_ID!,
       buyerEmailAddress: shipping.email,
-      note: `Bloomingdew order — ${items.map(i => `${i.name} (${i.size})`).join(', ')}`,
+      note: `Bloomingdew order — ${pricing.lines.map(l => `${l.name} (${l.size})`).join(', ')}`.slice(0, 500),
     });
 
     const payment = result.payment;
@@ -65,11 +87,14 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: `Payment status: ${payment.status}` }, { status: 400 });
     }
 
-    // Save order to Supabase
-    const subtotal = items.reduce((sum, i) => sum + i.price * i.quantity, 0);
-    const shippingCost = subtotal > 100 ? 0 : 10;
+    // Idempotent order recording — a retried request reuses the same payment.
+    const { data: existing } = await supabaseService
+      .from('orders').select('id').eq('payment_id', payment.id).maybeSingle();
+    if (existing) {
+      return NextResponse.json({ orderId: existing.id, paymentId: payment.id });
+    }
 
-    const { data: order, error: dbError } = await supabase
+    const { data: order, error: dbError } = await supabaseService
       .from('orders')
       .insert({
         customer_name: `${shipping.firstName} ${shipping.lastName}`,
@@ -82,13 +107,13 @@ export async function POST(req: NextRequest) {
           postcode: shipping.postcode,
           country: shipping.country,
         },
-        items: items.map(i => ({
-          id: i.id, name: i.name, size: i.size,
-          quantity: i.quantity, price: `£${i.price.toFixed(2)}`,
+        items: pricing.lines.map(l => ({
+          id: l.id, name: l.name, size: l.size,
+          quantity: l.quantity, price: l.unitPrice,
         })),
         subtotal,
         shipping_cost: shippingCost,
-        total: amountUsd,
+        total,
         status: 'paid',
         payment_provider: 'square',
         payment_id: payment.id,
@@ -107,9 +132,9 @@ export async function POST(req: NextRequest) {
     }
 
     return NextResponse.json({ orderId: order.id, paymentId: payment.id });
-  } catch (err: any) {
-    console.error('[square/payment] error:', err?.message || err);
-    const msg = err?.errors?.[0]?.detail || 'Payment could not be processed.';
-    return NextResponse.json({ error: msg }, { status: 500 });
+  } catch (err) {
+    const detail = (err as { errors?: { detail?: string }[] })?.errors?.[0]?.detail;
+    console.error('[square/payment] error:', detail || (err as Error)?.message || err);
+    return NextResponse.json({ error: detail || 'Payment could not be processed.' }, { status: 500 });
   }
 }

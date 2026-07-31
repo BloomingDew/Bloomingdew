@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
+import Image from 'next/image';
 import { supabase } from '../lib/supabase';
 import { useCurrency } from '../context/CurrencyContext';
 
@@ -121,7 +122,7 @@ export default function SearchOverlay({ isOpen, onClose }: Props) {
                     background: 'linear-gradient(150deg, #F0E8E0, #D4C4B5)',
                     overflow: 'hidden', position: 'relative',
                   }}>
-                    {image && <img src={image} alt={product.name} style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} onError={e => { (e.target as HTMLImageElement).style.display = 'none'; }} />}
+                    {image && <Image src={image} alt={product.name} fill sizes="44px" style={{ objectFit: 'cover' }} />}
                   </div>
                   <div>
                     <p style={{ fontFamily: "'Jost', sans-serif", fontSize: '0.9rem', fontWeight: 400, color: '#2C2C2C', marginBottom: '0.2rem' }}>
