@@ -11,7 +11,13 @@ export async function POST(req: NextRequest) {
 
   // Whitelist keys so a compromised session can't plant arbitrary settings,
   // and validate per-key shape so bad values can't break the storefront.
-  const ALLOWED_KEYS = ['about_image_url', 'new_collection_title', 'new_collection_product_ids'];
+  const ALLOWED_KEYS = [
+    'about_image_url',
+    'new_collection_title',
+    'new_collection_product_ids',
+    'marquee_text',
+    'hero_image_url',
+  ];
   if (!ALLOWED_KEYS.includes(key)) {
     return NextResponse.json({ error: `Unknown setting: ${key}` }, { status: 400 });
   }

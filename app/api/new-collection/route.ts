@@ -1,13 +1,20 @@
 import { NextResponse } from 'next/server';
 import { supabaseService } from '../../../lib/admin-server';
 
+// Homepage content: New Collection products plus the marquee text and hero
+// image. One endpoint so the homepage makes a single fetch.
 export async function GET() {
-  const [{ data: titleRow }, { data: idsRow }] = await Promise.all([
+  const [{ data: titleRow }, { data: idsRow }, { data: marqueeRow }, { data: heroRow }] = await Promise.all([
     supabaseService.from('site_settings').select('value').eq('key', 'new_collection_title').single(),
     supabaseService.from('site_settings').select('value').eq('key', 'new_collection_product_ids').single(),
+    supabaseService.from('site_settings').select('value').eq('key', 'marquee_text').single(),
+    supabaseService.from('site_settings').select('value').eq('key', 'hero_image_url').single(),
   ]);
 
   const title: string = titleRow?.value ?? 'New Collection';
+  const marqueeText: string | null = marqueeRow?.value ?? null;
+  const heroImageUrl: string | null = heroRow?.value ?? null;
+
   let ids: number[] = [];
   try {
     const parsed = idsRow?.value ? JSON.parse(idsRow.value) : [];
@@ -17,7 +24,7 @@ export async function GET() {
   }
 
   if (ids.length === 0) {
-    return NextResponse.json({ title, products: [] });
+    return NextResponse.json({ title, products: [], marqueeText, heroImageUrl });
   }
 
   const { data: products } = await supabaseService
@@ -31,5 +38,5 @@ export async function GET() {
     .map(id => (products || []).find((p: { id: number }) => p.id === id))
     .filter(Boolean);
 
-  return NextResponse.json({ title, products: ordered });
+  return NextResponse.json({ title, products: ordered, marqueeText, heroImageUrl });
 }

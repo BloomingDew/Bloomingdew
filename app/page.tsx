@@ -15,6 +15,8 @@ export default function Home() {
   const [newCollectionProducts, setNewCollectionProducts] = useState<FeaturedProduct[]>([]);
   const [newsletterEmail, setNewsletterEmail] = useState('');
   const [newsletterStatus, setNewsletterStatus] = useState<'idle' | 'sending' | 'sent' | 'error'>('idle');
+  const [marqueeText, setMarqueeText] = useState('New Collection · Handmade in Nigeria · Made to Order');
+  const [heroImage, setHeroImage] = useState<string | null>(null);
 
   const handleNewsletterSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -43,15 +45,17 @@ export default function Home() {
 
     fetch('/api/new-collection')
       .then(r => r.json())
-      .then(({ title, products }) => {
+      .then(({ title, products, marqueeText: marquee, heroImageUrl }) => {
         if (title) setNewCollectionTitle(title);
         if (products?.length) setNewCollectionProducts(products);
+        if (marquee) setMarqueeText(marquee);
+        if (heroImageUrl) setHeroImage(heroImageUrl);
       })
       .catch(() => {});
   }, []);
 
-  const marqueeText = 'New Collection · Handmade in Nigeria · Made to Order · Free Shipping on Orders Over $250 · ';
-  const repeated = marqueeText.repeat(6);
+  // Normalise the admin-entered text into a " · "-separated loop segment.
+  const repeated = (marqueeText.replace(/[\s·]+$/, '') + ' · ').repeat(6);
 
   return (
     <div style={{ overflowX: 'hidden' }}>
@@ -106,22 +110,35 @@ export default function Home() {
           background: 'linear-gradient(160deg, #3D2B1F 0%, #1A1208 60%, #2C1A0E 100%)',
           minHeight: '100vh',
         }}>
+          {/* Admin-managed hero image (Media → Homepage Hero) */}
+          {heroImage && (
+            <Image
+              src={heroImage}
+              alt="Bloomingdew editorial"
+              fill
+              priority
+              sizes="(max-width: 768px) 100vw, 50vw"
+              style={{ objectFit: 'cover' }}
+            />
+          )}
           {/* Decorative gold frame accent */}
           <div style={{
             position: 'absolute', top: '8%', left: '8%', right: '8%', bottom: '8%',
             border: '1px solid #C9A88240', zIndex: 1, pointerEvents: 'none',
           }} />
-          <div style={{
-            position: 'absolute', inset: 0, display: 'flex', alignItems: 'center',
-            justifyContent: 'center', zIndex: 2,
-          }}>
-            <p style={{
-              fontFamily: "'Playfair Display', serif", fontSize: '0.9rem',
-              color: '#C9A88260', letterSpacing: '0.2em', textTransform: 'uppercase',
+          {!heroImage && (
+            <div style={{
+              position: 'absolute', inset: 0, display: 'flex', alignItems: 'center',
+              justifyContent: 'center', zIndex: 2,
             }}>
-              Editorial image
-            </p>
-          </div>
+              <p style={{
+                fontFamily: "'Playfair Display', serif", fontSize: '0.9rem',
+                color: '#C9A88260', letterSpacing: '0.2em', textTransform: 'uppercase',
+              }}>
+                Editorial image
+              </p>
+            </div>
+          )}
           {/* Gradient overlay linking to left panel */}
           <div style={{
             position: 'absolute', inset: 0,
