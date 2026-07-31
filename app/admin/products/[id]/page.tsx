@@ -104,24 +104,52 @@ export default function EditProductPage({ params }: { params: Promise<{ id: stri
       const { error } = await supabaseAuth.storage.from('product-image').upload(fileName, file);
       if (!error) {
         const { data } = supabaseAuth.storage.from('product-image').getPublicUrl(fileName);
-        const { data: imgData } = await supabaseAuth.from('product_images').insert({
-          product_id: parseInt(id), url: data.publicUrl,
-          alt_text: form.name, position: images.length,
-        }).select().single();
-        if (imgData) setImages(prev => [...prev, imgData]);
+        const res = await fetch('/api/admin/product-images', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            productId: parseInt(id), url: data.publicUrl,
+            altText: form.name, position: images.length,
+          }),
+        });
+        if (res.ok) {
+          const { image } = await res.json();
+          setImages(prev => [...prev, image]);
+        } else {
+          // DB row failed — remove the orphaned storage file and surface it.
+          await supabaseAuth.storage.from('product-image').remove([fileName]);
+          const { error: msg } = await res.json().catch(() => ({ error: 'Unknown error' }));
+          alert(`Image upload failed: ${msg}`);
+        }
       }
     }
     setUploadingImage(false);
   };
 
+  const savePositions = async (updated: ProductImage[]) => {
+    const res = await fetch('/api/admin/product-images', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ positions: updated.map(img => ({ id: img.id, position: img.position })) }),
+    });
+    return res.ok;
+  };
+
   const deleteImage = async (imageId: number) => {
-    await supabase.from('product_images').delete().eq('id', imageId);
-    const updated = images.filter(img => img.id !== imageId)
-      .map((img, i) => ({ ...img, position: i }));
-    // Update positions in parallel
-    await Promise.all(
-      updated.map(img => supabase.from('product_images').update({ position: img.position }).eq('id', img.id))
-    );
+    const img = images.find(i => i.id === imageId);
+    const res = await fetch('/api/admin/product-images', {
+      method: 'DELETE',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ id: imageId, url: img?.url }),
+    });
+    if (!res.ok) {
+      const { error: msg } = await res.json().catch(() => ({ error: 'Unknown error' }));
+      alert(`Failed to delete image: ${msg}`);
+      return;
+    }
+    const updated = images.filter(i => i.id !== imageId)
+      .map((i, idx) => ({ ...i, position: idx }));
+    await savePositions(updated);
     setImages(updated);
   };
 
@@ -131,29 +159,43 @@ export default function EditProductPage({ params }: { params: Promise<{ id: stri
     if (targetIndex < 0 || targetIndex >= newImages.length) return;
     [newImages[index], newImages[targetIndex]] = [newImages[targetIndex], newImages[index]];
     const updated = newImages.map((img, i) => ({ ...img, position: i }));
-    setImages(updated);
-    for (const img of updated) {
-      await supabase.from('product_images').update({ position: img.position }).eq('id', img.id);
-    }
+    const ok = await savePositions(updated);
+    if (ok) setImages(updated);
   };
 
   const addColour = async () => {
     if (!newColourName.trim()) return;
-    const newOrder = colours.length;
-    const { data } = await supabaseAuth.from('product_colours').insert({
-      product_id: parseInt(id), name: newColourName.trim(),
-      hex_code: newColourHex, display_order: newOrder, is_available: true,
-    }).select().single();
-    if (data) {
-      setColours(prev => [...prev, data]);
-      setColourImages(prev => ({ ...prev, [data.id]: [] }));
-      setNewColourName(''); setNewColourHex('#000000');
+    const res = await fetch('/api/admin/product-colours', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        productId: parseInt(id), name: newColourName.trim(),
+        hexCode: newColourHex, displayOrder: colours.length,
+      }),
+    });
+    if (!res.ok) {
+      const { error: msg } = await res.json().catch(() => ({ error: 'Unknown error' }));
+      alert(`Failed to add colour: ${msg}`);
+      return;
     }
+    const { colour } = await res.json();
+    setColours(prev => [...prev, colour]);
+    setColourImages(prev => ({ ...prev, [colour.id]: [] }));
+    setNewColourName(''); setNewColourHex('#000000');
   };
 
   const deleteColour = async (colourId: string) => {
     if (!confirm('Delete this colour and its images?')) return;
-    await supabaseAuth.from('product_colours').delete().eq('id', colourId);
+    const res = await fetch('/api/admin/product-colours', {
+      method: 'DELETE',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ id: colourId }),
+    });
+    if (!res.ok) {
+      const { error: msg } = await res.json().catch(() => ({ error: 'Unknown error' }));
+      alert(`Failed to delete colour: ${msg}`);
+      return;
+    }
     setColours(prev => prev.filter(c => c.id !== colourId));
     setColourImages(prev => { const n = {...prev}; delete n[colourId]; return n; });
   };
@@ -172,30 +214,41 @@ export default function EditProductPage({ params }: { params: Promise<{ id: stri
       if (!error) {
         const { data: urlData } = supabaseAuth.storage.from('product-image').getPublicUrl(fileName);
         const pos = (colourImages[colourId]?.length || 0);
-        const { data: imgData } = await supabaseAuth.from('product_images').insert({
-          product_id: parseInt(id), url: urlData.publicUrl,
-          alt_text: `${form.name} - ${colours.find(c=>c.id===colourId)?.name}`,
-          position: pos, colour_id: colourId,
-        }).select().single();
-        if (imgData) setColourImages(prev => ({ ...prev, [colourId]: [...(prev[colourId]||[]), imgData] }));
+        const res = await fetch('/api/admin/product-images', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            productId: parseInt(id), url: urlData.publicUrl,
+            altText: `${form.name} - ${colours.find(c=>c.id===colourId)?.name}`,
+            position: pos, colourId,
+          }),
+        });
+        if (res.ok) {
+          const { image } = await res.json();
+          setColourImages(prev => ({ ...prev, [colourId]: [...(prev[colourId]||[]), image] }));
+        } else {
+          await supabaseAuth.storage.from('product-image').remove([fileName]);
+          const { error: msg } = await res.json().catch(() => ({ error: 'Unknown error' }));
+          alert(`Image upload failed: ${msg}`);
+        }
       }
     }
     setUploadingColourId(null);
   };
 
   const deleteColourImage = async (colourId: string, imageId: number) => {
-    await supabaseAuth.from('product_images').delete().eq('id', imageId);
-    setColourImages(prev => ({ ...prev, [colourId]: (prev[colourId]||[]).filter(i=>i.id!==imageId) }));
-  };
-
-  const saveSizeInventory = async () => {
-    for (const item of sizeInventory) {
-      await supabase.from('product_size_inventory').upsert({
-        product_id: parseInt(id),
-        size: item.size,
-        quantity: item.quantity,
-      }, { onConflict: 'product_id,size' });
+    const img = (colourImages[colourId] || []).find(i => i.id === imageId);
+    const res = await fetch('/api/admin/product-images', {
+      method: 'DELETE',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ id: imageId, url: img?.url }),
+    });
+    if (!res.ok) {
+      const { error: msg } = await res.json().catch(() => ({ error: 'Unknown error' }));
+      alert(`Failed to delete image: ${msg}`);
+      return;
     }
+    setColourImages(prev => ({ ...prev, [colourId]: (prev[colourId]||[]).filter(i=>i.id!==imageId) }));
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -207,24 +260,35 @@ export default function EditProductPage({ params }: { params: Promise<{ id: stri
     setLoading(true);
     setError('');
 
-    const { error } = await supabase.from('products').update({
-      name: form.name,
-      price: parseFloat(form.price),
-      discount: parseInt(form.discount) || 0,
-      sizes: DEFAULT_SIZES,
-      category_id: form.category_id ? parseInt(form.category_id) : null,
-      description: form.description,
-      fabric: form.fabric,
-      care_instructions: form.care_instructions,
-      available: form.available,
-      made_to_order: form.made_to_order,
-      lead_time: form.lead_time,
-      has_colours: hasColours,
-    }).eq('id', id);
+    const res = await fetch('/api/admin/products', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        id: parseInt(id),
+        fields: {
+          name: form.name,
+          price: parseFloat(form.price),
+          discount: parseInt(form.discount) || 0,
+          sizes: DEFAULT_SIZES,
+          category_id: form.category_id ? parseInt(form.category_id) : null,
+          description: form.description,
+          fabric: form.fabric,
+          care_instructions: form.care_instructions,
+          available: form.available,
+          made_to_order: form.made_to_order,
+          lead_time: form.lead_time,
+          has_colours: hasColours,
+        },
+        sizeInventory,
+      }),
+    });
 
-    if (error) { setError(error.message); setLoading(false); return; }
-
-    await saveSizeInventory();
+    if (!res.ok) {
+      const { error: msg } = await res.json().catch(() => ({ error: 'Unknown error' }));
+      setError(msg || 'Failed to save.');
+      setLoading(false);
+      return;
+    }
 
     setSuccess('Product updated!');
     setLoading(false);
@@ -233,7 +297,16 @@ export default function EditProductPage({ params }: { params: Promise<{ id: stri
 
   const handleDelete = async () => {
     if (!confirm('Delete this product? This cannot be undone.')) return;
-    await supabase.from('products').delete().eq('id', id);
+    const res = await fetch('/api/admin/products', {
+      method: 'DELETE',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ ids: [parseInt(id)] }),
+    });
+    if (!res.ok) {
+      const { error: msg } = await res.json().catch(() => ({ error: 'Unknown error' }));
+      alert(`Failed to delete: ${msg}`);
+      return;
+    }
     router.push('/admin');
   };
 
