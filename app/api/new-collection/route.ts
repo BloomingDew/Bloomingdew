@@ -8,7 +8,13 @@ export async function GET() {
   ]);
 
   const title: string = titleRow?.value ?? 'New Collection';
-  const ids: number[] = idsRow?.value ? JSON.parse(idsRow.value) : [];
+  let ids: number[] = [];
+  try {
+    const parsed = idsRow?.value ? JSON.parse(idsRow.value) : [];
+    if (Array.isArray(parsed)) ids = parsed.filter((n): n is number => Number.isInteger(n));
+  } catch {
+    // Malformed setting — render the section empty rather than 500 the homepage.
+  }
 
   if (ids.length === 0) {
     return NextResponse.json({ title, products: [] });

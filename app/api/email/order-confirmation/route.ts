@@ -14,8 +14,8 @@ export async function POST(req: NextRequest) {
     const ok = await sendOrderConfirmationEmail({ customerName, customerEmail, items, orderTotal, shipping });
     if (!ok) return NextResponse.json({ error: 'Template not found' }, { status: 404 });
     return NextResponse.json({ success: true });
-  } catch (err: any) {
+  } catch (err) {
     console.error('Order confirmation email error:', err);
-    return NextResponse.json({ error: err.message }, { status: 500 });
+    return NextResponse.json({ error: 'Failed to send the confirmation email.' }, { status: 500 });
   }
 }
