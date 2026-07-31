@@ -117,7 +117,8 @@ export default function Home() {
               alt="Bloomingdew editorial"
               fill
               priority
-              sizes="(max-width: 768px) 100vw, 50vw"
+              quality={90}
+              sizes="(max-width: 768px) 100vw, 60vw"
               style={{ objectFit: 'cover' }}
             />
           )}

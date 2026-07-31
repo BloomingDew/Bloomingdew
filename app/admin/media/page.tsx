@@ -63,7 +63,9 @@ export default function MediaAdminPage() {
     if (!file) return;
     setUploadingHero(true);
 
-    const compressed = await compressImage(file);
+    // The hero is the largest image slot on the site (half the viewport at
+    // full height), so keep more resolution than regular product uploads.
+    const compressed = await compressImage(file, { maxDimension: 2400, quality: 0.9 });
     const ext = compressed.name.split('.').pop()?.toLowerCase();
     const fileName = `hero-image-${Date.now()}.${ext}`;
     const { error: uploadError } = await supabaseAuth.storage.from('product-image').upload(fileName, compressed, { upsert: true });
