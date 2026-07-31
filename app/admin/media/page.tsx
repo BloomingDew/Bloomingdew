@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { getSession, supabaseAuth } from '../../../lib/supabase-admin';
 import { supabase } from '../../../lib/supabase';
 import { formatAdminPrice } from '../../../lib/adminCurrency';
+import { compressImage } from '../../../lib/compressImage';
 
 type Product = { id: number; name: string; price: number; featured: boolean; product_images: { url: string }[] };
 
@@ -54,9 +55,10 @@ export default function MediaAdminPage() {
     if (!file) return;
     setUploadingAbout(true);
 
-    const ext = file.name.split('.').pop()?.toLowerCase();
+    const compressed = await compressImage(file);
+    const ext = compressed.name.split('.').pop()?.toLowerCase();
     const fileName = `about-image-${Date.now()}.${ext}`;
-    const { error: uploadError } = await supabaseAuth.storage.from('product-image').upload(fileName, file, { upsert: true });
+    const { error: uploadError } = await supabaseAuth.storage.from('product-image').upload(fileName, compressed, { upsert: true });
 
     if (uploadError) {
       alert(`Upload failed: ${uploadError.message}`);

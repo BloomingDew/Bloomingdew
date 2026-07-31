@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
+import Image from 'next/image';
 import { useWishlist } from '../context/WishlistContext';
 import { useCurrency } from '../context/CurrencyContext';
 import { supabase } from '../lib/supabase';
@@ -12,7 +13,6 @@ export default function Home() {
   const [featuredProducts, setFeaturedProducts] = useState<FeaturedProduct[]>([]);
   const [newCollectionTitle, setNewCollectionTitle] = useState('New Collection');
   const [newCollectionProducts, setNewCollectionProducts] = useState<FeaturedProduct[]>([]);
-  const [marqueeOffset, setMarqueeOffset] = useState(0);
   const [newsletterEmail, setNewsletterEmail] = useState('');
   const [newsletterStatus, setNewsletterStatus] = useState<'idle' | 'sending' | 'sent' | 'error'>('idle');
 
@@ -48,19 +48,6 @@ export default function Home() {
         if (products?.length) setNewCollectionProducts(products);
       })
       .catch(() => {});
-  }, []);
-
-  // Marquee animation
-  useEffect(() => {
-    let frame: number;
-    let pos = 0;
-    const animate = () => {
-      pos -= 0.4;
-      setMarqueeOffset(pos);
-      frame = requestAnimationFrame(animate);
-    };
-    frame = requestAnimationFrame(animate);
-    return () => cancelAnimationFrame(frame);
   }, []);
 
   const marqueeText = 'New Collection · Handmade in Nigeria · Made to Order · Free Shipping on Orders Over $250 · ';
@@ -157,19 +144,31 @@ export default function Home() {
       </section>
 
       {/* ── Marquee Strip ── */}
+      {/* Pure CSS animation — the old rAF/setState version re-rendered the
+          entire page 60x/sec. Two copies scroll -50% for a seamless loop. */}
       <div style={{
         backgroundColor: '#C9A882', overflow: 'hidden',
         padding: '0.85rem 0', whiteSpace: 'nowrap',
       }}>
-        <span style={{
-          display: 'inline-block',
-          transform: `translateX(${marqueeOffset % (marqueeText.length * 8.5)}px)`,
-          fontFamily: "'Jost', sans-serif", fontSize: '0.72rem',
-          letterSpacing: '0.2em', textTransform: 'uppercase',
-          color: '#1A1208', fontWeight: 500,
-        }}>
-          {repeated}
-        </span>
+        <div className="marquee-track" style={{ display: 'inline-block' }}>
+          {[0, 1].map(i => (
+            <span key={i} style={{
+              display: 'inline-block',
+              fontFamily: "'Jost', sans-serif", fontSize: '0.72rem',
+              letterSpacing: '0.2em', textTransform: 'uppercase',
+              color: '#1A1208', fontWeight: 500,
+            }}>
+              {repeated}
+            </span>
+          ))}
+        </div>
+        <style>{`
+          .marquee-track { animation: marquee-scroll 90s linear infinite; }
+          @keyframes marquee-scroll {
+            from { transform: translateX(0); }
+            to { transform: translateX(-50%); }
+          }
+        `}</style>
       </div>
 
       {/* ── New Collection ── */}
@@ -539,10 +538,12 @@ function NewCollectionCard({ product }: { product: FeaturedProduct }) {
           display: 'flex', alignItems: 'center', justifyContent: 'center',
         }}>
           {mainImage ? (
-            <img src={mainImage} alt={product.name} style={{
-              position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'contain',
-              transform: hovered ? 'scale(1.04)' : 'scale(1)', transition: 'transform 0.5s ease',
-            }} />
+            <Image src={mainImage} alt={product.name} fill
+              sizes="(max-width: 768px) 50vw, 25vw"
+              style={{
+                objectFit: 'contain',
+                transform: hovered ? 'scale(1.04)' : 'scale(1)', transition: 'transform 0.5s ease',
+              }} />
           ) : (
             <span style={{ fontFamily: "'Jost', sans-serif", fontSize: '0.7rem', letterSpacing: '0.15em', textTransform: 'uppercase', color: '#9A8F87' }}>
               Photo coming soon

@@ -3,6 +3,7 @@
 import { useWishlist } from '../../context/WishlistContext';
 import { useCurrency } from '../../context/CurrencyContext';
 import Link from 'next/link';
+import Image from 'next/image';
 import { useState, useEffect } from 'react';
 import { supabase } from '../../lib/supabase';
 
@@ -80,7 +81,7 @@ function WishlistCard({ item, imageUrl, format, onRemove }: {
             display: 'flex', alignItems: 'center', justifyContent: 'center',
           }}>
             {imageUrl ? (
-              <img src={imageUrl} alt={item.name} style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} onError={e => { (e.target as HTMLImageElement).style.display = 'none'; }} />
+              <Image src={imageUrl} alt={item.name} fill sizes="(max-width: 768px) 50vw, 300px" style={{ objectFit: 'cover' }} />
             ) : (
               <span style={{ fontFamily: "'Jost', sans-serif", fontSize: '0.65rem', letterSpacing: '0.15em', textTransform: 'uppercase', color: '#9A8F87' }}>
                 Photo coming soon

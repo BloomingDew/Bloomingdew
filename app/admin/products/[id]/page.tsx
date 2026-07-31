@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { getSession, supabaseAuth } from '../../../../lib/supabase-admin';
 import { supabase } from '../../../../lib/supabase';
+import { compressImage } from '../../../../lib/compressImage';
 
 type Category = { id: number; name: string };
 type ProductImage = { id: number; url: string; alt_text: string; position: number };
@@ -99,9 +100,10 @@ export default function EditProductPage({ params }: { params: Promise<{ id: stri
 
     for (const file of Array.from(files)) {
       if (images.length >= MAX_IMAGES) break;
-      const ext = file.name.split('.').pop()?.toLowerCase();
+      const compressed = await compressImage(file);
+      const ext = compressed.name.split('.').pop()?.toLowerCase();
       const fileName = `${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`;
-      const { error } = await supabaseAuth.storage.from('product-image').upload(fileName, file);
+      const { error } = await supabaseAuth.storage.from('product-image').upload(fileName, compressed);
       if (!error) {
         const { data } = supabaseAuth.storage.from('product-image').getPublicUrl(fileName);
         const res = await fetch('/api/admin/product-images', {
@@ -208,9 +210,10 @@ export default function EditProductPage({ params }: { params: Promise<{ id: stri
     setUploadingColourId(colourId);
     for (const file of Array.from(files)) {
       if ((colourImages[colourId]?.length || 0) >= 4) break;
-      const ext = file.name.split('.').pop()?.toLowerCase();
+      const compressed = await compressImage(file);
+      const ext = compressed.name.split('.').pop()?.toLowerCase();
       const fileName = `${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`;
-      const { error } = await supabaseAuth.storage.from('product-image').upload(fileName, file);
+      const { error } = await supabaseAuth.storage.from('product-image').upload(fileName, compressed);
       if (!error) {
         const { data: urlData } = supabaseAuth.storage.from('product-image').getPublicUrl(fileName);
         const pos = (colourImages[colourId]?.length || 0);

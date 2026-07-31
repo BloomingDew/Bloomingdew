@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
+import Image from 'next/image';
 import { useCart } from '../../context/CartContext';
 import { useUser } from '../../context/UserContext';
 import { useCurrency } from '../../context/CurrencyContext';
@@ -362,7 +363,7 @@ export default function CheckoutPage() {
                   position: 'relative', overflow: 'hidden',
                 }}>
                   {itemImages[item.id] && (
-                    <img src={itemImages[item.id]} alt={item.name} style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} onError={e => { (e.target as HTMLImageElement).style.display = 'none'; }} />
+                    <Image src={itemImages[item.id]} alt={item.name} fill sizes="64px" style={{ objectFit: 'cover' }} />
                   )}
                   <span style={{
                     position: 'absolute', top: '-8px', right: '-8px',

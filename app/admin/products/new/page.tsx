@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { getSession, supabaseAuth } from '../../../../lib/supabase-admin';
 import { supabase } from '../../../../lib/supabase';
+import { compressImage } from '../../../../lib/compressImage';
 
 type Category = { id: number; name: string };
 type PendingColour = { name: string; hex_code: string };
@@ -48,16 +49,21 @@ export default function NewProductPage() {
     }
     setUploadingImage(true);
 
-    for (const file of Array.from(files)) {
-      if (images.length >= MAX_IMAGES) break;
-      const ext = file.name.split('.').pop()?.toLowerCase();
+    // Compress client-side (phone photos are often 3-12 MB) and upload in
+    // parallel; results are appended in the original selection order.
+    const slots = Math.max(0, MAX_IMAGES - images.length);
+    const selected = Array.from(files).slice(0, slots);
+    const uploaded = await Promise.all(selected.map(async (file) => {
+      const compressed = await compressImage(file);
+      const ext = compressed.name.split('.').pop()?.toLowerCase();
       const fileName = `${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`;
-      const { error } = await supabaseAuth.storage.from('product-image').upload(fileName, file);
-      if (!error) {
-        const { data } = supabaseAuth.storage.from('product-image').getPublicUrl(fileName);
-        setImages(prev => [...prev, { url: data.publicUrl, alt_text: form.name || file.name, path: fileName }]);
-      }
-    }
+      const { error } = await supabaseAuth.storage.from('product-image').upload(fileName, compressed);
+      if (error) return null;
+      const { data } = supabaseAuth.storage.from('product-image').getPublicUrl(fileName);
+      return { url: data.publicUrl, alt_text: form.name || file.name, path: fileName };
+    }));
+    const successful = uploaded.filter((u): u is NonNullable<typeof u> => u !== null);
+    if (successful.length > 0) setImages(prev => [...prev, ...successful].slice(0, MAX_IMAGES));
     setUploadingImage(false);
   };
 
