@@ -16,7 +16,7 @@ type UserContextType = {
   session: Session | null;
   profile: Profile | null;
   loading: boolean;
-  signUp: (email: string, password: string, firstName: string, lastName: string) => Promise<{ error: string | null }>;
+  signUp: (email: string, password: string, firstName: string, lastName: string) => Promise<{ error: string | null; info?: string }>;
   signIn: (email: string, password: string) => Promise<{ error: string | null }>;
   signOut: () => Promise<void>;
   updateProfile: (data: Partial<Profile>) => Promise<{ error: string | null }>;
@@ -61,7 +61,8 @@ export function UserProvider({ children }: { children: ReactNode }) {
       await supabase.from('profiles').insert({ id: data.user.id, first_name: firstName, last_name: lastName });
     }
     if (!data.session) {
-      return { error: 'Check your email to confirm your account' };
+      // Not a failure — the account was created and needs email confirmation.
+      return { error: null, info: 'Account created! Check your email to confirm your account, then sign in.' };
     }
     return { error: null };
   };

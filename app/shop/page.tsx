@@ -28,16 +28,28 @@ export default function ShopPage() {
 
   useEffect(() => { load(); }, [load]);
 
+  // Support /shop?category=dresses links (e.g. from the search overlay).
+  useEffect(() => {
+    const param = new URLSearchParams(window.location.search).get('category');
+    if (!param) return;
+    const match = categories.find(c => c.toLowerCase() === param.toLowerCase());
+    if (match) setActiveCategory(match);
+  }, []);
+
   const filtered = products.filter((p) => {
     if (activeCategory === 'All') return true;
     if (activeCategory === 'Sale') return p.discount > 0;
     return p.category === activeCategory;
   });
 
+  // Sort by what the customer actually pays, not the pre-discount price.
+  const salePrice = (p: Product) =>
+    p.discount > 0 ? p.price * (1 - p.discount / 100) : p.price;
+
   const sorted = [...filtered].sort((a, b) => {
-    if (activeSort === 'Price: Low to High') return a.price - b.price;
-    if (activeSort === 'Price: High to Low') return b.price - a.price;
-    return 0;
+    if (activeSort === 'Price: Low to High') return salePrice(a) - salePrice(b);
+    if (activeSort === 'Price: High to Low') return salePrice(b) - salePrice(a);
+    return 0; // 'Featured' and 'Newest' keep fetch order (newest first)
   });
 
   return (

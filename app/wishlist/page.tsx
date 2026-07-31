@@ -1,7 +1,6 @@
 'use client';
 
 import { useWishlist } from '../../context/WishlistContext';
-import { useCart } from '../../context/CartContext';
 import { useCurrency } from '../../context/CurrencyContext';
 import Link from 'next/link';
 import { useState, useEffect } from 'react';
@@ -9,7 +8,6 @@ import { supabase } from '../../lib/supabase';
 
 export default function WishlistPage() {
   const { items, removeItem } = useWishlist();
-  const { addItem, openCart } = useCart();
   const { format } = useCurrency();
   const [images, setImages] = useState<Record<number, string>>({});
 
@@ -24,10 +22,6 @@ export default function WishlistPage() {
         setImages(map);
       });
   }, [items]);
-
-  const handleAddToCart = (item: { id: number; name: string; priceUsd: number; originalPriceUsd?: number }) => {
-    addItem({ id: item.id, name: item.name, priceUsd: item.priceUsd, originalPriceUsd: item.originalPriceUsd, size: 'M', quantity: 1 });
-  };
 
   return (
     <div style={{ maxWidth: '1280px', margin: '0 auto', padding: '3rem 2rem 6rem' }}>
@@ -60,7 +54,7 @@ export default function WishlistPage() {
       ) : (
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))', gap: '2rem' }}>
           {items.map((item) => (
-            <WishlistCard key={item.id} item={item} imageUrl={images[item.id] ?? null} format={format} onRemove={() => removeItem(item.id)} onAddToCart={() => handleAddToCart({ id: item.id, name: item.name, priceUsd: item.priceUsd, originalPriceUsd: item.originalPriceUsd })} />
+            <WishlistCard key={item.id} item={item} imageUrl={images[item.id] ?? null} format={format} onRemove={() => removeItem(item.id)} />
           ))}
         </div>
       )}
@@ -68,12 +62,11 @@ export default function WishlistPage() {
   );
 }
 
-function WishlistCard({ item, imageUrl, format, onRemove, onAddToCart }: {
+function WishlistCard({ item, imageUrl, format, onRemove }: {
   item: { id: number; name: string; priceUsd: number; originalPriceUsd?: number; category: string };
   imageUrl: string | null;
   format: (usd: number) => string;
   onRemove: () => void;
-  onAddToCart: () => void;
 }) {
   const [hovered, setHovered] = useState(false);
 
@@ -114,17 +107,19 @@ function WishlistCard({ item, imageUrl, format, onRemove, onAddToCart }: {
           <span style={{ fontFamily: "'Jost', sans-serif", fontSize: '0.88rem', color: item.originalPriceUsd ? '#C0392B' : '#2C2C2C', fontWeight: item.originalPriceUsd ? 500 : 400 }}>{format(item.priceUsd)}</span>
         </div>
       </div>
-      <button onClick={onAddToCart} style={{
-        width: '100%', padding: '0.85rem',
+      {/* Sizes are per-product (6–20) with per-size stock, so adding straight
+          from the wishlist can't pick one — send the shopper to choose. */}
+      <Link href={`/products/${item.id}`} style={{
+        display: 'block', textAlign: 'center', width: '100%', padding: '0.85rem',
         backgroundColor: hovered ? '#2C2C2C' : 'transparent',
         color: hovered ? '#FAF7F4' : '#2C2C2C',
-        border: '1px solid #2C2C2C',
+        border: '1px solid #2C2C2C', boxSizing: 'border-box',
         fontFamily: "'Jost', sans-serif", fontSize: '0.75rem',
         letterSpacing: '0.15em', textTransform: 'uppercase',
-        cursor: 'pointer', transition: 'all 0.2s',
+        textDecoration: 'none', transition: 'all 0.2s',
       }}>
-        Add to Bag
-      </button>
+        Select Size
+      </Link>
     </div>
   );
 }

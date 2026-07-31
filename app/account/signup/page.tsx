@@ -11,6 +11,7 @@ export default function SignupPage() {
   const router = useRouter();
   const [form, setForm] = useState({ firstName: '', lastName: '', email: '', password: '', confirm: '' });
   const [error, setError] = useState('');
+  const [info, setInfo] = useState('');
   const [loading, setLoading] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -19,9 +20,14 @@ export default function SignupPage() {
     if (form.password.length < 6) { setError('Password must be at least 6 characters.'); return; }
     setLoading(true);
     setError('');
-    const { error } = await signUp(form.email, form.password, form.firstName, form.lastName);
+    setInfo('');
+    const { error, info: infoMessage } = await signUp(form.email, form.password, form.firstName, form.lastName);
     if (error) {
       setError(error);
+      setLoading(false);
+    } else if (infoMessage) {
+      // Account created but email confirmation is required — success, not an error.
+      setInfo(infoMessage);
       setLoading(false);
     } else {
       router.push('/account?welcome=1');
@@ -64,6 +70,7 @@ export default function SignupPage() {
         </div>
 
         {error && <p style={{ fontFamily: "'Jost', sans-serif", fontSize: '0.82rem', color: '#C0392B', textAlign: 'center' }}>{error}</p>}
+        {info && <p style={{ fontFamily: "'Jost', sans-serif", fontSize: '0.82rem', color: '#2E7D32', textAlign: 'center' }}>{info}</p>}
 
         <button type="submit" disabled={loading} style={{
           padding: '1.1rem', backgroundColor: '#2C2C2C', color: '#FAF7F4',

@@ -51,6 +51,7 @@ export async function getProductById(id: number): Promise<Product | null> {
       product_colours(id, name, hex_code, display_order, is_available)
     `)
     .eq('id', id)
+    .eq('available', true)
     .single();
 
   // PGRST116 = no rows found (genuine 404); anything else is a real failure.

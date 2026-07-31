@@ -165,7 +165,7 @@ export default function ProductPage({ params }: { params: Promise<{ id: string }
 
   const details = [
     product.fabric && product.fabric,
-    'Handmade to order',
+    product.made_to_order ? 'Handmade to order' : 'Ready to ship',
     `Available in sizes ${(product.sizes || []).join(', ')}`,
     product.care_instructions && product.care_instructions,
     'Made in Nigeria',

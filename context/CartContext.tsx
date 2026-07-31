@@ -89,19 +89,27 @@ export function CartProvider({ children }: { children: ReactNode }) {
       return { success: true };
     }
 
-    // Ready to wear — create reservation
+    // Ready to wear — reserve the FULL new quantity, not just the delta.
+    // createReservation replaces our existing hold, so reserving only the
+    // added amount would shrink the hold below what the cart shows.
+    const existing = items.find(i => i.id === item.id && i.size === item.size);
+    const newQuantity = (existing?.quantity || 0) + item.quantity;
     const expiresAt = new Date(Date.now() + 30 * 60 * 1000);
-    const success = await createReservation(item.id, item.size, item.quantity);
+
+    if (existing) await removeReservation(item.id, item.size);
+    const success = await createReservation(item.id, item.size, newQuantity);
 
     if (!success) {
+      // Restore the previous hold so the cart stays consistent.
+      if (existing) await createReservation(item.id, item.size, existing.quantity);
       return { success: false, message: 'Sorry, this item is no longer available in this size.' };
     }
 
     setItems(prev => {
-      const existing = prev.find(i => i.id === item.id && i.size === item.size);
-      if (existing) {
+      const current = prev.find(i => i.id === item.id && i.size === item.size);
+      if (current) {
         return prev.map(i => i.id === item.id && i.size === item.size
-          ? { ...i, quantity: i.quantity + item.quantity, expiresAt }
+          ? { ...i, quantity: newQuantity, expiresAt }
           : i
         );
       }
