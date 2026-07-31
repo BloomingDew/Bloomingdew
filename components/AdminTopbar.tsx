@@ -7,7 +7,8 @@ import { useEffect, useState } from 'react';
 import { signOut } from '../lib/supabase-admin';
 
 const navLinks = [
-  { label: 'Products', href: '/admin' },
+  { label: 'Dashboard', href: '/admin' },
+  { label: 'Products', href: '/admin/products' },
   { label: 'Orders', href: '/admin/orders' },
   { label: 'Customers', href: '/admin/customers' },
   { label: 'Enquiries', href: '/admin/enquiries' },
@@ -44,9 +45,7 @@ export default function AdminTopbar() {
   };
 
   const isActive = (href: string) => {
-    if (href === '/admin') {
-      return pathname === '/admin' || pathname.startsWith('/admin/products');
-    }
+    if (href === '/admin') return pathname === '/admin';
     return pathname.startsWith(href);
   };
 
