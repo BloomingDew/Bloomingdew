@@ -63,6 +63,9 @@ export function CurrencyProvider({ children }: { children: ReactNode }) {
   const setCurrency = useCallback((code: string) => {
     setCurrencyState(code);
     writeCookie(COOKIE, code);
+    // Mark this as an explicit user choice so geo detection in the middleware
+    // never overrides it (only geo-derived currencies follow location changes).
+    writeCookie(COOKIE + '_src', 'user');
     setNeedsSelection(false);
   }, []);
 

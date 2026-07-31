@@ -20,18 +20,21 @@ export async function middleware(req: NextRequest) {
   }
 
   // --- Currency detection (all storefront requests) ---------------------------
-  // If the visitor has no currency preference yet, set one from their geo so the
-  // storefront can render local prices. Unknown geo -> leave unset; the client
-  // then forces the currency picker (the agreed fallback).
-  if (!req.cookies.get('bd_currency')) {
+  // Geo-derived currencies follow the visitor's location: set on first visit,
+  // and refreshed whenever the detected country maps to a different currency
+  // (travel, VPN, shared device). A currency the visitor picked by hand
+  // (bd_currency_src=user, written by the client picker) is never overridden.
+  // Unknown geo + no cookie -> leave unset; the client forces the picker.
+  {
+    const existing = req.cookies.get('bd_currency')?.value;
+    const source = req.cookies.get('bd_currency_src')?.value;
     const country = (req.headers.get('x-vercel-ip-country') || '').toUpperCase();
-    const currency = COUNTRY_CURRENCY[country];
-    if (currency) {
-      res.cookies.set('bd_currency', currency, {
-        path: '/',
-        maxAge: 60 * 60 * 24 * 365,
-        sameSite: 'lax',
-      });
+    const geoCurrency = COUNTRY_CURRENCY[country];
+    const cookieOpts = { path: '/', maxAge: 60 * 60 * 24 * 365, sameSite: 'lax' as const };
+
+    if (geoCurrency && source !== 'user' && existing !== geoCurrency) {
+      res.cookies.set('bd_currency', geoCurrency, cookieOpts);
+      res.cookies.set('bd_currency_src', 'geo', cookieOpts);
     }
   }
 
