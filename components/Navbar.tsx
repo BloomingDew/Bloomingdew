@@ -1,6 +1,7 @@
 'use client';
 
 import Link from 'next/link';
+import Image from 'next/image';
 import { useState, useRef } from 'react';
 import { useCart } from '../context/CartContext';
 import { useWishlist } from '../context/WishlistContext';
@@ -33,12 +34,15 @@ export default function Navbar() {
           height: '68px', display: 'flex', alignItems: 'center',
           justifyContent: 'space-between', position: 'relative',
         }}>
-          {/* Left — mobile toggle */}
-          <div style={{ flex: 1 }}>
+          {/* Left — mobile toggle + logo */}
+          <div style={{ flex: 1, display: 'flex', alignItems: 'center', gap: '1rem' }}>
             <button onClick={() => setMenuOpen(!menuOpen)} className="mobile-menu-btn"
               style={{ fontSize: '1.2rem', color: '#2C2C2C', background: 'none', border: 'none', cursor: 'pointer' }}>
               {menuOpen ? '✕' : '☰'}
             </button>
+            <Link href="/" aria-label="Bloomingdew home" style={{ display: 'flex', alignItems: 'center' }}>
+              <Image src="/logo.png" alt="Bloomingdew logo" width={48} height={36} priority style={{ height: '36px', width: 'auto' }} />
+            </Link>
           </div>
 
           {/* Center — Logo */}
