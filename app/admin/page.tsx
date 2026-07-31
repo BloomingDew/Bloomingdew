@@ -4,20 +4,8 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { getSession } from '../../lib/supabase-admin';
-import { supabase } from '../../lib/supabase';
 import { formatAdminPrice } from '../../lib/adminCurrency';
 import { toast } from '../../components/Toast';
-
-type Product = {
-  id: number;
-  name: string;
-  price: number;
-  available: boolean;
-  made_to_order: boolean;
-  stock_quantity: number | null;
-  categories: { name: string }[] | null;
-  product_images: { url: string }[];
-};
 
 type LowStockItem = { product_id: number; size: string; quantity: number; products: { name: string } | { name: string }[] | null };
 
@@ -31,13 +19,8 @@ type Analytics = {
   bestSellers: { name: string; units: number }[];
 };
 
-export default function AdminPage() {
+export default function AdminDashboardPage() {
   const router = useRouter();
-  const [products, setProducts] = useState<Product[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [search, setSearch] = useState('');
-  const [selected, setSelected] = useState<number[]>([]);
-  const [statusFilter, setStatusFilter] = useState<'all' | 'live' | 'hidden'>('all');
   const [lowStock, setLowStock] = useState<LowStockItem[]>([]);
   const [unreadEnquiries, setUnreadEnquiries] = useState(0);
   const [pendingOrders, setPendingOrders] = useState(0);
@@ -51,30 +34,21 @@ export default function AdminPage() {
   useEffect(() => {
     getSession().then((session) => {
       if (!session) { router.push('/admin/login'); return; }
-      fetchProducts();
-      fetchAlerts();
+      fetchDashboard();
     });
   }, []);
 
-  const fetchProducts = async () => {
-    const { data } = await supabase
-      .from('products')
-      .select('id, name, price, available, made_to_order, stock_quantity, categories(name), product_images(url)')
-      .order('created_at', { ascending: false });
-    setProducts(data || []);
-    setLoading(false);
-  };
-
-  const fetchAlerts = async () => {
+  const fetchDashboard = async () => {
     try {
       const res = await fetch('/api/admin/counts');
-      if (!res.ok) return;
-      const { unreadEnquiries, pendingOrders, deliveredRevenue, lowStock, lowStockThreshold: threshold } = await res.json();
-      setLowStock(lowStock || []);
-      setUnreadEnquiries(unreadEnquiries || 0);
-      setPendingOrders(pendingOrders || 0);
-      setCompletedRevenue(deliveredRevenue ?? 0);
-      if (threshold !== undefined) setLowStockThreshold(String(threshold));
+      if (res.ok) {
+        const { unreadEnquiries, pendingOrders, deliveredRevenue, lowStock, lowStockThreshold: threshold } = await res.json();
+        setLowStock(lowStock || []);
+        setUnreadEnquiries(unreadEnquiries || 0);
+        setPendingOrders(pendingOrders || 0);
+        setCompletedRevenue(deliveredRevenue ?? 0);
+        if (threshold !== undefined) setLowStockThreshold(String(threshold));
+      }
     } catch {
       // Leave the defaults; the dashboard still works without alert counts.
     }
@@ -108,73 +82,16 @@ export default function AdminPage() {
     }
     setThresholdSaved(true);
     setTimeout(() => setThresholdSaved(false), 2000);
-    fetchAlerts();
+    fetchDashboard();
   };
-
-  const toggleAvailable = async (id: number, current: boolean) => {
-    const res = await fetch('/api/admin/products', {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ ids: [id], available: !current }),
-    });
-    if (!res.ok) {
-      const { error } = await res.json().catch(() => ({ error: 'Unknown error' }));
-      toast(`Failed to update: ${error}`, 'error');
-      return;
-    }
-    setProducts(prev => prev.map(p => p.id === id ? { ...p, available: !current } : p));
-  };
-
-  const toggleSelect = (id: number) => {
-    setSelected(prev => prev.includes(id) ? prev.filter(i => i !== id) : [...prev, id]);
-  };
-
-  const selectAll = () => {
-    setSelected(filtered.map(p => p.id));
-  };
-
-  const clearSelection = () => setSelected([]);
-
-  const bulkSetAvailable = async (available: boolean) => {
-    if (!available && !window.confirm(`Hide ${selected.length} product${selected.length !== 1 ? 's' : ''}?`)) return;
-    const res = await fetch('/api/admin/products', {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ ids: selected, available }),
-    });
-    if (!res.ok) {
-      const { error } = await res.json().catch(() => ({ error: 'Unknown error' }));
-      toast(`Failed to update: ${error}`, 'error');
-      return;
-    }
-    setProducts(prev => prev.map(p => selected.includes(p.id) ? { ...p, available } : p));
-    setSelected([]);
-  };
-
-  const bulkDelete = async () => {
-    if (!window.confirm(`Delete ${selected.length} product${selected.length !== 1 ? 's' : ''}? This cannot be undone.`)) return;
-    const res = await fetch('/api/admin/products', {
-      method: 'DELETE',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ ids: selected }),
-    });
-    if (!res.ok) {
-      const { error } = await res.json().catch(() => ({ error: 'Unknown error' }));
-      toast(`Failed to delete: ${error}`, 'error');
-      return;
-    }
-    setProducts(prev => prev.filter(p => !selected.includes(p.id)));
-    setSelected([]);
-  };
-
-
-  const filtered = products
-    .filter(p => p.name.toLowerCase().includes(search.toLowerCase()))
-    .filter(p => statusFilter === 'all' ? true : statusFilter === 'live' ? p.available : !p.available);
 
   return (
     <div>
       <div style={{ maxWidth: '1200px', margin: '0 auto', padding: '3rem 2rem' }}>
+
+        <h1 style={{ fontFamily: "'Playfair Display', serif", fontSize: '1.6rem', fontWeight: 500, color: '#2C2C2C', marginBottom: '2rem' }}>
+          Dashboard
+        </h1>
 
         {/* Low stock alerts */}
         {lowStock.length > 0 && (
@@ -187,7 +104,7 @@ export default function AdminPage() {
               <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem' }}>
                 {lowStock.map((item, i) => (
                   <span key={i} style={{ fontFamily: "'Jost', sans-serif", fontSize: '0.75rem', color: '#E65100', backgroundColor: '#FFE0B2', padding: '0.2rem 0.6rem' }}>
-                    {(item.products as any)?.name} — {item.size}: {item.quantity} left
+                    {(item.products as { name?: string } | null)?.name ?? (Array.isArray(item.products) ? item.products[0]?.name : '')} — {item.size}: {item.quantity} left
                   </span>
                 ))}
               </div>
@@ -195,23 +112,25 @@ export default function AdminPage() {
           </div>
         )}
 
-        {/* Pending orders / unread enquiries alert cards */}
-        {(pendingOrders > 0 || unreadEnquiries > 0) && (
-          <div style={{ display: 'flex', gap: '1rem', marginBottom: '1.5rem', flexWrap: 'wrap' }}>
-            {pendingOrders > 0 && (
-              <div style={{ backgroundColor: '#FFFBEA', border: '1px solid #F59E0B', padding: '1rem 1.5rem', flex: '1 1 180px' }}>
-                <p style={{ fontFamily: "'Jost', sans-serif", fontSize: '0.7rem', letterSpacing: '0.12em', textTransform: 'uppercase', color: '#92400E', marginBottom: '0.4rem' }}>Pending Orders</p>
-                <p style={{ fontFamily: "'Playfair Display', serif", fontSize: '2rem', fontWeight: 500, color: '#B45309' }}>{pendingOrders}</p>
-              </div>
-            )}
-            {unreadEnquiries > 0 && (
-              <div style={{ backgroundColor: '#FFFBEA', border: '1px solid #F59E0B', padding: '1rem 1.5rem', flex: '1 1 180px' }}>
-                <p style={{ fontFamily: "'Jost', sans-serif", fontSize: '0.7rem', letterSpacing: '0.12em', textTransform: 'uppercase', color: '#92400E', marginBottom: '0.4rem' }}>Unread Enquiries</p>
-                <p style={{ fontFamily: "'Playfair Display', serif", fontSize: '2rem', fontWeight: 500, color: '#B45309' }}>{unreadEnquiries}</p>
-              </div>
-            )}
+        {/* Needs attention + lifetime revenue */}
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '1rem', marginBottom: '2rem' }}>
+          <Link href="/admin/orders" style={{ textDecoration: 'none', backgroundColor: pendingOrders > 0 ? '#FFFBEA' : '#FFFFFF', border: `1px solid ${pendingOrders > 0 ? '#F59E0B' : '#E8DDD3'}`, padding: '1.2rem 1.5rem', display: 'block' }}>
+            <p style={{ fontFamily: "'Jost', sans-serif", fontSize: '0.7rem', letterSpacing: '0.12em', textTransform: 'uppercase', color: pendingOrders > 0 ? '#92400E' : '#9A8F87', marginBottom: '0.4rem' }}>Pending Orders</p>
+            <p style={{ fontFamily: "'Playfair Display', serif", fontSize: '2rem', fontWeight: 500, color: pendingOrders > 0 ? '#B45309' : '#2C2C2C' }}>{pendingOrders}</p>
+          </Link>
+          <Link href="/admin/enquiries" style={{ textDecoration: 'none', backgroundColor: unreadEnquiries > 0 ? '#FFFBEA' : '#FFFFFF', border: `1px solid ${unreadEnquiries > 0 ? '#F59E0B' : '#E8DDD3'}`, padding: '1.2rem 1.5rem', display: 'block' }}>
+            <p style={{ fontFamily: "'Jost', sans-serif", fontSize: '0.7rem', letterSpacing: '0.12em', textTransform: 'uppercase', color: unreadEnquiries > 0 ? '#92400E' : '#9A8F87', marginBottom: '0.4rem' }}>Unread Enquiries</p>
+            <p style={{ fontFamily: "'Playfair Display', serif", fontSize: '2rem', fontWeight: 500, color: unreadEnquiries > 0 ? '#B45309' : '#2C2C2C' }}>{unreadEnquiries}</p>
+          </Link>
+          <div style={{ backgroundColor: '#2C2C2C', padding: '1.2rem 1.5rem', border: '1px solid #2C2C2C' }}>
+            <p style={{ fontFamily: "'Jost', sans-serif", fontSize: '0.7rem', letterSpacing: '0.12em', textTransform: 'uppercase', color: '#C9A882', marginBottom: '0.4rem' }}>
+              Revenue (Delivered, all time)
+            </p>
+            <p style={{ fontFamily: "'Playfair Display', serif", fontSize: '2rem', fontWeight: 500, color: '#FAF7F4' }}>
+              {completedRevenue === null ? '—' : formatAdminPrice(completedRevenue)}
+            </p>
           </div>
-        )}
+        </div>
 
         {/* Sales analytics */}
         {analytics && (
@@ -283,7 +202,7 @@ export default function AdminPage() {
         )}
 
         {/* Low-stock threshold setting */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '2rem' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '2rem', flexWrap: 'wrap' }}>
           <span style={{ fontFamily: "'Jost', sans-serif", fontSize: '0.78rem', color: '#9A8F87' }}>
             Alert me when a size has
           </span>
@@ -298,38 +217,6 @@ export default function AdminPage() {
             Save
           </button>
           {thresholdSaved && <span style={{ fontFamily: "'Jost', sans-serif", fontSize: '0.78rem', color: '#2E7D32' }}>Saved!</span>}
-        </div>
-
-        {/* Stats */}
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '1rem', marginBottom: '3rem' }}>
-          {[
-            { label: 'Total Products', value: products.length, filter: 'all' as const },
-            { label: 'Live', value: products.filter(p => p.available).length, filter: 'live' as const },
-            { label: 'Hidden', value: products.filter(p => !p.available).length, filter: 'hidden' as const },
-            { label: 'With Images', value: products.filter(p => p.product_images?.length > 0).length, filter: 'all' as const },
-          ].map(({ label, value, filter }) => (
-            <div
-              key={label}
-              onClick={() => setStatusFilter(prev => prev === filter && filter !== 'all' ? 'all' : filter)}
-              style={{
-                backgroundColor: statusFilter === filter && filter !== 'all' ? '#2C2C2C' : '#FFFFFF',
-                padding: '1.5rem', border: '1px solid #E8DDD3',
-                cursor: filter !== 'all' ? 'pointer' : 'default',
-              }}
-            >
-              <p style={{ fontFamily: "'Jost', sans-serif", fontSize: '0.7rem', letterSpacing: '0.12em', textTransform: 'uppercase', color: statusFilter === filter && filter !== 'all' ? '#C9A882' : '#9A8F87', marginBottom: '0.5rem' }}>{label}</p>
-              <p style={{ fontFamily: "'Playfair Display', serif", fontSize: '2rem', fontWeight: 500, color: statusFilter === filter && filter !== 'all' ? '#FAF7F4' : '#2C2C2C' }}>{value}</p>
-            </div>
-          ))}
-          {/* Revenue card */}
-          <div style={{ backgroundColor: '#2C2C2C', padding: '1.5rem', border: '1px solid #2C2C2C' }}>
-            <p style={{ fontFamily: "'Jost', sans-serif", fontSize: '0.7rem', letterSpacing: '0.12em', textTransform: 'uppercase', color: '#C9A882', marginBottom: '0.5rem' }}>
-              Revenue (Delivered)
-            </p>
-            <p style={{ fontFamily: "'Playfair Display', serif", fontSize: '2rem', fontWeight: 500, color: '#FAF7F4' }}>
-              {completedRevenue === null ? '—' : formatAdminPrice(completedRevenue)}
-            </p>
-          </div>
         </div>
 
         {/* Recent admin activity */}
@@ -363,131 +250,6 @@ export default function AdminPage() {
             )}
           </div>
         )}
-
-        {/* Header + actions */}
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem', flexWrap: 'wrap', gap: '1rem' }}>
-          <h2 style={{ fontFamily: "'Playfair Display', serif", fontSize: '1.4rem', fontWeight: 500, color: '#2C2C2C' }}>Products</h2>
-          <div style={{ display: 'flex', gap: '1rem', alignItems: 'center' }}>
-            <input
-              value={search} onChange={e => setSearch(e.target.value)}
-              placeholder="Search products..."
-              style={{ padding: '0.6rem 1rem', border: '1px solid #E8DDD3', fontFamily: "'Jost', sans-serif", fontSize: '0.85rem', outline: 'none', backgroundColor: '#FFFFFF', width: '220px' }}
-            />
-            <Link href="/admin/products/new" style={{
-              padding: '0.7rem 1.5rem', backgroundColor: '#2C2C2C', color: '#FAF7F4',
-              fontFamily: "'Jost', sans-serif", fontSize: '0.75rem', letterSpacing: '0.12em',
-              textTransform: 'uppercase', textDecoration: 'none', whiteSpace: 'nowrap',
-            }}>
-              + Add Product
-            </Link>
-          </div>
-        </div>
-
-        {/* Bulk actions bar */}
-        {selected.length > 0 && (
-          <div style={{ position: 'fixed', bottom: 0, left: 0, right: 0, zIndex: 100, backgroundColor: '#2C2C2C', padding: '0.75rem 1.5rem', display: 'flex', alignItems: 'center', gap: '1.5rem' }}>
-            <span style={{ fontFamily: "'Jost', sans-serif", fontSize: '0.78rem', color: '#FAF7F4' }}>{selected.length} selected</span>
-            <button onClick={() => bulkSetAvailable(true)} style={{ fontFamily: "'Jost', sans-serif", fontSize: '0.72rem', letterSpacing: '0.1em', textTransform: 'uppercase', color: '#C9A882', background: 'none', border: '1px solid #C9A882', padding: '0.3rem 0.8rem', cursor: 'pointer' }}>
-              Set Live
-            </button>
-            <button onClick={() => bulkSetAvailable(false)} style={{ fontFamily: "'Jost', sans-serif", fontSize: '0.72rem', letterSpacing: '0.1em', textTransform: 'uppercase', color: '#9A8F87', background: 'none', border: '1px solid #9A8F87', padding: '0.3rem 0.8rem', cursor: 'pointer' }}>
-              Set Hidden
-            </button>
-            <button onClick={bulkDelete} style={{ fontFamily: "'Jost', sans-serif", fontSize: '0.72rem', letterSpacing: '0.1em', textTransform: 'uppercase', color: '#C0392B', background: 'none', border: '1px solid #C0392B', padding: '0.3rem 0.8rem', cursor: 'pointer' }}>
-              Delete
-            </button>
-            <button onClick={clearSelection} style={{ fontFamily: "'Jost', sans-serif", fontSize: '0.72rem', color: '#9A8F87', background: 'none', border: 'none', cursor: 'pointer', marginLeft: 'auto' }}>
-              Clear
-            </button>
-          </div>
-        )}
-
-        {/* Products table */}
-        <div style={{ backgroundColor: '#FFFFFF', border: '1px solid #E8DDD3' }}>
-          {loading ? (
-            <div style={{ padding: '4rem', textAlign: 'center', color: '#9A8F87', fontFamily: "'Jost', sans-serif", fontSize: '0.85rem' }}>
-              Loading products...
-            </div>
-          ) : filtered.length === 0 ? (
-            <div style={{ padding: '4rem', textAlign: 'center', color: '#9A8F87', fontFamily: "'Jost', sans-serif", fontSize: '0.85rem' }}>
-              No products found.
-            </div>
-          ) : (
-            <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-              <thead>
-                <tr style={{ borderBottom: '2px solid #E8DDD3' }}>
-                  <th style={{ padding: '1rem 1.2rem', width: '40px' }}>
-                    <input type="checkbox" onChange={e => e.target.checked ? selectAll() : clearSelection()} checked={selected.length === filtered.length && filtered.length > 0} />
-                  </th>
-                  {['Image', 'Product', 'Category', 'Price', 'Stock', 'Status', 'Actions'].map(h => (
-                    <th key={h} style={{ padding: '1rem 1.2rem', textAlign: 'left', fontFamily: "'Jost', sans-serif", fontSize: '0.7rem', letterSpacing: '0.12em', textTransform: 'uppercase', color: '#9A8F87', fontWeight: 400 }}>
-                      {h}
-                    </th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody>
-                {filtered.map((product, i) => (
-                  <tr key={product.id} style={{ borderBottom: '1px solid #E8DDD3', backgroundColor: selected.includes(product.id) ? '#FAF7F4' : i % 2 === 0 ? '#FFFFFF' : '#FAFAFA' }}>
-                    <td style={{ padding: '1rem 1.2rem' }}>
-                      <input type="checkbox" checked={selected.includes(product.id)} onChange={() => toggleSelect(product.id)} />
-                    </td>
-                    <td style={{ padding: '1rem 1.2rem' }}>
-                      <div style={{ width: '48px', height: '60px', background: 'linear-gradient(150deg, #F0E8E0, #D4C4B5)', overflow: 'hidden', flexShrink: 0 }}>
-                        {product.product_images?.[0] && (
-                          <img src={product.product_images[0].url} alt={product.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-                        )}
-                      </div>
-                    </td>
-                    <td style={{ padding: '1rem 1.2rem' }}>
-                      <p style={{ fontFamily: "'Jost', sans-serif", fontSize: '0.88rem', fontWeight: 400, color: '#2C2C2C' }}>{product.name}</p>
-                    </td>
-                    <td style={{ padding: '1rem 1.2rem' }}>
-                      <p style={{ fontFamily: "'Jost', sans-serif", fontSize: '0.82rem', color: '#9A8F87' }}>{product.categories?.[0]?.name || '—'}</p>
-                    </td>
-                    <td style={{ padding: '1rem 1.2rem' }}>
-                      <p style={{ fontFamily: "'Jost', sans-serif", fontSize: '0.88rem', color: '#2C2C2C' }}>{formatAdminPrice(product.price)}</p>
-                    </td>
-                    <td style={{ padding: '1rem 1.2rem' }}>
-                      {product.made_to_order ? (
-                        <span style={{ fontFamily: "'Jost', sans-serif", fontSize: '0.78rem', color: '#9A8F87' }}>MTO</span>
-                      ) : product.stock_quantity === null ? (
-                        <span style={{ fontFamily: "'Jost', sans-serif", fontSize: '0.78rem', color: '#9A8F87' }}>—</span>
-                      ) : (
-                        <span style={{
-                          fontFamily: "'Jost', sans-serif", fontSize: '0.88rem', fontWeight: 500,
-                          color: product.stock_quantity === 0 ? '#C0392B' : product.stock_quantity <= 3 ? '#E65100' : '#2E7D32',
-                        }}>
-                          {product.stock_quantity === 0 ? 'Sold Out' : product.stock_quantity}
-                        </span>
-                      )}
-                    </td>
-                    <td style={{ padding: '1rem 1.2rem' }}>
-                      <button onClick={() => toggleAvailable(product.id, product.available)} style={{
-                        padding: '0.3rem 0.8rem', border: 'none', cursor: 'pointer',
-                        fontFamily: "'Jost', sans-serif", fontSize: '0.7rem', letterSpacing: '0.1em', textTransform: 'uppercase',
-                        backgroundColor: product.available ? '#E8F5E9' : '#FFF3E0',
-                        color: product.available ? '#2E7D32' : '#E65100',
-                      }}>
-                        {product.available ? 'Live' : 'Hidden'}
-                      </button>
-                    </td>
-                    <td style={{ padding: '1rem 1.2rem' }}>
-                      <div style={{ display: 'flex', gap: '1rem' }}>
-                        <Link href={`/admin/products/${product.id}`} style={{ fontFamily: "'Jost', sans-serif", fontSize: '0.78rem', color: '#C9A882', borderBottom: '1px solid #C9A882', textDecoration: 'none' }}>
-                          Edit
-                        </Link>
-                        <Link href={`/products/${product.id}`} target="_blank" style={{ fontFamily: "'Jost', sans-serif", fontSize: '0.78rem', color: '#9A8F87', borderBottom: '1px solid #9A8F87', textDecoration: 'none' }}>
-                          View
-                        </Link>
-                      </div>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          )}
-        </div>
       </div>
     </div>
   );
