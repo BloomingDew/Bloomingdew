@@ -78,6 +78,18 @@ export async function PATCH(req: NextRequest) {
 
   const body = await req.json();
 
+  // Persist homepage Best Sellers ordering: [{ id, position }]
+  if (Array.isArray(body.featuredPositions)) {
+    const results = await Promise.all(
+      body.featuredPositions.map((p: { id: number; position: number }) =>
+        supabaseService.from('products').update({ featured_position: p.position }).eq('id', p.id),
+      ),
+    );
+    const failed = results.find(r => r.error)?.error;
+    if (failed) return NextResponse.json({ error: failed.message }, { status: 500 });
+    return NextResponse.json({ success: true });
+  }
+
   if (Array.isArray(body.ids)) {
     const updates: Record<string, boolean> = {};
     if (typeof body.available === 'boolean') updates.available = body.available;

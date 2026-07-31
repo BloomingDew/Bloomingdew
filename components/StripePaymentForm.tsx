@@ -18,6 +18,7 @@ interface StripePaymentFormProps {
   items: IntentItem[];
   shipping: Record<string, string>;
   userId?: string | null;
+  discountCode?: string | null;
   onSuccess: (paymentIntentId: string) => void;
   onError: (msg: string) => void;
   loading: boolean;
@@ -72,7 +73,7 @@ function CheckoutForm({ onSuccess, onError, loading, setLoading }: Omit<StripePa
   );
 }
 
-export default function StripePaymentForm({ amount, items, shipping, userId, onSuccess, onError, loading, setLoading }: StripePaymentFormProps) {
+export default function StripePaymentForm({ amount, items, shipping, userId, discountCode, onSuccess, onError, loading, setLoading }: StripePaymentFormProps) {
   const [clientSecret, setClientSecret] = useState<string | null>(null);
   const [initError, setInitError] = useState<string | null>(null);
   // A PaymentIntent must be created exactly once: Stripe's <Elements clientSecret>
@@ -96,7 +97,7 @@ export default function StripePaymentForm({ amount, items, shipping, userId, onS
     fetch('/api/stripe/payment-intent', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ items, shipping, userId }),
+      body: JSON.stringify({ items, shipping, userId, discountCode: discountCode || null }),
     })
       .then(r => r.json())
       .then(data => {

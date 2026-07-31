@@ -79,6 +79,45 @@ export default function CheckoutPage() {
   const [paymentError, setPaymentError] = useState('');
   const [paymentProvider, setPaymentProvider] = useState<'square' | 'stripe'>('square');
 
+  // Discount code — validated server-side against the re-priced cart; the
+  // server re-checks again at charge time, so this is display + intent only.
+  const [discountInput, setDiscountInput] = useState('');
+  const [discountError, setDiscountError] = useState('');
+  const [applyingDiscount, setApplyingDiscount] = useState(false);
+  const [appliedDiscount, setAppliedDiscount] = useState<{ code: string; amountUsd: number } | null>(null);
+
+  const applyDiscount = async () => {
+    const code = discountInput.trim();
+    if (!code || applyingDiscount) return;
+    setApplyingDiscount(true);
+    setDiscountError('');
+    try {
+      const res = await fetch('/api/discount/validate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          code,
+          items: items.map(i => ({ id: i.id, size: i.size, quantity: i.quantity })),
+        }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (res.ok && data.valid) {
+        setAppliedDiscount({ code: data.code, amountUsd: data.discountUsd });
+        setDiscountInput('');
+      } else {
+        setDiscountError(data.reason || 'That code isn’t valid.');
+      }
+    } catch {
+      setDiscountError('Could not check that code. Please try again.');
+    }
+    setApplyingDiscount(false);
+  };
+
+  const removeDiscount = () => {
+    setAppliedDiscount(null);
+    setDiscountError('');
+  };
+
   // Square: payment + order saved in one API call, returns orderId directly
   const handleSquareSuccess = (orderId: string) => {
     setRedirecting(true);
@@ -124,7 +163,8 @@ export default function CheckoutPage() {
 
   // orderTotal is in USD (base). Charging stays USD until local-currency
   // payment routing (Paystack/Stripe presentment) lands in a later PR.
-  const orderTotal = totalPriceUsd;
+  const discountUsd = appliedDiscount ? Math.min(appliedDiscount.amountUsd, totalPriceUsd) : 0;
+  const orderTotal = Math.max(0, totalPriceUsd - discountUsd);
 
   if (items.length === 0 && !loading && !redirecting) {
     return (
@@ -313,6 +353,7 @@ export default function CheckoutPage() {
                   items={items.map(i => ({ id: i.id, name: i.name, size: i.size, quantity: i.quantity, price: i.priceUsd }))}
                   shipping={shipping}
                   userId={user?.id ?? null}
+                  discountCode={appliedDiscount?.code ?? null}
                   loading={loading}
                   setLoading={setLoading}
                   onSuccess={handleSquareSuccess}
@@ -320,10 +361,12 @@ export default function CheckoutPage() {
                 />
               ) : (
                 <StripePaymentForm
+                  key={appliedDiscount?.code ?? 'no-discount'}
                   amount={orderTotal}
                   items={items.map(i => ({ id: i.id, size: i.size, quantity: i.quantity }))}
                   shipping={shipping}
                   userId={user?.id ?? null}
+                  discountCode={appliedDiscount?.code ?? null}
                   loading={loading}
                   setLoading={setLoading}
                   onSuccess={saveOrderAndRedirect}
@@ -384,18 +427,72 @@ export default function CheckoutPage() {
             ))}
           </div>
 
+          {/* Discount code */}
+          <div style={{ borderTop: '1px solid #E8DDD3', paddingTop: '1.2rem', marginBottom: '1.2rem' }}>
+            {appliedDiscount ? (
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <span style={{ fontFamily: "'Jost', sans-serif", fontSize: '0.8rem', color: '#2E7D32' }}>
+                  Code {appliedDiscount.code} applied
+                </span>
+                <button onClick={removeDiscount} aria-label="Remove discount code" style={{
+                  background: 'none', border: 'none', cursor: 'pointer',
+                  fontFamily: "'Jost', sans-serif", fontSize: '0.85rem', color: '#9A8F87',
+                }}>
+                  ✕
+                </button>
+              </div>
+            ) : (
+              <>
+                <div style={{ display: 'flex', gap: '0.5rem' }}>
+                  <input
+                    value={discountInput}
+                    onChange={e => { setDiscountInput(e.target.value.toUpperCase()); setDiscountError(''); }}
+                    onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); applyDiscount(); } }}
+                    placeholder="Discount code"
+                    style={{
+                      flex: 1, minWidth: 0, padding: '0.6rem 0.8rem',
+                      backgroundColor: '#FFFFFF', border: '1px solid #E8DDD3',
+                      color: '#2C2C2C', fontFamily: "'Jost', sans-serif",
+                      fontSize: '0.82rem', fontWeight: 300, outline: 'none',
+                    }}
+                  />
+                  <button onClick={applyDiscount} disabled={applyingDiscount || !discountInput.trim()} style={{
+                    padding: '0.6rem 1.1rem',
+                    backgroundColor: applyingDiscount || !discountInput.trim() ? '#9A8F87' : '#2C2C2C',
+                    color: '#FAF7F4', fontFamily: "'Jost', sans-serif", fontSize: '0.7rem',
+                    letterSpacing: '0.12em', textTransform: 'uppercase', border: 'none',
+                    cursor: applyingDiscount || !discountInput.trim() ? 'not-allowed' : 'pointer',
+                  }}>
+                    {applyingDiscount ? '…' : 'Apply'}
+                  </button>
+                </div>
+                {discountError && (
+                  <p style={{ fontFamily: "'Jost', sans-serif", fontSize: '0.72rem', color: '#C62828', marginTop: '0.5rem' }}>
+                    {discountError}
+                  </p>
+                )}
+              </>
+            )}
+          </div>
+
           <div style={{ borderTop: '1px solid #E8DDD3', paddingTop: '1.2rem', display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between' }}>
               <span style={summaryLabel}>Subtotal</span>
               <span style={summaryValue}>{format(totalPriceUsd)}</span>
             </div>
+            {appliedDiscount && (
+              <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                <span style={{ ...summaryLabel, color: '#2E7D32' }}>Code {appliedDiscount.code}</span>
+                <span style={{ ...summaryValue, color: '#2E7D32' }}>− {format(discountUsd)}</span>
+              </div>
+            )}
             <div style={{ display: 'flex', justifyContent: 'space-between' }}>
               <span style={summaryLabel}>Shipping</span>
               <span style={{ ...summaryValue, color: '#C9A882' }}>TBD</span>
             </div>
             <div style={{ borderTop: '1px solid #E8DDD3', paddingTop: '0.75rem', display: 'flex', justifyContent: 'space-between' }}>
               <span style={{ fontFamily: "'Jost', sans-serif", fontSize: '0.88rem', fontWeight: 500, color: '#2C2C2C' }}>Total</span>
-              <span style={{ fontFamily: "'Jost', sans-serif", fontSize: '0.95rem', fontWeight: 500, color: '#2C2C2C' }}>{format(totalPriceUsd)}</span>
+              <span style={{ fontFamily: "'Jost', sans-serif", fontSize: '0.95rem', fontWeight: 500, color: '#2C2C2C' }}>{format(orderTotal)}</span>
             </div>
             {currency !== 'USD' && (
               <p style={{ fontFamily: "'Jost', sans-serif", fontSize: '0.72rem', fontWeight: 300, color: '#9A8F87', marginTop: '0.25rem' }}>

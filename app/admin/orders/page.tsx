@@ -47,30 +47,70 @@ export default function OrdersPage() {
   const [expanded, setExpanded] = useState<string | null>(null);
   const [filterStatus, setFilterStatus] = useState('all');
   const [searchQuery, setSearchQuery] = useState('');
+  const [activeSearch, setActiveSearch] = useState('');
   const [dateRange, setDateRange] = useState<DateRange>('all');
+  const [page, setPage] = useState(1);
+  const [total, setTotal] = useState(0);
+  const [perPage, setPerPage] = useState(25);
+  const [selected, setSelected] = useState<string[]>([]);
+  const [bulkStatus, setBulkStatus] = useState('shipped');
   const [trackingValues, setTrackingValues] = useState<Record<string, { number: string; url: string }>>({});
   const [unsavedNotes, setUnsavedNotes] = useState<Set<string>>(new Set());
 
   useEffect(() => {
     getSession().then(s => {
-      if (!s) {
-        router.push('/admin/login');
-      } else {
-        fetchOrders();
-      }
+      if (!s) router.push('/admin/login');
     });
   }, []);
 
-  const fetchOrders = async () => {
+  // Server-side pagination + search + status filter
+  useEffect(() => {
+    fetchOrders(page, activeSearch, filterStatus);
+  }, [page, activeSearch, filterStatus]);
+
+  const fetchOrders = async (p: number, q: string, status: string) => {
+    setLoading(true);
     try {
-      const res = await fetch('/api/admin/orders');
+      const params = new URLSearchParams({ page: String(p) });
+      if (q) params.set('q', q);
+      if (status && status !== 'all') params.set('status', status);
+      const res = await fetch(`/api/admin/orders?${params}`);
       if (!res.ok) throw new Error();
-      const { orders: data } = await res.json();
+      const { orders: data, total: t, perPage: pp } = await res.json();
       setOrders(data || []);
+      setTotal(t || 0);
+      if (pp) setPerPage(pp);
     } catch {
       setOrders([]);
+      setTotal(0);
     }
     setLoading(false);
+  };
+
+  const submitSearch = () => {
+    setPage(1);
+    setActiveSearch(searchQuery.trim());
+  };
+
+  const toggleSelect = (id: string) => {
+    setSelected(prev => prev.includes(id) ? prev.filter(i => i !== id) : [...prev, id]);
+  };
+
+  const applyBulkStatus = async () => {
+    if (selected.length === 0) return;
+    if (!window.confirm(`Set ${selected.length} order${selected.length !== 1 ? 's' : ''} to "${STATUS_LABELS[bulkStatus]}"?`)) return;
+    const res = await fetch('/api/admin/orders', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ ids: selected, status: bulkStatus }),
+    });
+    if (!res.ok) {
+      const { error } = await res.json().catch(() => ({ error: 'Unknown error' }));
+      alert(`Bulk update failed: ${error}`);
+      return;
+    }
+    setOrders(prev => prev.map(o => selected.includes(o.id) ? { ...o, status: bulkStatus } : o));
+    setSelected([]);
   };
 
   const patchOrder = async (orderId: string, updates: Record<string, string>) => {
@@ -126,14 +166,9 @@ export default function OrdersPage() {
     setOrders(prev => prev.map(o => o.id === orderId ? { ...o, tracking_number, tracking_url } : o));
   };
 
-  // Client-side filters
+  // Search + status run server-side; the date range narrows the loaded page.
   const now = new Date();
   const filtered = orders.filter(o => {
-    if (filterStatus !== 'all' && o.status !== filterStatus) return false;
-    if (searchQuery) {
-      const q = searchQuery.toLowerCase();
-      if (!o.customer_name?.toLowerCase().includes(q) && !o.customer_email?.toLowerCase().includes(q)) return false;
-    }
     if (dateRange !== 'all') {
       const days = dateRange === '7d' ? 7 : 30;
       const cutoff = new Date(now.getTime() - days * 24 * 60 * 60 * 1000);
@@ -141,6 +176,8 @@ export default function OrdersPage() {
     }
     return true;
   });
+
+  const totalPages = Math.max(1, Math.ceil(total / perPage));
 
   return (
     <div>
@@ -164,13 +201,36 @@ export default function OrdersPage() {
 
         {/* Search & date filters */}
         <div style={{ display: 'flex', gap: '1rem', marginBottom: '1rem', flexWrap: 'wrap', alignItems: 'center' }}>
-          <input
-            type="text"
-            value={searchQuery}
-            onChange={e => setSearchQuery(e.target.value)}
-            placeholder="Search by name or email..."
-            style={{ flex: '1 1 220px', padding: '0.5rem 0.85rem', border: '1px solid #E8DDD3', fontFamily: "'Jost', sans-serif", fontSize: '0.82rem', color: '#2C2C2C', outline: 'none' }}
-          />
+          <div style={{ flex: '1 1 260px', display: 'flex', gap: '0.4rem' }}>
+            <input
+              type="text"
+              value={searchQuery}
+              onChange={e => setSearchQuery(e.target.value)}
+              onKeyDown={e => { if (e.key === 'Enter') submitSearch(); }}
+              placeholder="Search name, email, or order #..."
+              style={{ flex: 1, padding: '0.5rem 0.85rem', border: '1px solid #E8DDD3', fontFamily: "'Jost', sans-serif", fontSize: '0.82rem', color: '#2C2C2C', outline: 'none' }}
+            />
+            <button onClick={submitSearch} style={{
+              padding: '0.5rem 1rem', backgroundColor: '#2C2C2C', color: '#FAF7F4', border: 'none',
+              fontFamily: "'Jost', sans-serif", fontSize: '0.72rem', letterSpacing: '0.1em', textTransform: 'uppercase', cursor: 'pointer',
+            }}>
+              Search
+            </button>
+            {activeSearch && (
+              <button onClick={() => { setSearchQuery(''); setActiveSearch(''); setPage(1); }} style={{
+                padding: '0.5rem 0.8rem', backgroundColor: 'transparent', color: '#9A8F87',
+                border: '1px solid #E8DDD3', fontFamily: "'Jost', sans-serif", fontSize: '0.72rem', cursor: 'pointer',
+              }}>
+                Clear
+              </button>
+            )}
+          </div>
+          <a href="/api/admin/orders/export" style={{
+            padding: '0.5rem 1rem', border: '1px solid #E8DDD3', color: '#2C2C2C', textDecoration: 'none',
+            fontFamily: "'Jost', sans-serif", fontSize: '0.72rem', letterSpacing: '0.1em', textTransform: 'uppercase', backgroundColor: '#FFFFFF',
+          }}>
+            Export CSV
+          </a>
           <div style={{ display: 'flex', gap: '0.4rem' }}>
             {(['all', '7d', '30d'] as DateRange[]).map(r => (
               <button key={r} onClick={() => setDateRange(r)} style={{
@@ -189,7 +249,7 @@ export default function OrdersPage() {
         {/* Status filter */}
         <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '1.5rem', flexWrap: 'wrap' }}>
           {['all', ...STATUSES].map(s => (
-            <button key={s} onClick={() => setFilterStatus(s)} style={{
+            <button key={s} onClick={() => { setFilterStatus(s); setPage(1); setSelected([]); }} style={{
               padding: '0.4rem 1rem', border: '1px solid', cursor: 'pointer',
               fontFamily: "'Jost', sans-serif", fontSize: '0.72rem', letterSpacing: '0.1em', textTransform: 'uppercase',
               borderColor: filterStatus === s ? '#2C2C2C' : '#E8DDD3',
@@ -200,6 +260,33 @@ export default function OrdersPage() {
             </button>
           ))}
         </div>
+
+        {/* Bulk actions */}
+        {selected.length > 0 && (
+          <div style={{ position: 'fixed', bottom: 0, left: 0, right: 0, zIndex: 100, backgroundColor: '#2C2C2C', padding: '0.75rem 1.5rem', display: 'flex', alignItems: 'center', gap: '1rem', flexWrap: 'wrap' }}>
+            <span style={{ fontFamily: "'Jost', sans-serif", fontSize: '0.78rem', color: '#FAF7F4' }}>
+              {selected.length} selected
+            </span>
+            <select value={bulkStatus} onChange={e => setBulkStatus(e.target.value)} style={{
+              padding: '0.35rem 0.7rem', border: '1px solid #9A8F87', backgroundColor: '#2C2C2C', color: '#FAF7F4',
+              fontFamily: "'Jost', sans-serif", fontSize: '0.75rem', outline: 'none', cursor: 'pointer',
+            }}>
+              {STATUSES.map(s => <option key={s} value={s}>{STATUS_LABELS[s]}</option>)}
+            </select>
+            <button onClick={applyBulkStatus} style={{
+              padding: '0.35rem 1rem', backgroundColor: '#C9A882', color: '#2C2C2C', border: 'none',
+              fontFamily: "'Jost', sans-serif", fontSize: '0.72rem', letterSpacing: '0.1em', textTransform: 'uppercase', cursor: 'pointer',
+            }}>
+              Apply
+            </button>
+            <button onClick={() => setSelected([])} style={{
+              fontFamily: "'Jost', sans-serif", fontSize: '0.72rem', color: '#9A8F87',
+              background: 'none', border: 'none', cursor: 'pointer', marginLeft: 'auto',
+            }}>
+              Clear
+            </button>
+          </div>
+        )}
 
         {/* Orders list */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
@@ -216,6 +303,12 @@ export default function OrdersPage() {
               <div style={{ padding: '1.2rem 1.5rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '1rem', cursor: 'pointer' }}
                 onClick={() => setExpanded(expanded === order.id ? null : order.id)}>
                 <div style={{ display: 'flex', gap: '2rem', alignItems: 'center', flexWrap: 'wrap' }}>
+                  <input
+                    type="checkbox"
+                    checked={selected.includes(order.id)}
+                    onChange={() => toggleSelect(order.id)}
+                    onClick={e => e.stopPropagation()}
+                  />
                   <div>
                     <p style={{ fontFamily: "'Jost', sans-serif", fontSize: '0.88rem', fontWeight: 500, color: '#2C2C2C' }}>{order.customer_name}</p>
                     <p style={{ fontFamily: "'Jost', sans-serif", fontSize: '0.75rem', color: '#9A8F87' }}>{order.customer_email}</p>
@@ -252,7 +345,16 @@ export default function OrdersPage() {
               {expanded === order.id && (
                 <div style={{ borderTop: '1px solid #E8DDD3', padding: '1.5rem', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '2rem' }}>
                   <div>
-                    <p style={detailLabel}>Items Ordered</p>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
+                      <p style={detailLabel}>Items Ordered</p>
+                      <a href={`/admin/orders/${order.id}/packing-slip`} target="_blank" rel="noopener noreferrer" style={{
+                        fontFamily: "'Jost', sans-serif", fontSize: '0.72rem', letterSpacing: '0.08em',
+                        textTransform: 'uppercase', color: '#C9A882', textDecoration: 'none',
+                        borderBottom: '1px solid #C9A882',
+                      }}>
+                        Packing Slip
+                      </a>
+                    </div>
                     {order.items?.map((item, i) => (
                       <div key={i} style={{ display: 'flex', justifyContent: 'space-between', padding: '0.5rem 0', borderBottom: '1px solid #F5F5F5' }}>
                         <span style={{ fontFamily: "'Jost', sans-serif", fontSize: '0.85rem', color: '#2C2C2C' }}>{item.name} — Size {item.size} × {item.quantity}</span>
@@ -333,6 +435,35 @@ export default function OrdersPage() {
             </div>
           ))}
         </div>
+
+        {/* Pagination */}
+        {totalPages > 1 && (
+          <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '1rem', marginTop: '2rem' }}>
+            <button
+              onClick={() => { setPage(p => Math.max(1, p - 1)); setSelected([]); }}
+              disabled={page <= 1}
+              style={{
+                padding: '0.5rem 1.2rem', border: '1px solid #E8DDD3', backgroundColor: '#FFFFFF',
+                fontFamily: "'Jost', sans-serif", fontSize: '0.72rem', letterSpacing: '0.1em', textTransform: 'uppercase',
+                color: page <= 1 ? '#D4C4B5' : '#2C2C2C', cursor: page <= 1 ? 'default' : 'pointer',
+              }}>
+              ← Prev
+            </button>
+            <span style={{ fontFamily: "'Jost', sans-serif", fontSize: '0.8rem', color: '#9A8F87' }}>
+              Page {page} of {totalPages} · {total} orders
+            </span>
+            <button
+              onClick={() => { setPage(p => Math.min(totalPages, p + 1)); setSelected([]); }}
+              disabled={page >= totalPages}
+              style={{
+                padding: '0.5rem 1.2rem', border: '1px solid #E8DDD3', backgroundColor: '#FFFFFF',
+                fontFamily: "'Jost', sans-serif", fontSize: '0.72rem', letterSpacing: '0.1em', textTransform: 'uppercase',
+                color: page >= totalPages ? '#D4C4B5' : '#2C2C2C', cursor: page >= totalPages ? 'default' : 'pointer',
+              }}>
+              Next →
+            </button>
+          </div>
+        )}
       </div>
     </div>
   );

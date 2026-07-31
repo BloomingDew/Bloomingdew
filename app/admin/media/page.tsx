@@ -7,7 +7,7 @@ import { supabase } from '../../../lib/supabase';
 import { formatAdminPrice } from '../../../lib/adminCurrency';
 import { compressImage } from '../../../lib/compressImage';
 
-type Product = { id: number; name: string; price: number; featured: boolean; product_images: { url: string }[] };
+type Product = { id: number; name: string; price: number; featured: boolean; featured_position: number | null; product_images: { url: string }[] };
 
 export default function MediaAdminPage() {
   const router = useRouter();
@@ -21,7 +21,7 @@ export default function MediaAdminPage() {
   const [marqueeText, setMarqueeText] = useState('New Collection · Handmade in Nigeria · Made to Order');
   const [heroError, setHeroError] = useState('');
   const [featuredError, setFeaturedError] = useState('');
-  // featuredOrder stores product ids in display order; cosmetic only — no featured_position column in DB
+  // featuredOrder stores product ids in display order, persisted via featured_position
   const [featuredOrder, setFeaturedOrder] = useState<number[]>([]);
   const [newCollectionTitle, setNewCollectionTitle] = useState('New Collection');
   const [newCollectionIds, setNewCollectionIds] = useState<number[]>([]);
@@ -35,7 +35,7 @@ export default function MediaAdminPage() {
 
   const fetchData = async () => {
     const [{ data: prods }, { data: setting }, { data: ncTitle }, { data: ncIds }, { data: marquee }, { data: hero }] = await Promise.all([
-      supabaseAuth.from('products').select('id, name, price, featured, product_images(url)').eq('available', true).order('name'),
+      supabaseAuth.from('products').select('id, name, price, featured, featured_position, product_images(url)').eq('available', true).order('name'),
       supabaseAuth.from('site_settings').select('value').eq('key', 'about_image_url').single(),
       supabaseAuth.from('site_settings').select('value').eq('key', 'new_collection_title').single(),
       supabaseAuth.from('site_settings').select('value').eq('key', 'new_collection_product_ids').single(),
@@ -44,7 +44,12 @@ export default function MediaAdminPage() {
     ]);
     const loadedProducts = prods || [];
     setProducts(loadedProducts);
-    setFeaturedOrder(loadedProducts.filter(p => p.featured).map(p => p.id));
+    setFeaturedOrder(
+      loadedProducts
+        .filter(p => p.featured)
+        .sort((a, b) => (a.featured_position ?? 999) - (b.featured_position ?? 999))
+        .map(p => p.id),
+    );
     setAboutImage(setting?.value ?? null);
     setNewCollectionTitle(ncTitle?.value ?? 'New Collection');
     setNewCollectionIds(ncIds?.value ? JSON.parse(ncIds.value) : []);
@@ -210,21 +215,37 @@ export default function MediaAdminPage() {
       return;
     }
     setProducts(prev => prev.map(p => p.id === productId ? { ...p, featured: !current } : p));
-    setFeaturedOrder(prev =>
-      !current ? [...prev, productId] : prev.filter(id => id !== productId)
-    );
+    const newOrder = !current
+      ? [...featuredOrder, productId]
+      : featuredOrder.filter(id => id !== productId);
+    setFeaturedOrder(newOrder);
+    persistFeaturedOrder(newOrder);
     setSavedMsg('Saved!');
     setSavedMsgSection('featured');
     setTimeout(() => { setSavedMsg(''); setSavedMsgSection(''); }, 2000);
   };
 
-  const moveFeatured = (index: number, direction: -1 | 1) => {
+  const persistFeaturedOrder = async (order: number[]) => {
+    const res = await fetch('/api/admin/products', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ featuredPositions: order.map((id, i) => ({ id, position: i })) }),
+    });
+    if (!res.ok) {
+      setFeaturedError('Failed to save the order. Please try again.');
+      setTimeout(() => setFeaturedError(''), 3000);
+      return false;
+    }
+    return true;
+  };
+
+  const moveFeatured = async (index: number, direction: -1 | 1) => {
     const newOrder = [...featuredOrder];
     const swapIdx = index + direction;
     if (swapIdx < 0 || swapIdx >= newOrder.length) return;
     [newOrder[index], newOrder[swapIdx]] = [newOrder[swapIdx], newOrder[index]];
-    setFeaturedOrder(newOrder);
-    // Note: cosmetic reorder only — no featured_position column in DB
+    const ok = await persistFeaturedOrder(newOrder);
+    if (ok) setFeaturedOrder(newOrder);
   };
 
   const featuredProducts = featuredOrder

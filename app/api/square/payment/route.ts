@@ -4,6 +4,7 @@ import { createHash } from 'crypto';
 import { priceOrder } from '../../../../lib/orders-server';
 import { supabaseService } from '../../../../lib/admin-server';
 import { rateLimit } from '../../../../lib/rate-limit';
+import { validateDiscountCode, incrementUse } from '../../../../lib/discounts';
 
 const square = new SquareClient({
   token: process.env.SQUARE_ACCESS_TOKEN!,
@@ -31,6 +32,7 @@ export async function POST(req: NextRequest) {
       address: string; apartment: string; city: string; postcode: string; country: string;
     };
     userId?: string | null;
+    discountCode?: string | null;
   };
 
   try {
@@ -39,7 +41,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Invalid request.' }, { status: 400 });
   }
 
-  const { sourceId, items, shipping, userId } = body;
+  const { sourceId, items, shipping, userId, discountCode } = body;
 
   if (!sourceId || !items?.length || !shipping?.email) {
     return NextResponse.json({ error: 'Missing required fields.' }, { status: 400 });
@@ -57,7 +59,20 @@ export async function POST(req: NextRequest) {
   // charged anywhere today (the Stripe flow also charges subtotal only).
   const subtotal = pricing.subtotal;
   const shippingCost = 0;
-  const total = subtotal;
+
+  // Re-validate any discount code server-side — the client never sets amounts.
+  let appliedCode: string | null = null;
+  let discountUsd = 0;
+  if (discountCode && typeof discountCode === 'string' && discountCode.trim()) {
+    const result = await validateDiscountCode(discountCode, subtotal);
+    if (!result.valid) {
+      return NextResponse.json({ error: result.reason }, { status: 400 });
+    }
+    appliedCode = result.codeRow.code;
+    discountUsd = result.discountUsd;
+  }
+
+  const total = Math.max(0, subtotal - discountUsd);
   const amountCents = BigInt(Math.round(total * 100));
 
   // Derive the idempotency key from the single-use card token so a retried
@@ -94,6 +109,9 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ orderId: existing.id, paymentId: payment.id });
     }
 
+    // Payment completed with the discounted amount — count the redemption.
+    if (appliedCode) await incrementUse(appliedCode);
+
     const { data: order, error: dbError } = await supabaseService
       .from('orders')
       .insert({
@@ -114,6 +132,8 @@ export async function POST(req: NextRequest) {
         subtotal,
         shipping_cost: shippingCost,
         total,
+        discount_code: appliedCode,
+        discount_usd: appliedCode ? discountUsd : null,
         status: 'paid',
         payment_provider: 'square',
         payment_id: payment.id,

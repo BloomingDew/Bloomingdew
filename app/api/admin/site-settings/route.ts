@@ -17,12 +17,19 @@ export async function POST(req: NextRequest) {
     'new_collection_product_ids',
     'marquee_text',
     'hero_image_url',
+    'low_stock_threshold',
   ];
   if (!ALLOWED_KEYS.includes(key)) {
     return NextResponse.json({ error: `Unknown setting: ${key}` }, { status: 400 });
   }
   if (value !== null && typeof value !== 'string') {
     return NextResponse.json({ error: 'Value must be a string or null.' }, { status: 400 });
+  }
+  if (key === 'low_stock_threshold' && value !== null) {
+    const n = Number(value);
+    if (!Number.isInteger(n) || n < 0 || n > 1000) {
+      return NextResponse.json({ error: 'Threshold must be a whole number between 0 and 1000.' }, { status: 400 });
+    }
   }
   if (key === 'new_collection_product_ids' && value !== null) {
     try {

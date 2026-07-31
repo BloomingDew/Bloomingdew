@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import Stripe from 'stripe';
 import { priceOrder, savePendingOrder, type Shipping } from '../../../../lib/orders-server';
+import { validateDiscountCode } from '../../../../lib/discounts';
 
 // Creates a PaymentIntent for the SERVER-COMPUTED order total. The client sends
 // only the cart line items (id/size/quantity); the amount is recomputed from
@@ -25,8 +26,9 @@ export async function POST(req: NextRequest) {
   let items: unknown;
   let shipping: Shipping | undefined;
   let userId: string | null = null;
+  let discountCode: string | null = null;
   try {
-    ({ items, shipping, userId = null } = await req.json());
+    ({ items, shipping, userId = null, discountCode = null } = await req.json());
   } catch {
     return NextResponse.json({ error: 'Invalid request.', code: 'bad_request' }, { status: 400 });
   }
@@ -49,7 +51,21 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  if (pricing.amountMinor < 100) {
+  // 1b) Re-validate any discount code server-side; the client never sends an
+  //     amount, so a bad code simply fails here with the reason.
+  let appliedCode: string | null = null;
+  let discountUsd = 0;
+  if (typeof discountCode === 'string' && discountCode.trim()) {
+    const result = await validateDiscountCode(discountCode, pricing.subtotal);
+    if (!result.valid) {
+      return NextResponse.json({ error: result.reason, code: 'invalid_discount' }, { status: 400 });
+    }
+    appliedCode = result.codeRow.code;
+    discountUsd = result.discountUsd;
+  }
+  const chargeMinor = Math.max(0, pricing.amountMinor - Math.round(discountUsd * 100));
+
+  if (chargeMinor < 100) {
     return NextResponse.json({ error: 'Order total is too low.', code: 'amount_too_low' }, { status: 400 });
   }
 
@@ -57,12 +73,13 @@ export async function POST(req: NextRequest) {
   try {
     const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!);
     const paymentIntent = await stripe.paymentIntents.create({
-      amount: pricing.amountMinor, // USD cents
+      amount: chargeMinor, // USD cents, after any discount
       currency: 'usd',
       automatic_payment_methods: { enabled: true },
       metadata: {
         item_count: String(pricing.lines.length),
         subtotal_usd: String(pricing.subtotal),
+        ...(appliedCode ? { discount_code: appliedCode, discount_usd: String(discountUsd) } : {}),
       },
     });
 
@@ -75,12 +92,13 @@ export async function POST(req: NextRequest) {
         shipping,
         userId,
         subtotal: pricing.subtotal,
+        discountCode: appliedCode,
       });
     }
 
     return NextResponse.json({
       clientSecret: paymentIntent.client_secret,
-      amount: pricing.subtotal,
+      amount: Math.max(0, pricing.subtotal - discountUsd),
     });
   } catch (err: any) {
     console.error('[payment-intent] Stripe createPaymentIntent failed:', err?.message || err);
