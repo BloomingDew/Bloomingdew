@@ -1,10 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getAdminUser, supabaseService } from '../../../../lib/admin-server';
+import { getAdmin, supabaseService } from '../../../../lib/admin-server';
+import { logActivity } from '../../../../lib/activity';
 
 export async function POST(req: NextRequest) {
-  const admin = await getAdminUser();
+  const admin = await getAdmin();
   if (!admin) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  }
+  if (admin.role !== 'owner') {
+    return NextResponse.json({ error: 'Your admin role cannot change site settings.' }, { status: 403 });
   }
 
   const { key, value } = await req.json();
@@ -48,5 +52,6 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 
+  logActivity({ adminEmail: admin.user.email, action: 'update', entity: 'site-setting', entityId: key });
   return NextResponse.json({ success: true });
 }

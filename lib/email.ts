@@ -78,6 +78,40 @@ export async function buildEmail(templateId: string, variables: Record<string, s
   return { subject, html };
 }
 
+// Free-form branded email (e.g. admin replies to enquiries). The body is
+// plain text typed by the admin — escaped, then wrapped in the same branded
+// shell the templates use.
+export async function sendBrandedEmail(params: { to: string; subject: string; bodyText: string }): Promise<void> {
+  const safeBody = escapeHtml(params.bodyText).replace(/\n/g, '<br>');
+  const html = `
+    <!DOCTYPE html>
+    <html>
+    <head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"></head>
+    <body style="margin:0;padding:0;background-color:#FAF7F4;">
+      <div style="max-width:600px;margin:0 auto;padding:48px 24px;font-family:Helvetica,sans-serif;">
+        <div style="text-align:center;margin-bottom:40px;">
+          <h1 style="font-family:Georgia,serif;font-size:26px;font-weight:500;color:#2C2C2C;letter-spacing:0.08em;margin:0;">
+            Bloomingdew
+          </h1>
+        </div>
+        <div style="background:#FFFFFF;border:1px solid #E8DDD3;padding:2rem;font-size:15px;line-height:1.8;color:#2C2C2C;">
+          ${safeBody}
+        </div>
+        <div style="text-align:center;border-top:1px solid #E8DDD3;padding-top:32px;margin-top:40px;">
+          <p style="font-size:12px;color:#9A8F87;line-height:1.7;margin:0;">
+            Made with love.<br>
+            <a href="https://bloomingdew.com" style="color:#C9A882;text-decoration:none;">bloomingdew.com</a>
+          </p>
+        </div>
+      </div>
+    </body>
+    </html>
+  `;
+
+  const resend = getResend();
+  await resend.emails.send({ from: FROM_EMAIL, to: params.to, subject: params.subject, html });
+}
+
 type OrderEmailItem = { name: string; size: string; quantity: number; price: string };
 
 export type OrderConfirmationPayload = {

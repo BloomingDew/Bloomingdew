@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getAdminUser, supabaseService } from '../../../../lib/admin-server';
+import { getAdminUser, getAdmin, supabaseService } from '../../../../lib/admin-server';
+import { logActivity } from '../../../../lib/activity';
 
 // Admin orders access. RLS gives orders no client write policy and gates
 // selects on the customer's own rows, so the admin list and status updates
@@ -70,7 +71,9 @@ export async function GET(req: NextRequest) {
 // PATCH — single: { id, status?|notes?|tracking_number?|tracking_url? }
 //         bulk:   { ids: string[], status }
 export async function PATCH(req: NextRequest) {
-  if (!(await getAdminUser())) return unauthorized();
+  const admin = await getAdmin();
+  if (!admin) return unauthorized();
+  const adminEmail = admin.user.email;
 
   const body = await req.json();
 
@@ -81,6 +84,7 @@ export async function PATCH(req: NextRequest) {
     const { error } = await supabaseService
       .from('orders').update({ status: body.status }).in('id', body.ids);
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+    logActivity({ adminEmail, action: 'status', entity: 'order', entityId: body.ids.join(','), details: { status: body.status, bulk: true } });
     return NextResponse.json({ success: true });
   }
 
@@ -98,5 +102,8 @@ export async function PATCH(req: NextRequest) {
 
   const { error } = await supabaseService.from('orders').update(updates).eq('id', id);
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  if (updates.status) {
+    logActivity({ adminEmail, action: 'status', entity: 'order', entityId: id, details: { status: updates.status } });
+  }
   return NextResponse.json({ success: true });
 }

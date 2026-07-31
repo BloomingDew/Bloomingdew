@@ -73,6 +73,18 @@ export default function CheckoutPage() {
   const handleShippingSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     setStep('payment');
+    // Fire-and-forget abandoned-checkout capture — never blocks checkout.
+    try {
+      fetch('/api/abandoned', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          email: shipping.email,
+          firstName: shipping.firstName,
+          items: items.map(i => ({ id: i.id, size: i.size, quantity: i.quantity })),
+        }),
+      }).catch(() => {});
+    } catch {}
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 

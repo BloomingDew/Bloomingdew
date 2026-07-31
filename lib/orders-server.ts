@@ -252,6 +252,15 @@ export async function finalizeOrder(params: {
   // 4b. Count the discount redemption now that the order is recorded.
   if (discountCode) await incrementUse(discountCode);
 
+  // 4c. Best-effort: mark any matching abandoned checkout as recovered.
+  try {
+    await supabaseService
+      .from('abandoned_checkouts')
+      .update({ status: 'recovered', updated_at: new Date().toISOString() })
+      .eq('status', 'started')
+      .ilike('email', shipping.email);
+  } catch {}
+
   // 5. Decrement stock (best-effort; failures logged for reconciliation).
   for (const line of pricing.lines) {
     const { error: stockError } = await supabaseService.rpc('decrement_stock', {

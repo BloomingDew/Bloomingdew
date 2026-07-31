@@ -151,6 +151,15 @@ export async function POST(req: NextRequest) {
       });
     }
 
+    // Best-effort: mark any matching abandoned checkout as recovered.
+    try {
+      await supabaseService
+        .from('abandoned_checkouts')
+        .update({ status: 'recovered', updated_at: new Date().toISOString() })
+        .eq('status', 'started')
+        .ilike('email', shipping.email);
+    } catch {}
+
     return NextResponse.json({ orderId: order.id, paymentId: payment.id });
   } catch (err) {
     const detail = (err as { errors?: { detail?: string }[] })?.errors?.[0]?.detail;

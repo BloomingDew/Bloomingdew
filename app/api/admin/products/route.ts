@@ -1,11 +1,38 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getAdminUser, supabaseService } from '../../../../lib/admin-server';
+import { getAdmin, supabaseService } from '../../../../lib/admin-server';
+import { logActivity } from '../../../../lib/activity';
 
 // Admin product writes. products/product_images/product_size_inventory are
 // RLS select-only for browser clients, so every write must run here under the
-// service role.
+// service role. Product writes are owner-only; staff admins are read-only here.
 
 const unauthorized = () => NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+const forbidden = () => NextResponse.json({ error: 'Your admin role cannot modify products.' }, { status: 403 });
+
+// Record stock deltas so "why does this say 0?" is answerable.
+async function recordInventoryMovements(
+  productId: number,
+  next: { size: string; quantity: number }[],
+  adminEmail: string | null | undefined,
+) {
+  try {
+    const { data: existing } = await supabaseService
+      .from('product_size_inventory').select('size, quantity').eq('product_id', productId);
+    const before = new Map((existing || []).map(r => [r.size, Number(r.quantity) || 0]));
+    const movements = next
+      .map(s => ({ size: s.size, delta: (Number(s.quantity) || 0) - (before.get(s.size) ?? 0) }))
+      .filter(m => m.delta !== 0)
+      .map(m => ({
+        product_id: productId, size: m.size, delta: m.delta,
+        reason: 'manual-adjust', admin_email: adminEmail ?? null,
+      }));
+    if (movements.length > 0) {
+      await supabaseService.from('inventory_movements').insert(movements);
+    }
+  } catch {
+    // Auxiliary — never block the save.
+  }
+}
 
 const storagePathFromUrl = (url: string): string | null => {
   const marker = '/product-image/';
@@ -15,7 +42,9 @@ const storagePathFromUrl = (url: string): string | null => {
 
 // POST — create a product with its images, size inventory, and colours.
 export async function POST(req: NextRequest) {
-  if (!(await getAdminUser())) return unauthorized();
+  const admin = await getAdmin();
+  if (!admin) return unauthorized();
+  if (admin.role !== 'owner') return forbidden();
 
   const { product, images = [], sizeInventory = [], colours = [] } = await req.json();
   if (!product?.name || typeof product.price !== 'number') {
@@ -68,13 +97,17 @@ export async function POST(req: NextRequest) {
     }
   }
 
+  logActivity({ adminEmail: admin.user.email, action: 'create', entity: 'product', entityId: created.id, details: { name: product.name } });
   return NextResponse.json({ id: created.id });
 }
 
 // PATCH — either a bulk flag update ({ ids, available?/featured? }) or a full
 // single-product update ({ id, fields, sizeInventory? }).
 export async function PATCH(req: NextRequest) {
-  if (!(await getAdminUser())) return unauthorized();
+  const admin = await getAdmin();
+  if (!admin) return unauthorized();
+  if (admin.role !== 'owner') return forbidden();
+  const adminEmail = admin.user.email;
 
   const body = await req.json();
 
@@ -99,6 +132,7 @@ export async function PATCH(req: NextRequest) {
     }
     const { error } = await supabaseService.from('products').update(updates).in('id', body.ids);
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+    logActivity({ adminEmail, action: 'update', entity: 'product', entityId: body.ids.join(','), details: updates });
     return NextResponse.json({ success: true });
   }
 
@@ -111,6 +145,8 @@ export async function PATCH(req: NextRequest) {
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 
   if (Array.isArray(sizeInventory)) {
+    // Record deltas before the upsert overwrites the previous quantities.
+    await recordInventoryMovements(Number(id), sizeInventory, adminEmail);
     const { error: invError } = await supabaseService.from('product_size_inventory').upsert(
       sizeInventory.map((s: { size: string; quantity: number }) => ({
         product_id: Number(id), size: s.size, quantity: s.quantity,
@@ -122,12 +158,15 @@ export async function PATCH(req: NextRequest) {
     }
   }
 
+  logActivity({ adminEmail, action: 'update', entity: 'product', entityId: id, details: { name: fields.name } });
   return NextResponse.json({ success: true });
 }
 
 // DELETE — { ids: number[] }. Removes related rows and the storage files.
 export async function DELETE(req: NextRequest) {
-  if (!(await getAdminUser())) return unauthorized();
+  const admin = await getAdmin();
+  if (!admin) return unauthorized();
+  if (admin.role !== 'owner') return forbidden();
 
   const { ids } = await req.json();
   if (!Array.isArray(ids) || ids.length === 0) {
@@ -157,5 +196,6 @@ export async function DELETE(req: NextRequest) {
     await supabaseService.storage.from('product-image').remove(paths);
   }
 
+  logActivity({ adminEmail: admin.user.email, action: 'delete', entity: 'product', entityId: ids.join(',') });
   return NextResponse.json({ success: true });
 }

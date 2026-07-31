@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getAdminUser, supabaseService } from '../../../../lib/admin-server';
+import { getAdminUser, getAdmin, supabaseService } from '../../../../lib/admin-server';
 
 // Admin CRUD for discount codes. discount_codes has RLS with no client
 // policies, so all access goes through the service role behind the admin gate.
@@ -17,7 +17,9 @@ export async function GET() {
 }
 
 export async function POST(req: NextRequest) {
-  if (!(await getAdminUser())) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  const admin = await getAdmin();
+  if (!admin) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  if (admin.role !== 'owner') return NextResponse.json({ error: 'Your admin role cannot manage discounts.' }, { status: 403 });
 
   let body: any;
   try {
@@ -67,7 +69,9 @@ export async function POST(req: NextRequest) {
 }
 
 export async function PATCH(req: NextRequest) {
-  if (!(await getAdminUser())) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  const admin = await getAdmin();
+  if (!admin) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  if (admin.role !== 'owner') return NextResponse.json({ error: 'Your admin role cannot manage discounts.' }, { status: 403 });
 
   let body: any;
   try {
@@ -101,7 +105,9 @@ export async function PATCH(req: NextRequest) {
 }
 
 export async function DELETE(req: NextRequest) {
-  if (!(await getAdminUser())) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  const admin = await getAdmin();
+  if (!admin) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  if (admin.role !== 'owner') return NextResponse.json({ error: 'Your admin role cannot manage discounts.' }, { status: 403 });
 
   let body: any;
   try {

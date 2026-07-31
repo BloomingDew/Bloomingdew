@@ -28,6 +28,43 @@ export default function EnquiriesPage() {
   const [filter, setFilter] = useState<'all' | 'contact' | 'custom'>('all');
   const [showArchived, setShowArchived] = useState(false);
   const [search, setSearch] = useState('');
+  const [replyingTo, setReplyingTo] = useState<string | null>(null);
+  const [replySubject, setReplySubject] = useState('');
+  const [replyMessage, setReplyMessage] = useState('');
+  const [replyError, setReplyError] = useState('');
+  const [sendingReply, setSendingReply] = useState(false);
+  const [replySent, setReplySent] = useState<string | null>(null);
+
+  const openReply = (enquiry: Enquiry) => {
+    setReplyingTo(enquiry.id);
+    setReplySubject(enquiry.subject ? `Re: ${enquiry.subject}` : 'Re: Your enquiry — Bloomingdew');
+    setReplyMessage('');
+    setReplyError('');
+    setReplySent(null);
+  };
+
+  const sendReply = async (enquiryId: string) => {
+    if (!replySubject.trim() || !replyMessage.trim()) {
+      setReplyError('Please fill in the subject and message.');
+      return;
+    }
+    setSendingReply(true);
+    setReplyError('');
+    const res = await fetch('/api/admin/enquiries/reply', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ enquiryId, subject: replySubject, message: replyMessage }),
+    });
+    setSendingReply(false);
+    if (!res.ok) {
+      const { error } = await res.json().catch(() => ({ error: 'Unknown error' }));
+      setReplyError(error || 'Failed to send.');
+      return;
+    }
+    setReplyingTo(null);
+    setReplySent(enquiryId);
+    setEnquiries(prev => prev.map(e => e.id === enquiryId ? { ...e, status: 'replied' } : e));
+  };
 
   useEffect(() => {
     getSession().then(s => { if (!s) router.push('/admin/login'); });
@@ -220,14 +257,60 @@ export default function EnquiriesPage() {
                     )}
                   </div>
 
+                  {/* In-admin reply */}
+                  {replyingTo === enquiry.id ? (
+                    <div style={{ marginTop: '1.5rem', border: '1px solid #E8DDD3', padding: '1.2rem', backgroundColor: '#FAFAFA' }}>
+                      <p style={{ fontFamily: "'Jost', sans-serif", fontSize: '0.72rem', letterSpacing: '0.1em', textTransform: 'uppercase', color: '#C9A882', marginBottom: '0.75rem' }}>
+                        Reply to {enquiry.email}
+                      </p>
+                      <input
+                        value={replySubject}
+                        onChange={e => setReplySubject(e.target.value)}
+                        placeholder="Subject"
+                        style={{ width: '100%', padding: '0.6rem 0.75rem', border: '1px solid #E8DDD3', fontFamily: "'Jost', sans-serif", fontSize: '0.85rem', outline: 'none', marginBottom: '0.6rem', boxSizing: 'border-box' }}
+                      />
+                      <textarea
+                        value={replyMessage}
+                        onChange={e => setReplyMessage(e.target.value)}
+                        placeholder="Write your reply..."
+                        style={{ width: '100%', minHeight: '120px', padding: '0.75rem', border: '1px solid #E8DDD3', fontFamily: "'Jost', sans-serif", fontSize: '0.85rem', outline: 'none', resize: 'vertical', boxSizing: 'border-box' }}
+                      />
+                      {replyError && (
+                        <p style={{ fontFamily: "'Jost', sans-serif", fontSize: '0.8rem', color: '#C62828', marginTop: '0.5rem' }}>{replyError}</p>
+                      )}
+                      <div style={{ display: 'flex', gap: '0.75rem', marginTop: '0.9rem' }}>
+                        <button onClick={() => sendReply(enquiry.id)} disabled={sendingReply} style={{
+                          padding: '0.6rem 1.5rem', backgroundColor: '#2C2C2C', color: '#FAF7F4', border: 'none',
+                          fontFamily: "'Jost', sans-serif", fontSize: '0.72rem', letterSpacing: '0.12em',
+                          textTransform: 'uppercase', cursor: sendingReply ? 'default' : 'pointer', opacity: sendingReply ? 0.6 : 1,
+                        }}>
+                          {sendingReply ? 'Sending…' : 'Send Reply'}
+                        </button>
+                        <button onClick={() => setReplyingTo(null)} style={{
+                          padding: '0.6rem 1.2rem', backgroundColor: 'transparent', color: '#9A8F87',
+                          border: '1px solid #E8DDD3', fontFamily: "'Jost', sans-serif", fontSize: '0.72rem',
+                          letterSpacing: '0.12em', textTransform: 'uppercase', cursor: 'pointer',
+                        }}>
+                          Cancel
+                        </button>
+                      </div>
+                    </div>
+                  ) : replySent === enquiry.id ? (
+                    <p style={{ fontFamily: "'Jost', sans-serif", fontSize: '0.85rem', color: '#2E7D32', marginTop: '1.5rem' }}>
+                      Reply sent ✓
+                    </p>
+                  ) : null}
+
                   <div style={{ display: 'flex', gap: '0.75rem', marginTop: '1.5rem', alignItems: 'center', flexWrap: 'wrap' }}>
-                    <a href={`mailto:${enquiry.email}`} style={{
-                      padding: '0.7rem 1.5rem', backgroundColor: '#2C2C2C', color: '#FAF7F4',
-                      fontFamily: "'Jost', sans-serif", fontSize: '0.72rem', letterSpacing: '0.12em',
-                      textTransform: 'uppercase', textDecoration: 'none', display: 'inline-block',
-                    }}>
-                      Reply via Email
-                    </a>
+                    {replyingTo !== enquiry.id && (
+                      <button onClick={() => openReply(enquiry)} style={{
+                        padding: '0.7rem 1.5rem', backgroundColor: '#2C2C2C', color: '#FAF7F4', border: 'none',
+                        fontFamily: "'Jost', sans-serif", fontSize: '0.72rem', letterSpacing: '0.12em',
+                        textTransform: 'uppercase', cursor: 'pointer',
+                      }}>
+                        Reply
+                      </button>
+                    )}
 
                     {/* Mark as Read — only shown when status is unread */}
                     {enquiry.status === 'unread' && (

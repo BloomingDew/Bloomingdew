@@ -4,6 +4,7 @@ import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { getSession } from '../../../lib/supabase-admin';
 import { formatAdminPrice } from '../../../lib/adminCurrency';
+import { toast } from '../../../components/Toast';
 
 type Order = {
   id: string;
@@ -106,7 +107,7 @@ export default function OrdersPage() {
     });
     if (!res.ok) {
       const { error } = await res.json().catch(() => ({ error: 'Unknown error' }));
-      alert(`Bulk update failed: ${error}`);
+      toast(`Bulk update failed: ${error}`, 'error');
       return;
     }
     setOrders(prev => prev.map(o => selected.includes(o.id) ? { ...o, status: bulkStatus } : o));
@@ -121,7 +122,7 @@ export default function OrdersPage() {
     });
     if (!res.ok) {
       const { error } = await res.json().catch(() => ({ error: 'Unknown error' }));
-      alert(`Failed to save: ${error}`);
+      toast(`Failed to save: ${error}`, 'error');
       return false;
     }
     return true;

@@ -17,6 +17,15 @@ export const supabaseService = createClient(
 // (which only reads the cookie), and checks membership in the locked-down
 // `admins` table via the service role so the check can't be bypassed client-side.
 export async function getAdminUser(): Promise<User | null> {
+  return (await getAdmin())?.user ?? null;
+}
+
+export type AdminRole = 'owner' | 'staff';
+
+// Like getAdminUser but includes the role from the admins table.
+// 'owner' = full access; 'staff' = day-to-day (orders/enquiries) but no
+// destructive or settings-level writes.
+export async function getAdmin(): Promise<{ user: User; role: AdminRole } | null> {
   const cookieStore = await cookies();
   const supabase = createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -34,12 +43,19 @@ export async function getAdminUser(): Promise<User | null> {
 
   const { data, error } = await supabaseService
     .from('admins')
-    .select('user_id')
+    .select('user_id, role')
     .eq('user_id', user.id)
     .maybeSingle();
 
-  if (error || !data) return null;
-  return user;
+  if (error) {
+    // The role column may not exist yet (002 migration not applied) —
+    // fall back to the plain membership check rather than locking admins out.
+    const { data: fallback } = await supabaseService
+      .from('admins').select('user_id').eq('user_id', user.id).maybeSingle();
+    return fallback ? { user, role: 'owner' } : null;
+  }
+  if (!data) return null;
+  return { user, role: (data.role === 'staff' ? 'staff' : 'owner') };
 }
 
 export async function isAdmin(): Promise<boolean> {

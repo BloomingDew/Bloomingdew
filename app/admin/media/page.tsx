@@ -6,6 +6,7 @@ import { getSession, supabaseAuth } from '../../../lib/supabase-admin';
 import { supabase } from '../../../lib/supabase';
 import { formatAdminPrice } from '../../../lib/adminCurrency';
 import { compressImage } from '../../../lib/compressImage';
+import { toast } from '../../../components/Toast';
 
 type Product = { id: number; name: string; price: number; featured: boolean; featured_position: number | null; product_images: { url: string }[] };
 
@@ -76,7 +77,7 @@ export default function MediaAdminPage() {
     const { error: uploadError } = await supabaseAuth.storage.from('product-image').upload(fileName, compressed, { upsert: true });
 
     if (uploadError) {
-      alert(`Upload failed: ${uploadError.message}`);
+      toast(`Upload failed: ${uploadError.message}`, 'error');
       setUploadingHero(false);
       return;
     }
@@ -90,7 +91,7 @@ export default function MediaAdminPage() {
 
     if (!res.ok) {
       const { error } = await res.json().catch(() => ({ error: 'Unknown error' }));
-      alert(`Saved to storage but failed to update database: ${error}`);
+      toast(`Saved to storage but failed to update database: ${error}`, 'error');
       setUploadingHero(false);
       return;
     }
@@ -109,7 +110,7 @@ export default function MediaAdminPage() {
       body: JSON.stringify({ key: 'hero_image_url', value: null }),
     });
     if (!res.ok) {
-      alert('Failed to remove the image. Please try again.');
+      toast('Failed to remove the image. Please try again.', 'error');
       return;
     }
     if (heroImage) {
@@ -146,7 +147,7 @@ export default function MediaAdminPage() {
     const { error: uploadError } = await supabaseAuth.storage.from('product-image').upload(fileName, compressed, { upsert: true });
 
     if (uploadError) {
-      alert(`Upload failed: ${uploadError.message}`);
+      toast(`Upload failed: ${uploadError.message}`, 'error');
       setUploadingAbout(false);
       return;
     }
@@ -162,7 +163,7 @@ export default function MediaAdminPage() {
 
     if (!res.ok) {
       const { error } = await res.json().catch(() => ({ error: 'Unknown error' }));
-      alert(`Saved to storage but failed to update database: ${error}`);
+      toast(`Saved to storage but failed to update database: ${error}`, 'error');
       setUploadingAbout(false);
       return;
     }
@@ -183,7 +184,7 @@ export default function MediaAdminPage() {
       body: JSON.stringify({ key: 'about_image_url', value: null }),
     });
     if (!res.ok) {
-      alert('Failed to remove the image. Please try again.');
+      toast('Failed to remove the image. Please try again.', 'error');
       return;
     }
     if (aboutImage) {

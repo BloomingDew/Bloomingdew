@@ -6,6 +6,7 @@ import Link from 'next/link';
 import { getSession } from '../../lib/supabase-admin';
 import { supabase } from '../../lib/supabase';
 import { formatAdminPrice } from '../../lib/adminCurrency';
+import { toast } from '../../components/Toast';
 
 type Product = {
   id: number;
@@ -42,6 +43,8 @@ export default function AdminPage() {
   const [pendingOrders, setPendingOrders] = useState(0);
   const [completedRevenue, setCompletedRevenue] = useState<number | null>(null);
   const [analytics, setAnalytics] = useState<Analytics | null>(null);
+  const [activity, setActivity] = useState<{ id: number; admin_email: string | null; action: string; entity: string; entity_id: string | null; details: Record<string, unknown> | null; created_at: string }[]>([]);
+  const [showActivity, setShowActivity] = useState(false);
   const [lowStockThreshold, setLowStockThreshold] = useState('3');
   const [thresholdSaved, setThresholdSaved] = useState(false);
 
@@ -81,6 +84,15 @@ export default function AdminPage() {
     } catch {
       // Analytics section simply doesn't render without data.
     }
+    try {
+      const res = await fetch('/api/admin/activity');
+      if (res.ok) {
+        const { activity: rows } = await res.json();
+        setActivity(rows || []);
+      }
+    } catch {
+      // Activity card simply doesn't render without data.
+    }
   };
 
   const saveThreshold = async () => {
@@ -91,7 +103,7 @@ export default function AdminPage() {
     });
     if (!res.ok) {
       const { error } = await res.json().catch(() => ({ error: 'Unknown error' }));
-      alert(`Failed to save: ${error}`);
+      toast(`Failed to save: ${error}`, 'error');
       return;
     }
     setThresholdSaved(true);
@@ -107,7 +119,7 @@ export default function AdminPage() {
     });
     if (!res.ok) {
       const { error } = await res.json().catch(() => ({ error: 'Unknown error' }));
-      alert(`Failed to update: ${error}`);
+      toast(`Failed to update: ${error}`, 'error');
       return;
     }
     setProducts(prev => prev.map(p => p.id === id ? { ...p, available: !current } : p));
@@ -132,7 +144,7 @@ export default function AdminPage() {
     });
     if (!res.ok) {
       const { error } = await res.json().catch(() => ({ error: 'Unknown error' }));
-      alert(`Failed to update: ${error}`);
+      toast(`Failed to update: ${error}`, 'error');
       return;
     }
     setProducts(prev => prev.map(p => selected.includes(p.id) ? { ...p, available } : p));
@@ -148,7 +160,7 @@ export default function AdminPage() {
     });
     if (!res.ok) {
       const { error } = await res.json().catch(() => ({ error: 'Unknown error' }));
-      alert(`Failed to delete: ${error}`);
+      toast(`Failed to delete: ${error}`, 'error');
       return;
     }
     setProducts(prev => prev.filter(p => !selected.includes(p.id)));
@@ -319,6 +331,38 @@ export default function AdminPage() {
             </p>
           </div>
         </div>
+
+        {/* Recent admin activity */}
+        {activity.length > 0 && (
+          <div style={{ backgroundColor: '#FFFFFF', border: '1px solid #E8DDD3', padding: '1.5rem 2rem', marginBottom: '2rem' }}>
+            <button onClick={() => setShowActivity(!showActivity)} style={{
+              display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%',
+              background: 'none', border: 'none', cursor: 'pointer', padding: 0,
+            }}>
+              <h2 style={{ fontFamily: "'Playfair Display', serif", fontSize: '1.1rem', fontWeight: 500, color: '#2C2C2C' }}>
+                Recent Activity
+              </h2>
+              <span style={{ color: '#9A8F87', fontSize: '0.8rem' }}>{showActivity ? '▲' : '▼'}</span>
+            </button>
+            {showActivity && (
+              <div style={{ marginTop: '1rem', display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
+                {activity.map(a => (
+                  <div key={a.id} style={{ display: 'flex', gap: '0.75rem', alignItems: 'baseline', padding: '0.4rem 0', borderBottom: '1px solid #F5F5F5', flexWrap: 'wrap' }}>
+                    <span style={{ fontFamily: "'Jost', sans-serif", fontSize: '0.72rem', color: '#9A8F87', minWidth: '120px' }}>
+                      {new Date(a.created_at).toLocaleString('en-GB', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}
+                    </span>
+                    <span style={{ fontFamily: "'Jost', sans-serif", fontSize: '0.82rem', color: '#2C2C2C', flex: 1 }}>
+                      {a.admin_email ? a.admin_email.split('@')[0] : 'admin'} · {a.action} {a.entity}
+                      {a.entity_id ? ` #${String(a.entity_id).slice(0, 8)}` : ''}
+                      {a.details && typeof a.details === 'object' && 'status' in a.details ? ` → ${a.details.status}` : ''}
+                      {a.details && typeof a.details === 'object' && 'name' in a.details ? ` (${a.details.name})` : ''}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
 
         {/* Header + actions */}
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem', flexWrap: 'wrap', gap: '1rem' }}>

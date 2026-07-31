@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { getSession } from '../../../lib/supabase-admin';
+import { toast } from '../../../components/Toast';
 
 type Discount = {
   id: string;
@@ -60,7 +61,7 @@ export default function DiscountsPage() {
     });
     const data = await res.json().catch(() => ({}));
     setSaving(false);
-    if (!res.ok) { alert(data.error || 'Could not create the code.'); return; }
+    if (!res.ok) { toast(data.error || 'Could not create the code.', 'error'); return; }
     setForm(emptyForm);
     setDiscounts(prev => [data.discount, ...prev]);
   };
@@ -72,7 +73,7 @@ export default function DiscountsPage() {
       body: JSON.stringify({ id: d.id, active: !d.active }),
     });
     const data = await res.json().catch(() => ({}));
-    if (!res.ok) { alert(data.error || 'Could not update the code.'); return; }
+    if (!res.ok) { toast(data.error || 'Could not update the code.', 'error'); return; }
     setDiscounts(prev => prev.map(x => x.id === d.id ? data.discount : x));
   };
 
@@ -84,7 +85,7 @@ export default function DiscountsPage() {
       body: JSON.stringify({ id: d.id }),
     });
     const data = await res.json().catch(() => ({}));
-    if (!res.ok) { alert(data.error || 'Could not delete the code.'); return; }
+    if (!res.ok) { toast(data.error || 'Could not delete the code.', 'error'); return; }
     setDiscounts(prev => prev.filter(x => x.id !== d.id));
   };
 

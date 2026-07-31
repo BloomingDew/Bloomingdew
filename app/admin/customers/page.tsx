@@ -29,6 +29,15 @@ type Stats = {
   avgOrderValue: number;
 };
 
+type AbandonedRow = {
+  id: string;
+  email: string;
+  first_name: string | null;
+  items: { quantity?: number }[] | null;
+  subtotal: number;
+  created_at: string;
+};
+
 const STATUS_LABELS: Record<string, string> = {
   pending: 'Pending',
   paid: 'New Order',
@@ -56,6 +65,8 @@ export default function CustomersPage() {
   const [loading, setLoading] = useState(true);
   const [expanded, setExpanded] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
+  const [abandoned, setAbandoned] = useState<AbandonedRow[]>([]);
+  const [abandonedLoaded, setAbandonedLoaded] = useState(false);
 
   useEffect(() => {
     getSession().then(s => {
@@ -63,9 +74,22 @@ export default function CustomersPage() {
         router.push('/admin/login');
       } else {
         fetchCustomers();
+        fetchAbandoned();
       }
     });
   }, []);
+
+  const fetchAbandoned = async () => {
+    try {
+      const res = await fetch('/api/admin/abandoned');
+      if (!res.ok) throw new Error();
+      const data = await res.json();
+      setAbandoned(data.abandoned || []);
+    } catch {
+      setAbandoned([]);
+    }
+    setAbandonedLoaded(true);
+  };
 
   const fetchCustomers = async () => {
     try {
@@ -103,6 +127,48 @@ export default function CustomersPage() {
               <p style={{ fontFamily: "'Playfair Display', serif", fontSize: '1.8rem', fontWeight: 500, color: '#2C2C2C' }}>{value}</p>
             </div>
           ))}
+        </div>
+
+        {/* Abandoned Checkouts */}
+        <div style={{ backgroundColor: '#FFFFFF', border: '1px solid #E8DDD3', padding: '1.5rem', marginBottom: '2.5rem' }}>
+          <h3 style={{ fontFamily: "'Playfair Display', serif", fontSize: '1.2rem', fontWeight: 500, color: '#2C2C2C', marginBottom: '0.4rem' }}>
+            Abandoned Checkouts
+          </h3>
+          {!abandonedLoaded ? (
+            <p style={{ fontFamily: "'Jost', sans-serif", fontSize: '0.82rem', fontWeight: 300, color: '#9A8F87' }}>Loading...</p>
+          ) : abandoned.length === 0 ? (
+            <p style={{ fontFamily: "'Jost', sans-serif", fontSize: '0.82rem', fontWeight: 300, color: '#9A8F87' }}>No abandoned checkouts in the last 30 days.</p>
+          ) : (
+            <>
+              <p style={{ fontFamily: "'Jost', sans-serif", fontSize: '0.82rem', fontWeight: 300, color: '#9A8F87', marginBottom: '1rem' }}>
+                {abandoned.length} shopper{abandoned.length !== 1 ? 's' : ''} started checkout in the last 30 days without buying.
+              </p>
+              <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1.4fr 1fr 1fr', gap: '1rem', padding: '0.6rem 0', borderBottom: '1px solid #E8DDD3' }}>
+                {['Email', 'First Name', 'Items', 'Started', ''].map((h, i) => (
+                  <p key={i} style={{ fontFamily: "'Jost', sans-serif", fontSize: '0.68rem', letterSpacing: '0.12em', textTransform: 'uppercase', color: '#9A8F87' }}>{h}</p>
+                ))}
+              </div>
+              {abandoned.map(row => {
+                const itemCount = (row.items || []).reduce((sum, i) => sum + (Number(i.quantity) || 1), 0);
+                return (
+                  <div key={row.id} style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1.4fr 1fr 1fr', gap: '1rem', padding: '0.7rem 0', borderBottom: '1px solid #F5F5F5', alignItems: 'center' }}>
+                    <p style={{ fontFamily: "'Jost', sans-serif", fontSize: '0.82rem', color: '#2C2C2C', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{row.email}</p>
+                    <p style={{ fontFamily: "'Jost', sans-serif", fontSize: '0.82rem', color: '#2C2C2C' }}>{row.first_name || '—'}</p>
+                    <p style={{ fontFamily: "'Jost', sans-serif", fontSize: '0.82rem', color: '#9A8F87' }}>
+                      {itemCount} item{itemCount !== 1 ? 's' : ''} — {formatAdminPrice(Number(row.subtotal) || 0)}
+                    </p>
+                    <p style={{ fontFamily: "'Jost', sans-serif", fontSize: '0.8rem', color: '#9A8F87' }}>{formatDate(row.created_at)}</p>
+                    <a
+                      href={`mailto:${row.email}?subject=${encodeURIComponent('You left something behind — Bloomingdew')}`}
+                      style={{ fontFamily: "'Jost', sans-serif", fontSize: '0.75rem', letterSpacing: '0.08em', textTransform: 'uppercase', color: '#C9A882', textDecoration: 'none' }}
+                    >
+                      Email them
+                    </a>
+                  </div>
+                );
+              })}
+            </>
+          )}
         </div>
 
         {/* Search */}
