@@ -3,6 +3,7 @@
 import './globals.css';
 import { usePathname } from 'next/navigation';
 import { Analytics } from '@vercel/analytics/next';
+import { SpeedInsights } from '@vercel/speed-insights/next';
 import Navbar from '../components/Navbar';
 import Footer from '../components/Footer';
 import CartDrawer from '../components/CartDrawer';
@@ -21,6 +22,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <body>
           {children}
           <Analytics />
+          <SpeedInsights />
         </body>
       </html>
     );
@@ -44,6 +46,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         </UserProvider>
         </CurrencyProvider>
         <Analytics />
+        <SpeedInsights />
       </body>
     </html>
   );
