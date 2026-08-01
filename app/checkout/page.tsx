@@ -90,6 +90,16 @@ export default function CheckoutPage() {
   const [paymentError, setPaymentError] = useState('');
   const [paymentMethod, setPaymentMethod] = useState<'card' | 'paystack'>('card');
   const [paystackLoading, setPaystackLoading] = useState(false);
+  const [paystackAvailable, setPaystackAvailable] = useState(false);
+
+  // Only show the Paystack option where the key is configured (e.g. hidden in
+  // production until the live key is added).
+  useEffect(() => {
+    fetch('/api/paystack/initialize')
+      .then(r => r.json())
+      .then(({ configured }) => setPaystackAvailable(!!configured))
+      .catch(() => {});
+  }, []);
 
   // Returning from a failed/cancelled Paystack redirect.
   useEffect(() => {
@@ -405,6 +415,7 @@ export default function CheckoutPage() {
                     </div>
                   )}
 
+                  {paystackAvailable && <>
                   <div style={{ borderTop: '1px solid #E8DDD3' }} />
 
                   {/* ── Paystack (NGN) ── */}
@@ -456,6 +467,7 @@ export default function CheckoutPage() {
                       </button>
                     </div>
                   )}
+                  </>}
                 </div>
               )}
 

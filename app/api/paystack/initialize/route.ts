@@ -5,6 +5,12 @@ import { supabaseService } from '../../../../lib/admin-server';
 import { convertFromUsd, toMinorUnits } from '../../../../lib/currency';
 import { rateLimit } from '../../../../lib/rate-limit';
 
+// Availability probe — checkout hides the Paystack option when the key
+// isn't configured in this environment.
+export async function GET() {
+  return NextResponse.json({ configured: !!process.env.PAYSTACK_SECRET_KEY });
+}
+
 // Paystack charges in NGN. The order is re-priced server-side in USD (base),
 // converted at the same fx rate the storefront displays, and initialized with
 // Paystack; the callback route verifies the payment before recording anything.
