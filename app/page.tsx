@@ -256,27 +256,7 @@ export default function Home() {
             </div>
           </div>
 
-          <div style={{
-            display: 'grid',
-            gridTemplateColumns: 'repeat(4, 1fr)',
-            gap: '3px',
-          }}>
-            {featuredProducts.slice(0, 4).map((product) => (
-              <NewCollectionCard key={product.id} product={product} />
-            ))}
-          </div>
-
-          {featuredProducts.length > 4 && (
-            <div style={{
-              display: 'grid',
-              gridTemplateColumns: 'repeat(4, 1fr)',
-              gap: '3px', marginTop: '3px',
-            }}>
-              {featuredProducts.slice(4, 8).map((product) => (
-                <NewCollectionCard key={product.id} product={product} />
-              ))}
-            </div>
-          )}
+          <NewCollectionCarousel products={featuredProducts} />
         </section>
 
       {/* ── Editorial Banner ── */}
