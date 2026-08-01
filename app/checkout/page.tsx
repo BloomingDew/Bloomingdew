@@ -7,15 +7,14 @@ import Image from 'next/image';
 import { useCart } from '../../context/CartContext';
 import { useUser } from '../../context/UserContext';
 import { useCurrency } from '../../context/CurrencyContext';
-import { formatMoney } from '../../lib/currency';
+import { formatMoney, convertFromUsd } from '../../lib/currency';
 import { supabase } from '../../lib/supabase';
-import StripePaymentForm from '../../components/StripePaymentForm';
 import SquarePaymentForm from '../../components/SquarePaymentForm';
 
 export default function CheckoutPage() {
   const { items, totalPriceUsd, clearCart } = useCart();
   const { user, profile } = useUser();
-  const { format, currency } = useCurrency();
+  const { format, currency, rates } = useCurrency();
   const router = useRouter();
   const [step, setStep] = useState<'shipping' | 'payment'>('shipping');
   const [loading, setLoading] = useState(false);
@@ -89,7 +88,19 @@ export default function CheckoutPage() {
   };
 
   const [paymentError, setPaymentError] = useState('');
-  const [paymentProvider, setPaymentProvider] = useState<'square' | 'stripe'>('square');
+  const [paymentMethod, setPaymentMethod] = useState<'card' | 'paystack'>('card');
+  const [paystackLoading, setPaystackLoading] = useState(false);
+
+  // Returning from a failed/cancelled Paystack redirect.
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    if (params.get('payment') === 'failed') {
+      setStep('payment');
+      setPaymentMethod('paystack');
+      setPaymentError('Your Paystack payment was not completed. You have not been charged — please try again.');
+      window.history.replaceState(null, '', '/checkout');
+    }
+  }, []);
 
   // Discount code — validated server-side against the re-priced cart; the
   // server re-checks again at charge time, so this is display + intent only.
@@ -137,39 +148,35 @@ export default function CheckoutPage() {
     router.push(`/order-confirmation?ref=${encodeURIComponent(orderId)}`);
   };
 
-  // Stripe has confirmed payment on the client; now finalize the order on the
-  // server, which verifies the payment with Stripe before recording anything.
-  const saveOrderAndRedirect = async (paymentIntentId: string) => {
+  // Paystack: initialize server-side (re-priced + converted to NGN), then send
+  // the customer to Paystack's hosted page. The callback route verifies the
+  // payment, records the order, and lands them on the confirmation page.
+  const payWithPaystack = async () => {
+    if (paystackLoading) return;
+    setPaystackLoading(true);
+    setPaymentError('');
     try {
-      const res = await fetch('/api/orders/create', {
+      const res = await fetch('/api/paystack/initialize', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          paymentIntentId,
           items: items.map(i => ({ id: i.id, size: i.size, quantity: i.quantity })),
           shipping,
           userId: user?.id ?? null,
+          discountCode: appliedDiscount?.code ?? null,
         }),
       });
       const data = await res.json().catch(() => ({}));
-
-      if (!res.ok) {
-        setPaymentError(
-          data.error ||
-            `Your payment went through but we hit a snag recording the order. Please contact hello@bloomingdew.com with your payment reference: ${paymentIntentId}`,
-        );
-        setLoading(false);
+      if (!res.ok || !data.authorizationUrl) {
+        setPaymentError(data.error || 'Could not start the Paystack payment. Please try again.');
+        setPaystackLoading(false);
         return;
       }
-
       setRedirecting(true);
-      clearCart();
-      router.push(`/order-confirmation?ref=${encodeURIComponent(data.orderId || paymentIntentId)}`);
+      window.location.href = data.authorizationUrl;
     } catch {
-      setPaymentError(
-        `Your payment went through but we couldn't confirm the order. Please contact hello@bloomingdew.com with your payment reference: ${paymentIntentId}`,
-      );
-      setLoading(false);
+      setPaymentError('Could not start the Paystack payment. Please try again.');
+      setPaystackLoading(false);
     }
   };
 
@@ -177,6 +184,11 @@ export default function CheckoutPage() {
   // payment routing (Paystack/Stripe presentment) lands in a later PR.
   const discountUsd = appliedDiscount ? Math.min(appliedDiscount.amountUsd, totalPriceUsd) : 0;
   const orderTotal = Math.max(0, totalPriceUsd - discountUsd);
+
+  // Naira preview for the Paystack option — same rate the server charges at.
+  const ngnTotal = rates.NGN
+    ? formatMoney(convertFromUsd(orderTotal, rates.NGN, 'NGN'), 'NGN')
+    : null;
 
   if (items.length === 0 && !loading && !redirecting) {
     return (
@@ -327,22 +339,9 @@ export default function CheckoutPage() {
               </div>
 
               <h2 style={sectionHeading}>Payment</h2>
-
-              {/* Provider toggle */}
-              <div style={{ display: 'flex', gap: '0', marginBottom: '1.5rem', border: '1px solid #E8DDD3' }}>
-                {(['square', 'stripe'] as const).map(p => (
-                  <button key={p} onClick={() => { setPaymentProvider(p); setPaymentError(''); }} style={{
-                    flex: 1, padding: '0.75rem',
-                    backgroundColor: paymentProvider === p ? '#2C2C2C' : '#FFFFFF',
-                    color: paymentProvider === p ? '#FAF7F4' : '#9A8F87',
-                    fontFamily: "'Jost', sans-serif", fontSize: '0.72rem',
-                    letterSpacing: '0.12em', textTransform: 'uppercase',
-                    border: 'none', cursor: 'pointer', transition: 'all 0.2s',
-                  }}>
-                    {p === 'square' ? 'Pay by Card (Square)' : 'Pay by Card (Stripe)'}
-                  </button>
-                ))}
-              </div>
+              <p style={{ fontFamily: "'Jost', sans-serif", fontSize: '0.8rem', fontWeight: 300, color: '#9A8F87', marginBottom: '1.2rem' }}>
+                All transactions are secure and encrypted.
+              </p>
 
               {reservationExpired ? (
                 <div style={{ backgroundColor: '#FFF3E0', border: '1px solid #FFB74D', padding: '1.2rem 1.5rem' }}>
@@ -359,31 +358,105 @@ export default function CheckoutPage() {
                     Back to Shop
                   </Link>
                 </div>
-              ) : paymentProvider === 'square' ? (
-                <SquarePaymentForm
-                  amount={orderTotal}
-                  items={items.map(i => ({ id: i.id, name: i.name, size: i.size, quantity: i.quantity, price: i.priceUsd }))}
-                  shipping={shipping}
-                  userId={user?.id ?? null}
-                  discountCode={appliedDiscount?.code ?? null}
-                  loading={loading}
-                  setLoading={setLoading}
-                  onSuccess={handleSquareSuccess}
-                  onError={(msg) => setPaymentError(msg)}
-                />
               ) : (
-                <StripePaymentForm
-                  key={appliedDiscount?.code ?? 'no-discount'}
-                  amount={orderTotal}
-                  items={items.map(i => ({ id: i.id, size: i.size, quantity: i.quantity }))}
-                  shipping={shipping}
-                  userId={user?.id ?? null}
-                  discountCode={appliedDiscount?.code ?? null}
-                  loading={loading}
-                  setLoading={setLoading}
-                  onSuccess={saveOrderAndRedirect}
-                  onError={(msg) => { setPaymentError(msg); setLoading(false); }}
-                />
+                <div style={{ border: '1px solid #E8DDD3', backgroundColor: '#FFFFFF' }}>
+                  {/* ── Credit card ── */}
+                  <button
+                    type="button"
+                    onClick={() => { setPaymentMethod('card'); setPaymentError(''); }}
+                    style={{
+                      display: 'flex', alignItems: 'center', gap: '0.8rem', width: '100%',
+                      padding: '1rem 1.2rem', background: paymentMethod === 'card' ? '#FAF7F4' : 'none',
+                      border: 'none', borderLeft: `3px solid ${paymentMethod === 'card' ? '#C9A882' : 'transparent'}`,
+                      cursor: 'pointer', textAlign: 'left',
+                    }}>
+                    <span style={{
+                      width: '18px', height: '18px', borderRadius: '50%', flexShrink: 0,
+                      border: `2px solid ${paymentMethod === 'card' ? '#C9A882' : '#D4C4B5'}`,
+                      backgroundColor: 'transparent', display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+                    }}>
+                      {paymentMethod === 'card' && <span style={{ width: '9px', height: '9px', borderRadius: '50%', backgroundColor: '#C9A882' }} />}
+                    </span>
+                    <span style={{ fontFamily: "'Jost', sans-serif", fontSize: '0.9rem', color: '#2C2C2C', flex: 1 }}>
+                      Credit / Debit card
+                    </span>
+                    <span style={{ display: 'flex', gap: '0.3rem' }}>
+                      {['VISA', 'MC', 'AMEX'].map(b => (
+                        <span key={b} style={{
+                          fontFamily: "'Jost', sans-serif", fontSize: '0.58rem', fontWeight: 600, letterSpacing: '0.04em',
+                          padding: '0.2rem 0.4rem', border: '1px solid #E8DDD3', color: '#5C5450', backgroundColor: '#FFFFFF',
+                        }}>{b}</span>
+                      ))}
+                    </span>
+                  </button>
+                  {paymentMethod === 'card' && (
+                    <div style={{ padding: '1.2rem', borderTop: '1px solid #F0EAE3' }}>
+                      <SquarePaymentForm
+                        amount={orderTotal}
+                        items={items.map(i => ({ id: i.id, name: i.name, size: i.size, quantity: i.quantity, price: i.priceUsd }))}
+                        shipping={shipping}
+                        userId={user?.id ?? null}
+                        discountCode={appliedDiscount?.code ?? null}
+                        loading={loading}
+                        setLoading={setLoading}
+                        onSuccess={handleSquareSuccess}
+                        onError={(msg) => setPaymentError(msg)}
+                      />
+                    </div>
+                  )}
+
+                  <div style={{ borderTop: '1px solid #E8DDD3' }} />
+
+                  {/* ── Paystack (NGN) ── */}
+                  <button
+                    type="button"
+                    onClick={() => { setPaymentMethod('paystack'); setPaymentError(''); }}
+                    style={{
+                      display: 'flex', alignItems: 'center', gap: '0.8rem', width: '100%',
+                      padding: '1rem 1.2rem', background: paymentMethod === 'paystack' ? '#FAF7F4' : 'none',
+                      border: 'none', borderLeft: `3px solid ${paymentMethod === 'paystack' ? '#C9A882' : 'transparent'}`,
+                      cursor: 'pointer', textAlign: 'left',
+                    }}>
+                    <span style={{
+                      width: '18px', height: '18px', borderRadius: '50%', flexShrink: 0,
+                      border: `2px solid ${paymentMethod === 'paystack' ? '#C9A882' : '#D4C4B5'}`,
+                      display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+                    }}>
+                      {paymentMethod === 'paystack' && <span style={{ width: '9px', height: '9px', borderRadius: '50%', backgroundColor: '#C9A882' }} />}
+                    </span>
+                    <span style={{ fontFamily: "'Jost', sans-serif", fontSize: '0.9rem', color: '#2C2C2C', flex: 1 }}>
+                      Paystack <span style={{ color: '#9A8F87', fontSize: '0.78rem' }}>— pay in Naira</span>
+                    </span>
+                    <span style={{ display: 'flex', gap: '0.3rem' }}>
+                      {['CARD', 'BANK', 'USSD'].map(b => (
+                        <span key={b} style={{
+                          fontFamily: "'Jost', sans-serif", fontSize: '0.58rem', fontWeight: 600, letterSpacing: '0.04em',
+                          padding: '0.2rem 0.4rem', border: '1px solid #E8DDD3', color: '#5C5450', backgroundColor: '#FFFFFF',
+                        }}>{b}</span>
+                      ))}
+                    </span>
+                  </button>
+                  {paymentMethod === 'paystack' && (
+                    <div style={{ padding: '1.2rem', borderTop: '1px solid #F0EAE3' }}>
+                      <p style={{ fontFamily: "'Jost', sans-serif", fontSize: '0.85rem', fontWeight: 300, color: '#5C5450', lineHeight: 1.7, marginBottom: '1rem' }}>
+                        Pay in Nigerian Naira{ngnTotal ? <> — <strong style={{ fontWeight: 500 }}>{ngnTotal}</strong></> : null}{' '}
+                        by card, bank transfer, or USSD. You&apos;ll be securely redirected to Paystack to complete your payment.
+                      </p>
+                      <button
+                        type="button"
+                        onClick={payWithPaystack}
+                        disabled={paystackLoading}
+                        style={{
+                          width: '100%', padding: '1rem', backgroundColor: '#2C2C2C', color: '#FAF7F4',
+                          border: 'none', fontFamily: "'Jost', sans-serif", fontSize: '0.78rem',
+                          letterSpacing: '0.15em', textTransform: 'uppercase',
+                          cursor: paystackLoading ? 'default' : 'pointer', opacity: paystackLoading ? 0.7 : 1,
+                        }}>
+                        {paystackLoading ? 'Starting…' : `Pay with Paystack${ngnTotal ? ` — ${ngnTotal}` : ''}`}
+                      </button>
+                    </div>
+                  )}
+                </div>
               )}
 
               {paymentError && (
