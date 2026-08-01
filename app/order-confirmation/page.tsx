@@ -35,7 +35,7 @@ export default async function OrderConfirmationPage({
         <h1 style={{ fontFamily: "'Playfair Display', serif", fontSize: 'clamp(1.8rem, 4vw, 2.8rem)', fontWeight: 500, color: '#2C2C2C', marginBottom: '1.2rem', lineHeight: 1.2 }}>
           Thank you for your order.
         </h1>
-        <p style={{ fontFamily: "'Jost', sans-serif", fontSize: '0.92rem', fontWeight: 300, color: '#9A8F87', lineHeight: 1.9, marginBottom: ref ? '1.5rem' : '2.5rem' }}>
+        <p style={{ fontFamily: "'Jost', sans-serif", fontSize: '0.92rem', fontWeight: 400, color: '#5C5450', lineHeight: 1.9, marginBottom: ref ? '1.5rem' : '2.5rem' }}>
           We've received your order and we're so excited to make something beautiful for you. You'll receive a confirmation email shortly, and we'll be in touch within 48 hours.
         </p>
 
@@ -47,7 +47,7 @@ export default async function OrderConfirmationPage({
             <p style={{ fontFamily: "'Jost', sans-serif", fontSize: '0.95rem', color: '#2C2C2C', letterSpacing: '0.05em' }}>
               {ref}
             </p>
-            <p style={{ fontFamily: "'Jost', sans-serif", fontSize: '0.72rem', fontWeight: 300, color: '#9A8F87', marginTop: '0.3rem' }}>
+            <p style={{ fontFamily: "'Jost', sans-serif", fontSize: '0.72rem', fontWeight: 400, color: '#5C5450', marginTop: '0.3rem' }}>
               Please keep this for your records.
             </p>
           </div>
@@ -56,16 +56,22 @@ export default async function OrderConfirmationPage({
         {/* Info boxes */}
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', marginBottom: '3rem', textAlign: 'left' }}>
           {[
-            { label: 'Production Time', value: '2–4 weeks' },
-            { label: 'Updates', value: 'Via email' },
-            { label: 'Questions?', value: 'hello@bloomingdew.com' },
-            { label: 'Made', value: 'By hand, with love' },
+            { label: 'Updates', value: <>Via email</> },
+            { label: 'Made', value: <>By hand, with love</> },
+            {
+              label: 'Questions?',
+              value: (
+                <>
+                  Check our <Link href="/faq" style={{ color: '#2C2C2C', textDecoration: 'underline', textUnderlineOffset: '3px' }}>FAQ</Link>
+                </>
+              ),
+            },
           ].map(({ label, value }) => (
             <div key={label} style={{ padding: '1.2rem', backgroundColor: '#FAF7F4', border: '1px solid #E8DDD3' }}>
-              <p style={{ fontFamily: "'Jost', sans-serif", fontSize: '0.68rem', letterSpacing: '0.14em', textTransform: 'uppercase', color: '#C9A882', marginBottom: '0.4rem' }}>
+              <p style={{ fontFamily: "'Jost', sans-serif", fontSize: '0.68rem', letterSpacing: '0.14em', textTransform: 'uppercase', color: '#B08D5F', marginBottom: '0.4rem', fontWeight: 500 }}>
                 {label}
               </p>
-              <p style={{ fontFamily: "'Jost', sans-serif", fontSize: '0.85rem', fontWeight: 300, color: '#2C2C2C' }}>
+              <p style={{ fontFamily: "'Jost', sans-serif", fontSize: '0.85rem', fontWeight: 400, color: '#2C2C2C' }}>
                 {value}
               </p>
             </div>
