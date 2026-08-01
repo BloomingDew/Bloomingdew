@@ -494,80 +494,47 @@ export default function Home() {
   );
 }
 
-// Auto-flowing product carousel: glides one card at a time, loops, pauses on
-// hover/touch, with arrows for manual browsing.
+// Continuous conveyor-belt carousel, CSS-animated (compositor-driven, like
+// the marquee): the slide list renders twice and the track translates -50%
+// on a loop, so the motion is seamless. Pauses on hover/touch.
 function NewCollectionCarousel({ products }: { products: FeaturedProduct[] }) {
-  const trackRef = useRef<HTMLDivElement>(null);
-  const paused = useRef(false);
-
-  const cardStep = () => {
-    const track = trackRef.current;
-    if (!track || track.children.length === 0) return 0;
-    return (track.children[0] as HTMLElement).offsetWidth + 3; // card + gap
-  };
-
-  const scrollByCards = (n: number) => {
-    const track = trackRef.current;
-    if (!track) return;
-    const step = cardStep();
-    const maxScroll = track.scrollWidth - track.clientWidth;
-    let target = track.scrollLeft + n * step;
-    // Loop: past the end -> back to start; before the start -> to the end.
-    if (target > maxScroll + step / 2) target = 0;
-    if (target < -step / 2) target = maxScroll;
-    track.scrollTo({ left: target, behavior: 'smooth' });
-  };
-
-  // Gentle auto-advance.
-  useEffect(() => {
-    const interval = setInterval(() => {
-      if (!paused.current) scrollByCards(1);
-    }, 3500);
-    return () => clearInterval(interval);
-  }, []);
-
-  const arrowStyle: React.CSSProperties = {
-    position: 'absolute', top: '50%', transform: 'translateY(-50%)', zIndex: 5,
-    width: '42px', height: '42px', borderRadius: '50%',
-    backgroundColor: 'rgba(250,247,244,0.92)', border: '1px solid #E8DDD3',
-    color: '#2C2C2C', fontSize: '1rem', cursor: 'pointer',
-    display: 'flex', alignItems: 'center', justifyContent: 'center',
-    boxShadow: '0 2px 10px rgba(0,0,0,0.08)',
-  };
+  const [paused, setPaused] = useState(false);
+  // Constant speed regardless of how many pieces are in the collection.
+  const duration = Math.max(20, products.length * 7);
 
   return (
     <div
-      style={{ position: 'relative' }}
-      onMouseEnter={() => { paused.current = true; }}
-      onMouseLeave={() => { paused.current = false; }}
-      onTouchStart={() => { paused.current = true; }}
-      onTouchEnd={() => { setTimeout(() => { paused.current = false; }, 5000); }}
+      style={{ overflow: 'hidden' }}
+      onMouseEnter={() => setPaused(true)}
+      onMouseLeave={() => setPaused(false)}
+      onTouchStart={() => setPaused(true)}
+      onTouchEnd={() => setTimeout(() => setPaused(false), 4000)}
     >
-      <button aria-label="Previous" onClick={() => scrollByCards(-1)} style={{ ...arrowStyle, left: '1rem' }}>
-        ←
-      </button>
-      <button aria-label="Next" onClick={() => scrollByCards(1)} style={{ ...arrowStyle, right: '1rem' }}>
-        →
-      </button>
       <div
-        ref={trackRef}
-        className="nc-carousel"
+        className="nc-belt"
         style={{
-          display: 'flex', gap: '3px', overflowX: 'auto',
-          scrollSnapType: 'x mandatory',
-          scrollbarWidth: 'none',
+          display: 'flex', gap: '3px', width: 'max-content',
+          animation: `nc-flow ${duration}s linear infinite`,
+          animationPlayState: paused ? 'paused' : 'running',
         }}
       >
-        {products.map((product) => (
-          <div key={product.id} className="nc-slide" style={{ flex: '0 0 29.5%', minWidth: 0, scrollSnapAlign: 'start' }}>
-            <NewCollectionCard product={product} />
-          </div>
-        ))}
+        {[0, 1].map(copy =>
+          products.map((product) => (
+            <div key={`${copy}-${product.id}`} className="nc-slide" aria-hidden={copy === 1}>
+              <NewCollectionCard product={product} />
+            </div>
+          )),
+        )}
       </div>
       <style>{`
-        .nc-carousel::-webkit-scrollbar { display: none; }
-        @media (max-width: 900px) { .nc-slide { flex: 0 0 50% !important; } }
-        @media (max-width: 520px) { .nc-slide { flex: 0 0 72% !important; } }
+        @keyframes nc-flow {
+          from { transform: translateX(0); }
+          to { transform: translateX(calc(-50% - 1.5px)); }
+        }
+        .nc-slide { width: 29.4vw; flex-shrink: 0; }
+        @media (max-width: 900px) { .nc-slide { width: 49.8vw; } }
+        @media (max-width: 520px) { .nc-slide { width: 72vw; } }
+        @media (prefers-reduced-motion: reduce) { .nc-belt { animation: none !important; } }
       `}</style>
     </div>
   );
