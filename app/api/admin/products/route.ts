@@ -96,7 +96,7 @@ export async function POST(req: NextRequest) {
   if (!admin) return unauthorized();
   if (admin.role !== 'owner') return forbidden();
 
-  const { product, images = [], sizeInventory = [], colours = [], colourImages = [] } = await req.json();
+  const { product, images = [], sizeInventory = [], colours = [] } = await req.json();
   if (!product?.name || typeof product.price !== 'number') {
     return NextResponse.json({ error: 'Product name and price are required.' }, { status: 400 });
   }
@@ -105,19 +105,6 @@ export async function POST(req: NextRequest) {
     .from('products').insert(product).select().single();
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 
-  if (images.length > 0) {
-    const { error: imgError } = await supabaseService.from('product_images').insert(
-      images.map((img: { url: string; alt_text: string }, i: number) => ({
-        product_id: created.id, url: img.url, alt_text: img.alt_text, position: i,
-      })),
-    );
-    if (imgError) {
-      return NextResponse.json(
-        { error: `Product saved but images failed: ${imgError.message}`, id: created.id },
-        { status: 500 },
-      );
-    }
-  }
 
   // Colours first — the stock rows reference them by index (the create form
   // has no colour ids yet, so it sends colourIndex).
@@ -142,30 +129,23 @@ export async function POST(req: NextRequest) {
       .map(r => r.id);
   }
 
-  // Colour-tagged photos, sent with a colourIndex because the create form has
-  // no colour ids until the colours above are inserted.
-  if (colourImages.length > 0 && createdColourIds.length > 0) {
-    const rows = colourImages
-      .map((img: { colourIndex: number; url: string; alt_text?: string; position?: number }) => {
-        const colourId = createdColourIds[img.colourIndex];
-        if (!colourId) return null;
-        return {
-          product_id: created.id,
-          colour_id: colourId,
-          url: img.url,
-          alt_text: img.alt_text || product.name,
-          position: img.position ?? 0,
-        };
-      })
-      .filter(Boolean);
-    if (rows.length > 0) {
-      const { error: ciError } = await supabaseService.from('product_images').insert(rows);
-      if (ciError) {
-        return NextResponse.json(
-          { error: `Product saved but colour images failed: ${ciError.message}`, id: created.id },
-          { status: 500 },
-        );
-      }
+  // Photos carry an optional colourIndex tagging them to a colourway; untagged
+  // photos (colour_id null) are the fallback shown for any colour without its own.
+  if (images.length > 0) {
+    const { error: imgError } = await supabaseService.from('product_images').insert(
+      images.map((img: { url: string; alt_text: string; colourIndex?: number | null }, i: number) => ({
+        product_id: created.id,
+        colour_id: typeof img.colourIndex === 'number' ? createdColourIds[img.colourIndex] ?? null : null,
+        url: img.url,
+        alt_text: img.alt_text,
+        position: i,
+      })),
+    );
+    if (imgError) {
+      return NextResponse.json(
+        { error: `Product saved but images failed: ${imgError.message}`, id: created.id },
+        { status: 500 },
+      );
     }
   }
 
