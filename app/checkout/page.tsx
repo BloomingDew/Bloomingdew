@@ -10,6 +10,7 @@ import { useCurrency } from '../../context/CurrencyContext';
 import { formatMoney, convertFromUsd } from '../../lib/currency';
 import { supabase } from '../../lib/supabase';
 import SquarePaymentForm from '../../components/SquarePaymentForm';
+import PhoneInput from '../../components/PhoneInput';
 
 export default function CheckoutPage() {
   const { items, totalPriceUsd, clearCart } = useCart();
@@ -301,7 +302,11 @@ export default function CheckoutPage() {
 
               <div style={{ marginBottom: '1rem' }}>
                 <label style={labelStyle}>Phone</label>
-                <input style={inputStyle} value={shipping.phone} onChange={e => setShipping({ ...shipping, phone: e.target.value })} placeholder="+234 801 234 5678" />
+                <PhoneInput
+                  value={shipping.phone}
+                  onChange={phone => setShipping({ ...shipping, phone })}
+                  inputStyle={inputStyle}
+                />
               </div>
 
               <div style={{ marginBottom: '1rem' }}>
