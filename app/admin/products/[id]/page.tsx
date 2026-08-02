@@ -9,13 +9,14 @@ import { compressImage } from '../../../../lib/compressImage';
 import { toast } from '../../../../components/Toast';
 
 type Category = { id: number; name: string };
-type ProductImage = { id: number; url: string; alt_text: string; position: number };
+// colour_id tags a photo to a colourway (null = shown for every colour).
+type ProductImage = { id: number; url: string; alt_text: string; position: number; colour_id: string | null };
 type SizeInventory = { size: string; quantity: number };
 type InventoryRow = { size: string; quantity: number; colour_id: string | null };
 type Colour = { id: string; name: string; hex_code: string; display_order: number; is_available: boolean };
 
 const DEFAULT_SIZES = ['6', '8', '10', '12', '14', '16', '18', '20'];
-const MAX_IMAGES = 4;
+const MAX_IMAGES = 12;
 // Bucket key used when a product has no colourways (colour_id IS NULL).
 const NO_COLOUR = '__none';
 
@@ -41,8 +42,6 @@ export default function EditProductPage({ params }: { params: Promise<{ id: stri
   const [colours, setColours] = useState<Colour[]>([]);
   const [newColourName, setNewColourName] = useState('');
   const [newColourHex, setNewColourHex] = useState('#000000');
-  const [uploadingColourId, setUploadingColourId] = useState<string | null>(null);
-  const [colourImages, setColourImages] = useState<Record<string, ProductImage[]>>({});
 
   const [form, setForm] = useState({
     name: '', price: '', category_id: '', discount: '0',
@@ -71,6 +70,7 @@ export default function EditProductPage({ params }: { params: Promise<{ id: stri
         available: data.available, made_to_order: data.made_to_order,
         lead_time: data.lead_time || '2–4 weeks',
       });
+      // One gallery: every photo, colour-tagged or not, lives in `images`.
       const sorted = [...(data.product_images || [])].sort((a: ProductImage, b: ProductImage) => a.position - b.position);
       setImages(sorted);
       if (data.updated_at) setUpdatedAt(data.updated_at);
@@ -81,15 +81,6 @@ export default function EditProductPage({ params }: { params: Promise<{ id: stri
       .select('*').eq('product_id', id).order('display_order');
     setColours(coloursData || []);
     if (coloursData?.length) setActiveColourId(coloursData[0].id);
-    if (coloursData?.length) {
-      const colImgs: Record<string, ProductImage[]> = {};
-      for (const c of coloursData) {
-        const { data: imgs } = await supabaseAuth.from('product_images')
-          .select('*').eq('product_id', parseInt(id)).eq('colour_id', c.id).order('position');
-        colImgs[c.id] = imgs || [];
-      }
-      setColourImages(colImgs);
-    }
 
     // Every colour (plus the no-colour bucket) starts with all sizes at 0, then
     // saved rows are bucketed in by colour_id.
@@ -198,7 +189,6 @@ export default function EditProductPage({ params }: { params: Promise<{ id: stri
     }
     const { colour } = await res.json();
     setColours(prev => [...prev, colour]);
-    setColourImages(prev => ({ ...prev, [colour.id]: [] }));
     // A new colour gets its own zeroed size grid straight away.
     setSizeInventory(prev => ({ ...prev, [colour.id]: zeroedSizes() }));
     setActiveColourId(prev => prev ?? colour.id);
@@ -206,7 +196,7 @@ export default function EditProductPage({ params }: { params: Promise<{ id: stri
   };
 
   const deleteColour = async (colourId: string) => {
-    if (!confirm('Delete this colour and its images?')) return;
+    if (!confirm('Delete this colour? Photos tagged with it become untagged.')) return;
     const res = await fetch('/api/admin/product-colours', {
       method: 'DELETE',
       headers: { 'Content-Type': 'application/json' },
@@ -222,60 +212,24 @@ export default function EditProductPage({ params }: { params: Promise<{ id: stri
       setActiveColourId(cur => (cur === colourId ? (remaining[0]?.id ?? null) : cur));
       return remaining;
     });
-    setColourImages(prev => { const n = {...prev}; delete n[colourId]; return n; });
+    // Photos tagged with the removed colour fall back to untagged.
+    setImages(prev => prev.map(i => i.colour_id === colourId ? { ...i, colour_id: null } : i));
     setSizeInventory(prev => { const n = {...prev}; delete n[colourId]; return n; });
   };
 
-  const handleColourImageUpload = async (e: React.ChangeEvent<HTMLInputElement>, colourId: string) => {
-    const files = e.target.files;
-    if (!files?.length) return;
-    const existing = colourImages[colourId] || [];
-    if (existing.length >= 4) { toast('Maximum 4 images per colour.', 'error'); return; }
-    setUploadingColourId(colourId);
-    for (const file of Array.from(files)) {
-      if ((colourImages[colourId]?.length || 0) >= 4) break;
-      const compressed = await compressImage(file);
-      const ext = compressed.name.split('.').pop()?.toLowerCase();
-      const fileName = `${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`;
-      const { error } = await supabaseAuth.storage.from('product-image').upload(fileName, compressed);
-      if (!error) {
-        const { data: urlData } = supabaseAuth.storage.from('product-image').getPublicUrl(fileName);
-        const pos = (colourImages[colourId]?.length || 0);
-        const res = await fetch('/api/admin/product-images', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            productId: parseInt(id), url: urlData.publicUrl,
-            altText: `${form.name} - ${colours.find(c=>c.id===colourId)?.name}`,
-            position: pos, colourId,
-          }),
-        });
-        if (res.ok) {
-          const { image } = await res.json();
-          setColourImages(prev => ({ ...prev, [colourId]: [...(prev[colourId]||[]), image] }));
-        } else {
-          await supabaseAuth.storage.from('product-image').remove([fileName]);
-          const { error: msg } = await res.json().catch(() => ({ error: 'Unknown error' }));
-          toast(`Image upload failed: ${msg}`, 'error');
-        }
-      }
-    }
-    setUploadingColourId(null);
-  };
-
-  const deleteColourImage = async (colourId: string, imageId: number) => {
-    const img = (colourImages[colourId] || []).find(i => i.id === imageId);
+  const setImageColour = async (imageId: number, colourId: string | null) => {
+    const previous = images.find(i => i.id === imageId)?.colour_id ?? null;
+    setImages(prev => prev.map(i => i.id === imageId ? { ...i, colour_id: colourId } : i));
     const res = await fetch('/api/admin/product-images', {
-      method: 'DELETE',
+      method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ id: imageId, url: img?.url }),
+      body: JSON.stringify({ id: imageId, colourId }),
     });
     if (!res.ok) {
       const { error: msg } = await res.json().catch(() => ({ error: 'Unknown error' }));
-      toast(`Failed to delete image: ${msg}`, 'error');
-      return;
+      toast(`Failed to tag photo: ${msg}`, 'error');
+      setImages(prev => prev.map(i => i.id === imageId ? { ...i, colour_id: previous } : i));
     }
-    setColourImages(prev => ({ ...prev, [colourId]: (prev[colourId]||[]).filter(i=>i.id!==imageId) }));
   };
 
   // When the product has colourways, stock is edited one colour at a time.
@@ -447,7 +401,7 @@ export default function EditProductPage({ params }: { params: Promise<{ id: stri
               </span>
             </div>
 
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '1rem', marginBottom: '1rem' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(6, 1fr)', gap: '0.75rem', marginBottom: '1rem' }}>
               {/* Image slots */}
               {Array.from({ length: MAX_IMAGES }).map((_, i) => {
                 const img = images[i];
@@ -487,6 +441,25 @@ export default function EditProductPage({ params }: { params: Promise<{ id: stri
                     {i === 0 && (
                       <p style={{ fontFamily: "'Jost', sans-serif", fontSize: '0.65rem', color: '#C9A882', textAlign: 'center', marginTop: '0.3rem', letterSpacing: '0.1em', textTransform: 'uppercase' }}>Main</p>
                     )}
+                    {/* Tag the photo to a colourway */}
+                    {img && hasColours && colours.length > 0 && (
+                      <select
+                        value={img.colour_id ?? ''}
+                        onChange={e => setImageColour(img.id, e.target.value === '' ? null : e.target.value)}
+                        style={{
+                          width: '100%', marginTop: '0.4rem', padding: '0.3rem 0.4rem',
+                          border: `1px solid ${img.colour_id ? '#C9A882' : '#E8DDD3'}`,
+                          backgroundColor: img.colour_id ? '#FBF7F2' : '#FFFFFF',
+                          fontFamily: "'Jost', sans-serif", fontSize: '0.7rem',
+                          color: '#2C2C2C', outline: 'none', cursor: 'pointer',
+                        }}
+                      >
+                        <option value="">All colours</option>
+                        {colours.map(c => (
+                          <option key={c.id} value={c.id}>{c.name}</option>
+                        ))}
+                      </select>
+                    )}
                   </div>
                 );
               })}
@@ -515,30 +488,20 @@ export default function EditProductPage({ params }: { params: Promise<{ id: stri
 
             {hasColours && (
               <div>
-                {colours.map(colour => (
-                  <div key={colour.id} style={{ border: '1px solid #E8DDD3', padding: '1.25rem', marginBottom: '1rem' }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '1rem' }}>
-                      <div style={{ width: 28, height: 28, borderRadius: '50%', backgroundColor: colour.hex_code, border: '2px solid #E8DDD3', flexShrink: 0 }} />
-                      <span style={{ fontFamily: "'Jost', sans-serif", fontSize: '0.88rem', fontWeight: 500, color: '#2C2C2C', flex: 1 }}>{colour.name}</span>
+                {colours.map(colour => {
+                  const tagged = images.filter(i => i.colour_id === colour.id).length;
+                  return (
+                    <div key={colour.id} style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', padding: '0.75rem', border: '1px solid #E8DDD3', marginBottom: '0.5rem' }}>
+                      <div style={{ width: 24, height: 24, borderRadius: '50%', backgroundColor: colour.hex_code, border: '2px solid #E8DDD3', flexShrink: 0 }} />
+                      <span style={{ fontFamily: "'Jost', sans-serif", fontSize: '0.88rem', color: '#2C2C2C', flex: 1 }}>{colour.name}</span>
+                      <span style={{ fontFamily: "'Jost', sans-serif", fontSize: '0.72rem', color: tagged > 0 ? '#2E7D32' : '#9A8F87' }}>
+                        {tagged > 0 ? `${tagged} photo${tagged !== 1 ? 's' : ''} tagged` : 'uses main photos'}
+                      </span>
                       <span style={{ fontFamily: "'Jost', sans-serif", fontSize: '0.72rem', color: '#9A8F87' }}>{colour.hex_code}</span>
                       <button type="button" onClick={() => deleteColour(colour.id)} style={{ background: 'none', border: 'none', color: '#C0392B', cursor: 'pointer', fontFamily: "'Jost', sans-serif", fontSize: '0.72rem' }}>Remove</button>
                     </div>
-                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '0.75rem', marginBottom: '0.75rem' }}>
-                      {(colourImages[colour.id] || []).map(img => (
-                        <div key={img.id} style={{ aspectRatio: '3/4', position: 'relative', overflow: 'hidden', background: '#F5F5F5' }}>
-                          <img src={img.url} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-                          <button type="button" onClick={() => deleteColourImage(colour.id, img.id)} style={{ position: 'absolute', top: 3, right: 3, width: 20, height: 20, backgroundColor: '#2C2C2C', color: '#FFF', border: 'none', cursor: 'pointer', fontSize: '0.65rem', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>✕</button>
-                        </div>
-                      ))}
-                      {(colourImages[colour.id]?.length || 0) < 4 && (
-                        <label style={{ aspectRatio: '3/4', border: '2px dashed #E8DDD3', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', background: '#FAFAFA' }}>
-                          <input type="file" accept="image/*" multiple style={{ display: 'none' }} onChange={e => handleColourImageUpload(e, colour.id)} />
-                          {uploadingColourId === colour.id ? <span style={{ fontFamily: "'Jost', sans-serif", fontSize: '0.65rem', color: '#C9A882' }}>Uploading...</span> : <span style={{ fontFamily: "'Jost', sans-serif", fontSize: '0.65rem', color: '#9A8F87' }}>+ Add</span>}
-                        </label>
-                      )}
-                    </div>
-                  </div>
-                ))}
+                  );
+                })}
 
                 <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'flex-end', marginTop: '0.5rem' }}>
                   <div style={{ flex: 1 }}>
@@ -553,6 +516,12 @@ export default function EditProductPage({ params }: { params: Promise<{ id: stri
                     Add Colour
                   </button>
                 </div>
+
+                <p style={{ fontFamily: "'Jost', sans-serif", fontSize: '0.72rem', color: '#9A8F87', marginTop: '0.75rem', lineHeight: 1.7 }}>
+                  Upload every photo once in Product Images above, then tag each one with the
+                  colour it shows. Untagged photos are used for any colour that has none of its
+                  own.
+                </p>
               </div>
             )}
           </div>

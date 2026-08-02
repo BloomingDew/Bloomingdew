@@ -30,11 +30,25 @@ export async function POST(req: NextRequest) {
   return NextResponse.json({ image: data });
 }
 
-// PATCH — { positions: [{ id, position }] } reorder.
+// PATCH — { positions: [{ id, position }] } reorder,
+//       or { id, colourId } to tag a photo with a colourway (null = shown for
+//       every colour / used as the fallback).
 export async function PATCH(req: NextRequest) {
   if (!(await getAdminUser())) return unauthorized();
 
-  const { positions } = await req.json();
+  const body = await req.json();
+
+  if (body.id !== undefined && 'colourId' in body) {
+    const colourId = body.colourId ?? null;
+    const { error } = await supabaseService
+      .from('product_images')
+      .update({ colour_id: colourId })
+      .eq('id', body.id);
+    if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+    return NextResponse.json({ success: true });
+  }
+
+  const { positions } = body;
   if (!Array.isArray(positions)) {
     return NextResponse.json({ error: 'positions array is required.' }, { status: 400 });
   }

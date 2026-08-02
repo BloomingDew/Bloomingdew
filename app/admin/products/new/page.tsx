@@ -13,7 +13,7 @@ type PendingColour = { name: string; hex_code: string };
 type SizeInventory = { size: string; quantity: number };
 
 const DEFAULT_SIZES = ['6', '8', '10', '12', '14', '16', '18', '20'];
-const MAX_IMAGES = 4;
+const MAX_IMAGES = 12;
 // Bucket key used when the product has no colourways.
 const NO_COLOUR = '__none';
 
@@ -24,18 +24,14 @@ export default function NewProductPage() {
   const [categories, setCategories] = useState<Category[]>([]);
   const [loading, setLoading] = useState(false);
   const [uploadingImage, setUploadingImage] = useState(false);
-  const [images, setImages] = useState<{ url: string; alt_text: string; path: string }[]>([]);
+  // colourIndex tags a photo to a colourway (null = shown for every colour).
+  const [images, setImages] = useState<{ url: string; alt_text: string; path: string; colourIndex: number | null }[]>([]);
   // Colours have no ids until the product is created, so stock buckets are
   // keyed by the colour's index in pendingColours (NO_COLOUR when disabled).
   const [sizeInventory, setSizeInventory] = useState<Record<string, SizeInventory[]>>({
     [NO_COLOUR]: zeroedSizes(),
   });
   const [activeColourIndex, setActiveColourIndex] = useState(0);
-  // Colour photos are uploaded to storage immediately (to get a URL) but held
-  // here keyed by colour index; the API maps indexes to ids after the colours
-  // are created.
-  const [colourImages, setColourImages] = useState<Record<string, { url: string; path: string }[]>>({});
-  const [uploadingColourIdx, setUploadingColourIdx] = useState<number | null>(null);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
   const [hasColours, setHasColours] = useState(false);
@@ -74,7 +70,7 @@ export default function NewProductPage() {
       const { error } = await supabaseAuth.storage.from('product-image').upload(fileName, compressed);
       if (error) return null;
       const { data } = supabaseAuth.storage.from('product-image').getPublicUrl(fileName);
-      return { url: data.publicUrl, alt_text: form.name || file.name, path: fileName };
+      return { url: data.publicUrl, alt_text: form.name || file.name, path: fileName, colourIndex: null };
     }));
     const successful = uploaded.filter((u): u is NonNullable<typeof u> => u !== null);
     if (successful.length > 0) setImages(prev => [...prev, ...successful].slice(0, MAX_IMAGES));
@@ -97,45 +93,8 @@ export default function NewProductPage() {
     setImages(newImages);
   };
 
-  const MAX_COLOUR_IMAGES = 4;
-
-  const handleColourImageUpload = async (e: React.ChangeEvent<HTMLInputElement>, idx: number) => {
-    const files = e.target.files;
-    if (!files || files.length === 0) return;
-    const existing = colourImages[String(idx)] || [];
-    if (existing.length >= MAX_COLOUR_IMAGES) {
-      toast(`Maximum ${MAX_COLOUR_IMAGES} images per colour.`, 'error');
-      return;
-    }
-    setUploadingColourIdx(idx);
-    const slots = MAX_COLOUR_IMAGES - existing.length;
-    const selected = Array.from(files).slice(0, slots);
-    const uploaded = await Promise.all(selected.map(async (file) => {
-      const compressed = await compressImage(file);
-      const ext = compressed.name.split('.').pop()?.toLowerCase();
-      const fileName = `${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`;
-      const { error } = await supabaseAuth.storage.from('product-image').upload(fileName, compressed);
-      if (error) return null;
-      const { data } = supabaseAuth.storage.from('product-image').getPublicUrl(fileName);
-      return { url: data.publicUrl, path: fileName };
-    }));
-    const ok = uploaded.filter((u): u is NonNullable<typeof u> => u !== null);
-    if (ok.length > 0) {
-      setColourImages(prev => ({
-        ...prev,
-        [String(idx)]: [...(prev[String(idx)] || []), ...ok].slice(0, MAX_COLOUR_IMAGES),
-      }));
-    }
-    setUploadingColourIdx(null);
-  };
-
-  const removeColourImage = async (idx: number, imageIndex: number) => {
-    const img = (colourImages[String(idx)] || [])[imageIndex];
-    if (img?.path) await supabaseAuth.storage.from('product-image').remove([img.path]);
-    setColourImages(prev => ({
-      ...prev,
-      [String(idx)]: (prev[String(idx)] || []).filter((_, i) => i !== imageIndex),
-    }));
+  const setImageColour = (imageIndex: number, colourIndex: number | null) => {
+    setImages(prev => prev.map((img, i) => i === imageIndex ? { ...img, colourIndex } : img));
   };
 
   const addColour = () => {
@@ -160,16 +119,11 @@ export default function NewProductPage() {
       }
       return next;
     });
-    setColourImages(prev => {
-      const next: Record<string, { url: string; path: string }[]> = {};
-      let cursor = 0;
-      for (let i = 0; i < pendingColours.length; i++) {
-        if (i === idx) continue;
-        next[String(cursor)] = prev[String(i)] || [];
-        cursor++;
-      }
-      return next;
-    });
+    setImages(prev => prev.map(img => {
+      if (img.colourIndex === null) return img;
+      if (img.colourIndex === idx) return { ...img, colourIndex: null };
+      return img.colourIndex > idx ? { ...img, colourIndex: img.colourIndex - 1 } : img;
+    }));
     setActiveColourIndex(cur => (cur >= idx && cur > 0 ? cur - 1 : cur));
   };
 
@@ -226,16 +180,13 @@ export default function NewProductPage() {
           lead_time: form.lead_time,
           has_colours: hasColours,
         },
-        images: images.map(img => ({ url: img.url, alt_text: img.alt_text || form.name })),
+        images: images.map(img => ({
+          url: img.url,
+          alt_text: img.alt_text || form.name,
+          colourIndex: hasColours ? img.colourIndex : null,
+        })),
         sizeInventory: flatInventory,
         colours: hasColours ? pendingColours : [],
-        colourImages: hasColours
-          ? pendingColours.flatMap((_c, idx) =>
-              (colourImages[String(idx)] || []).map((img, position) => ({
-                colourIndex: idx, url: img.url, alt_text: form.name, position,
-              })),
-            )
-          : [],
       }),
     });
 
@@ -244,10 +195,7 @@ export default function NewProductPage() {
     if (!res.ok) {
       // If the product itself failed (no id returned), clean up uploaded images.
       if (!result.id) {
-        const paths = [
-          ...images.map(i => i.path),
-          ...Object.values(colourImages).flat().map(i => i.path),
-        ].filter(Boolean);
+        const paths = images.map(i => i.path).filter(Boolean);
         if (paths.length > 0) {
           await supabaseAuth.storage.from('product-image').remove(paths);
         }
@@ -320,7 +268,7 @@ export default function NewProductPage() {
               </span>
             </div>
 
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '1rem', marginBottom: '1rem' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(6, 1fr)', gap: '0.75rem', marginBottom: '1rem' }}>
               {Array.from({ length: MAX_IMAGES }).map((_, i) => {
                 const img = images[i];
                 return (
@@ -358,6 +306,25 @@ export default function NewProductPage() {
                     {i === 0 && (
                       <p style={{ fontFamily: "'Jost', sans-serif", fontSize: '0.65rem', color: '#C9A882', textAlign: 'center', marginTop: '0.3rem', letterSpacing: '0.1em', textTransform: 'uppercase' }}>Main</p>
                     )}
+                    {/* Tag the photo to a colourway */}
+                    {img && hasColours && pendingColours.length > 0 && (
+                      <select
+                        value={img.colourIndex === null ? '' : String(img.colourIndex)}
+                        onChange={e => setImageColour(i, e.target.value === '' ? null : Number(e.target.value))}
+                        style={{
+                          width: '100%', marginTop: '0.4rem', padding: '0.3rem 0.4rem',
+                          border: `1px solid ${img.colourIndex === null ? '#E8DDD3' : '#C9A882'}`,
+                          backgroundColor: img.colourIndex === null ? '#FFFFFF' : '#FBF7F2',
+                          fontFamily: "'Jost', sans-serif", fontSize: '0.7rem',
+                          color: '#2C2C2C', outline: 'none', cursor: 'pointer',
+                        }}
+                      >
+                        <option value="">All colours</option>
+                        {pendingColours.map((c, ci) => (
+                          <option key={ci} value={ci}>{c.name}</option>
+                        ))}
+                      </select>
+                    )}
                   </div>
                 );
               })}
@@ -387,48 +354,16 @@ export default function NewProductPage() {
             {hasColours && (
               <div>
                 {pendingColours.map((colour, idx) => {
-                  const shots = colourImages[String(idx)] || [];
+                  const tagged = images.filter(im => im.colourIndex === idx).length;
                   return (
-                    <div key={idx} style={{ border: '1px solid #E8DDD3', marginBottom: '0.5rem' }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', padding: '0.75rem' }}>
-                        <div style={{ width: 24, height: 24, borderRadius: '50%', backgroundColor: colour.hex_code, border: '2px solid #E8DDD3', flexShrink: 0 }} />
-                        <span style={{ fontFamily: "'Jost', sans-serif", fontSize: '0.88rem', color: '#2C2C2C', flex: 1 }}>{colour.name}</span>
-                        <span style={{ fontFamily: "'Jost', sans-serif", fontSize: '0.72rem', color: '#9A8F87' }}>{colour.hex_code}</span>
-                        <button type="button" onClick={() => removeColour(idx)} style={{ background: 'none', border: 'none', color: '#C0392B', cursor: 'pointer', fontFamily: "'Jost', sans-serif", fontSize: '0.72rem' }}>Remove</button>
-                      </div>
-
-                      {/* Photos shown when a shopper picks this colour */}
-                      <div style={{ padding: '0 0.75rem 0.75rem', display: 'flex', gap: '0.5rem', alignItems: 'center', flexWrap: 'wrap' }}>
-                        {shots.map((img, i) => (
-                          <div key={i} style={{ position: 'relative', width: '56px', height: '70px', border: '1px solid #E8DDD3', overflow: 'hidden' }}>
-                            <img src={img.url} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-                            <button
-                              type="button"
-                              onClick={() => removeColourImage(idx, i)}
-                              style={{
-                                position: 'absolute', top: 2, right: 2, width: 18, height: 18,
-                                backgroundColor: '#2C2C2C', color: '#FAF7F4', border: 'none',
-                                cursor: 'pointer', fontSize: '0.6rem', lineHeight: 1,
-                              }}>✕</button>
-                          </div>
-                        ))}
-                        {shots.length < 4 && (
-                          <label style={{
-                            width: '56px', height: '70px', border: '1px dashed #D4C4B5', cursor: 'pointer',
-                            display: 'flex', alignItems: 'center', justifyContent: 'center',
-                            fontFamily: "'Jost', sans-serif", fontSize: '0.62rem', color: '#9A8F87', textAlign: 'center',
-                            backgroundColor: '#FAFAFA',
-                          }}>
-                            <input type="file" accept="image/*" multiple style={{ display: 'none' }} onChange={e => handleColourImageUpload(e, idx)} />
-                            {uploadingColourIdx === idx ? '…' : '+ Photo'}
-                          </label>
-                        )}
-                        <span style={{ fontFamily: "'Jost', sans-serif", fontSize: '0.7rem', color: '#9A8F87', marginLeft: '0.25rem' }}>
-                          {shots.length > 0
-                            ? `${shots.length}/4 — shown when ${colour.name} is selected`
-                            : `No photos yet — ${colour.name} will use the main product photos`}
-                        </span>
-                      </div>
+                    <div key={idx} style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', padding: '0.75rem', border: '1px solid #E8DDD3', marginBottom: '0.5rem' }}>
+                      <div style={{ width: 24, height: 24, borderRadius: '50%', backgroundColor: colour.hex_code, border: '2px solid #E8DDD3', flexShrink: 0 }} />
+                      <span style={{ fontFamily: "'Jost', sans-serif", fontSize: '0.88rem', color: '#2C2C2C', flex: 1 }}>{colour.name}</span>
+                      <span style={{ fontFamily: "'Jost', sans-serif", fontSize: '0.72rem', color: tagged > 0 ? '#2E7D32' : '#9A8F87' }}>
+                        {tagged > 0 ? `${tagged} photo${tagged !== 1 ? 's' : ''} tagged` : 'uses main photos'}
+                      </span>
+                      <span style={{ fontFamily: "'Jost', sans-serif", fontSize: '0.72rem', color: '#9A8F87' }}>{colour.hex_code}</span>
+                      <button type="button" onClick={() => removeColour(idx)} style={{ background: 'none', border: 'none', color: '#C0392B', cursor: 'pointer', fontFamily: "'Jost', sans-serif", fontSize: '0.72rem' }}>Remove</button>
                     </div>
                   );
                 })}
@@ -448,9 +383,9 @@ export default function NewProductPage() {
                 </div>
 
                 <p style={{ fontFamily: "'Jost', sans-serif", fontSize: '0.72rem', color: '#9A8F87', marginTop: '0.75rem', lineHeight: 1.7 }}>
-                  Add up to 4 photos per colour — those are what a shopper sees when they pick
-                  that swatch. Colours left without photos fall back to the main product photos.
-                  Set the stock for each colour in the Size &amp; Stock section below.
+                  Upload every photo once in Product Images above, then tag each one with the
+                  colour it shows. Untagged photos are used for any colour that has none of its
+                  own. Stock is set per colour in Size &amp; Stock below.
                 </p>
               </div>
             )}
