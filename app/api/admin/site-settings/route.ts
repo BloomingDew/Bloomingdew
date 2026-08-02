@@ -22,6 +22,7 @@ export async function POST(req: NextRequest) {
     'marquee_text',
     'hero_image_url',
     'low_stock_threshold',
+    'tax_rates',
   ];
   if (!ALLOWED_KEYS.includes(key)) {
     return NextResponse.json({ error: `Unknown setting: ${key}` }, { status: 400 });
@@ -33,6 +34,18 @@ export async function POST(req: NextRequest) {
     const n = Number(value);
     if (!Number.isInteger(n) || n < 0 || n > 1000) {
       return NextResponse.json({ error: 'Threshold must be a whole number between 0 and 1000.' }, { status: 400 });
+    }
+  }
+  if (key === 'tax_rates' && value !== null) {
+    try {
+      const parsed = JSON.parse(value);
+      if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) throw new Error();
+      for (const rate of Object.values(parsed)) {
+        const n = Number(rate);
+        if (!Number.isFinite(n) || n < 0 || n > 50) throw new Error();
+      }
+    } catch {
+      return NextResponse.json({ error: 'Tax rates must be a JSON object of percentages between 0 and 50.' }, { status: 400 });
     }
   }
   if (key === 'new_collection_product_ids' && value !== null) {
