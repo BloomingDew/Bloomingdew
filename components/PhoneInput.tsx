@@ -87,9 +87,18 @@ export default function PhoneInput({
         style={{
           ...inputStyle,
           width: 'auto',
-          minWidth: '110px',
+          minWidth: '116px',
           flexShrink: 0,
           cursor: 'pointer',
+          // Callers' shared inputStyle sets appearance:none (to tame native
+          // select chrome), which also removes the arrow — draw our own so the
+          // field reads as a dropdown.
+          appearance: 'none',
+          backgroundImage:
+            "url(\"data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'><path d='M1 1l4 4 4-4' fill='none' stroke='%232C2C2C' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/></svg>\")",
+          backgroundRepeat: 'no-repeat',
+          backgroundPosition: 'right 0.7rem center',
+          paddingRight: '1.9rem',
         }}
       >
         {DIAL_CODES.map(c => (
