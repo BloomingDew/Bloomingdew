@@ -131,7 +131,7 @@ export async function POST(req: NextRequest) {
           country: shipping.country,
         },
         items: pricing.lines.map(l => ({
-          id: l.id, name: l.name, size: l.size,
+          id: l.id, name: l.name, size: l.size, colour: l.colourName ?? null,
           quantity: l.quantity, price: l.unitPrice,
         })),
         subtotal,

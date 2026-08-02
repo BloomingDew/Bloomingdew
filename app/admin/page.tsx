@@ -7,7 +7,7 @@ import { getSession, supabaseAuth } from '../../lib/supabase-admin';
 import { formatAdminPrice } from '../../lib/adminCurrency';
 import { toast } from '../../components/Toast';
 
-type LowStockItem = { product_id: number; size: string; quantity: number; products: { name: string } | { name: string }[] | null };
+type LowStockItem = { product_id: number; size: string; quantity: number; products: { name: string } | { name: string }[] | null; product_colours?: { name: string } | { name: string }[] | null };
 
 type Analytics = {
   perDay: { date: string; revenue: number; orders: number }[];
@@ -150,7 +150,11 @@ export default function AdminDashboardPage() {
               <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem' }}>
                 {lowStock.map((item, i) => (
                   <span key={i} style={{ fontFamily: "'Jost', sans-serif", fontSize: '0.75rem', color: '#E65100', backgroundColor: '#FFE0B2', padding: '0.2rem 0.6rem' }}>
-                    {(item.products as { name?: string } | null)?.name ?? (Array.isArray(item.products) ? item.products[0]?.name : '')} — {item.size}: {item.quantity} left
+                    {(item.products as { name?: string } | null)?.name ?? (Array.isArray(item.products) ? item.products[0]?.name : '')}
+                    {(() => {
+                      const c = Array.isArray(item.product_colours) ? item.product_colours[0] : item.product_colours;
+                      return c?.name ? ` · ${c.name}` : '';
+                    })()} — {item.size}: {item.quantity} left
                   </span>
                 ))}
               </div>

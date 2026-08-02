@@ -10,7 +10,7 @@ type Order = {
   customer_email: string;
   customer_phone: string;
   shipping_address: { address: string; apartment?: string; city: string; postcode: string; country: string };
-  items: { name: string; size: string; quantity: number }[];
+  items: { name: string; size: string; colour?: string | null; quantity: number }[];
   notes?: string;
   created_at: string;
 };
@@ -94,7 +94,10 @@ export default function PackingSlipPage({ params }: { params: Promise<{ id: stri
         <tbody>
           {order.items?.map((item, i) => (
             <tr key={i} style={{ borderBottom: '1px solid #E8DDD3' }}>
-              <td style={{ padding: '0.75rem 0' }}>{item.name}</td>
+              <td style={{ padding: '0.75rem 0' }}>
+                {item.name}
+                {item.colour ? <span style={{ color: '#5C5450' }}> — {item.colour}</span> : null}
+              </td>
               <td style={{ padding: '0.75rem 0', textAlign: 'center' }}>{item.size}</td>
               <td style={{ padding: '0.75rem 0', textAlign: 'right' }}>{item.quantity}</td>
             </tr>

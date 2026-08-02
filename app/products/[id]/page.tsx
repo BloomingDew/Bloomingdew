@@ -68,22 +68,32 @@ export default function ProductPage({ params }: { params: Promise<{ id: string }
     }
   }, [product]);
 
-  // Reset active image when colour changes
-  useEffect(() => { setActiveImage(0); }, [selectedColour]);
+  // Switching colour shows a different set of photos and a different set of
+  // stock, so clear the size choice rather than leaving one selected that may
+  // be sold out in the new colourway.
+  useEffect(() => {
+    setActiveImage(0);
+    setSelectedSize('');
+    setStockError('');
+  }, [selectedColour]);
 
-  // Fetch all sizes stock when product loads
+  // Stock is tracked per colourway, so every lookup passes the selected colour
+  // (null for products without colours).
+  const stockColourId = product?.has_colours ? selectedColour : null;
+
+  // Fetch all sizes stock when the product loads or the colour changes
   useEffect(() => {
     if (!product || product.made_to_order) return;
     const productSizes = product.sizes || sizes;
-    getAllSizesStock(product.id, productSizes).then(setAllStock);
-  }, [product]);
+    getAllSizesStock(product.id, productSizes, stockColourId).then(setAllStock);
+  }, [product, stockColourId]);
 
-  // Fetch stock when size is selected
+  // Fetch stock when size (or colour) is selected
   useEffect(() => {
     if (!product || !selectedSize) return;
     if (product.made_to_order) { setAvailableStock(null); return; }
-    getAvailableStock(product.id, selectedSize).then(setAvailableStock);
-  }, [selectedSize, product]);
+    getAvailableStock(product.id, selectedSize, stockColourId).then(setAvailableStock);
+  }, [selectedSize, product, stockColourId]);
 
   const handleAddToCart = async () => {
     if (!product) return;
@@ -100,6 +110,10 @@ export default function ProductPage({ params }: { params: Promise<{ id: string }
       originalPriceUsd: product.discount > 0 ? product.price : undefined,
       size: selectedSize,
       quantity: 1, madeToOrder: product.made_to_order,
+      colourId: stockColourId,
+      colourName: stockColourId
+        ? product.colours.find(c => c.id === stockColourId)?.name ?? null
+        : null,
     });
     if (!result.success) {
       setStockError(result.message || 'Item unavailable.');
@@ -109,7 +123,9 @@ export default function ProductPage({ params }: { params: Promise<{ id: string }
     setTimeout(() => setAddedMsg(false), 2000);
     // Refresh stock
     if (!product.made_to_order && selectedSize) {
-      getAvailableStock(product.id, selectedSize).then(setAvailableStock);
+      getAvailableStock(product.id, selectedSize, stockColourId).then(setAvailableStock);
+      const productSizes = product.sizes || sizes;
+      getAllSizesStock(product.id, productSizes, stockColourId).then(setAllStock);
     }
   };
 

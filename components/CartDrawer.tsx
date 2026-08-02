@@ -43,9 +43,9 @@ export default function CartDrawer() {
   const router = useRouter();
   const [stockErrors, setStockErrors] = useState<Record<string, string>>({});
 
-  const handleQuantity = async (id: number, size: string, quantity: number) => {
-    const key = `${id}-${size}`;
-    const result = await updateQuantity(id, size, quantity);
+  const handleQuantity = async (id: number, size: string, quantity: number, colourId: string | null = null) => {
+    const key = `${id}-${colourId ?? 'x'}-${size}`;
+    const result = await updateQuantity(id, size, quantity, colourId);
     setStockErrors(prev => {
       const next = { ...prev };
       if (result.success) delete next[key];
@@ -128,7 +128,7 @@ export default function CartDrawer() {
           ) : (
             <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
               {items.map((item) => (
-                <div key={`${item.id}-${item.size}`} style={{
+                <div key={`${item.id}-${item.colourId ?? "x"}-${item.size}`} style={{
                   display: 'flex', gap: '1rem', paddingBottom: '1.5rem',
                   borderBottom: '1px solid #E8DDD3',
                 }}>
@@ -147,7 +147,7 @@ export default function CartDrawer() {
                       {item.name}
                     </p>
                     <p style={{ fontFamily: "'Jost', sans-serif", fontSize: '0.78rem', fontWeight: 300, color: '#9A8F87', marginBottom: '0.4rem' }}>
-                      Size: {item.size}
+                      {item.colourName ? `${item.colourName} · ` : ''}Size: {item.size}
                     </p>
                     {item.expiresAt && !item.madeToOrder && (
                       <div style={{ marginBottom: '0.75rem' }}>
@@ -164,7 +164,7 @@ export default function CartDrawer() {
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                       <div style={{ display: 'flex', alignItems: 'center', border: '1px solid #E8DDD3' }}>
                         <button
-                          onClick={() => handleQuantity(item.id, item.size, item.quantity - 1)}
+                          onClick={() => handleQuantity(item.id, item.size, item.quantity - 1, item.colourId ?? null)}
                           style={{ width: '32px', height: '32px', background: 'none', border: 'none', cursor: 'pointer', color: '#2C2C2C', fontSize: '1rem' }}>
                           −
                         </button>
@@ -172,7 +172,7 @@ export default function CartDrawer() {
                           {item.quantity}
                         </span>
                         <button
-                          onClick={() => handleQuantity(item.id, item.size, item.quantity + 1)}
+                          onClick={() => handleQuantity(item.id, item.size, item.quantity + 1, item.colourId ?? null)}
                           style={{ width: '32px', height: '32px', background: 'none', border: 'none', cursor: 'pointer', color: '#2C2C2C', fontSize: '1rem' }}>
                           +
                         </button>
@@ -189,15 +189,15 @@ export default function CartDrawer() {
                           </span>
                         </div>
                         <button
-                          onClick={() => removeItem(item.id, item.size)}
+                          onClick={() => removeItem(item.id, item.size, item.colourId ?? null)}
                           style={{ fontFamily: "'Jost', sans-serif", fontSize: '0.72rem', color: '#9A8F87', background: 'none', border: 'none', cursor: 'pointer', letterSpacing: '0.08em' }}>
                           Remove
                         </button>
                       </div>
                     </div>
-                    {stockErrors[`${item.id}-${item.size}`] && (
+                    {stockErrors[`${item.id}-${item.colourId ?? "x"}-${item.size}`] && (
                       <p style={{ fontFamily: "'Jost', sans-serif", fontSize: '0.72rem', color: '#C0392B', marginTop: '0.5rem' }}>
-                        {stockErrors[`${item.id}-${item.size}`]}
+                        {stockErrors[`${item.id}-${item.colourId ?? "x"}-${item.size}`]}
                       </p>
                     )}
                   </div>

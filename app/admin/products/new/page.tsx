@@ -10,9 +10,14 @@ import { toast } from '../../../../components/Toast';
 
 type Category = { id: number; name: string };
 type PendingColour = { name: string; hex_code: string };
+type SizeInventory = { size: string; quantity: number };
 
 const DEFAULT_SIZES = ['6', '8', '10', '12', '14', '16', '18', '20'];
 const MAX_IMAGES = 4;
+// Bucket key used when the product has no colourways.
+const NO_COLOUR = '__none';
+
+const zeroedSizes = (): SizeInventory[] => DEFAULT_SIZES.map(size => ({ size, quantity: 0 }));
 
 export default function NewProductPage() {
   const router = useRouter();
@@ -20,9 +25,12 @@ export default function NewProductPage() {
   const [loading, setLoading] = useState(false);
   const [uploadingImage, setUploadingImage] = useState(false);
   const [images, setImages] = useState<{ url: string; alt_text: string; path: string }[]>([]);
-  const [sizeInventory, setSizeInventory] = useState(
-    DEFAULT_SIZES.map(size => ({ size, quantity: 0 }))
-  );
+  // Colours have no ids until the product is created, so stock buckets are
+  // keyed by the colour's index in pendingColours (NO_COLOUR when disabled).
+  const [sizeInventory, setSizeInventory] = useState<Record<string, SizeInventory[]>>({
+    [NO_COLOUR]: zeroedSizes(),
+  });
+  const [activeColourIndex, setActiveColourIndex] = useState(0);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
   const [hasColours, setHasColours] = useState(false);
@@ -84,6 +92,45 @@ export default function NewProductPage() {
     setImages(newImages);
   };
 
+  const addColour = () => {
+    if (!newColourName.trim()) return;
+    const idx = pendingColours.length;
+    setPendingColours(prev => [...prev, { name: newColourName.trim(), hex_code: newColourHex }]);
+    // New colour gets its own zeroed size grid straight away.
+    setSizeInventory(prev => ({ ...prev, [String(idx)]: zeroedSizes() }));
+    setNewColourName(''); setNewColourHex('#000000');
+  };
+
+  const removeColour = (idx: number) => {
+    setPendingColours(prev => prev.filter((_, i) => i !== idx));
+    // Buckets are index-keyed, so drop the removed one and re-index the rest.
+    setSizeInventory(prev => {
+      const next: Record<string, SizeInventory[]> = { [NO_COLOUR]: prev[NO_COLOUR] || zeroedSizes() };
+      let cursor = 0;
+      for (let i = 0; i < pendingColours.length; i++) {
+        if (i === idx) continue;
+        next[String(cursor)] = prev[String(i)] || zeroedSizes();
+        cursor++;
+      }
+      return next;
+    });
+    setActiveColourIndex(cur => (cur >= idx && cur > 0 ? cur - 1 : cur));
+  };
+
+  // When colours are enabled, stock is edited one colour at a time.
+  const useColourStock = hasColours && pendingColours.length > 0;
+  const activeKey = useColourStock
+    ? String(Math.min(activeColourIndex, pendingColours.length - 1))
+    : NO_COLOUR;
+  const activeSizes = sizeInventory[activeKey] || zeroedSizes();
+
+  const setQuantity = (size: string, quantity: number) => {
+    setSizeInventory(prev => ({
+      ...prev,
+      [activeKey]: (prev[activeKey] || zeroedSizes()).map(s => s.size === size ? { ...s, quantity } : s),
+    }));
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
@@ -94,6 +141,14 @@ export default function NewProductPage() {
       setLoading(false);
       return;
     }
+
+    // Flatten to [{ size, quantity, colourIndex }] — colourIndex maps into the
+    // `colours` array posted below (null when the product has no colourways).
+    const flatInventory = useColourStock
+      ? pendingColours.flatMap((_c, idx) => (sizeInventory[String(idx)] || zeroedSizes())
+          .map(s => ({ size: s.size, quantity: s.quantity, colourIndex: idx })))
+      : (sizeInventory[NO_COLOUR] || zeroedSizes())
+          .map(s => ({ size: s.size, quantity: s.quantity, colourIndex: null }));
 
     const slug = form.name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
 
@@ -116,7 +171,7 @@ export default function NewProductPage() {
           has_colours: hasColours,
         },
         images: images.map(img => ({ url: img.url, alt_text: img.alt_text || form.name })),
-        sizeInventory,
+        sizeInventory: flatInventory,
         colours: hasColours ? pendingColours : [],
       }),
     });
@@ -140,7 +195,10 @@ export default function NewProductPage() {
     setTimeout(() => router.push(`/admin/products/${result.id}`), 2500);
   };
 
-  const totalStock = sizeInventory.reduce((sum, s) => sum + s.quantity, 0);
+  const totalStock = activeSizes.reduce((sum, s) => sum + s.quantity, 0);
+  const allColoursStock = useColourStock
+    ? pendingColours.reduce((sum, _c, idx) => sum + (sizeInventory[String(idx)] || []).reduce((n, s) => n + s.quantity, 0), 0)
+    : totalStock;
 
   return (
     <div>
@@ -266,7 +324,7 @@ export default function NewProductPage() {
                     <div style={{ width: 24, height: 24, borderRadius: '50%', backgroundColor: colour.hex_code, border: '2px solid #E8DDD3', flexShrink: 0 }} />
                     <span style={{ fontFamily: "'Jost', sans-serif", fontSize: '0.88rem', color: '#2C2C2C', flex: 1 }}>{colour.name}</span>
                     <span style={{ fontFamily: "'Jost', sans-serif", fontSize: '0.72rem', color: '#9A8F87' }}>{colour.hex_code}</span>
-                    <button type="button" onClick={() => setPendingColours(prev => prev.filter((_, i) => i !== idx))} style={{ background: 'none', border: 'none', color: '#C0392B', cursor: 'pointer', fontFamily: "'Jost', sans-serif", fontSize: '0.72rem' }}>Remove</button>
+                    <button type="button" onClick={() => removeColour(idx)} style={{ background: 'none', border: 'none', color: '#C0392B', cursor: 'pointer', fontFamily: "'Jost', sans-serif", fontSize: '0.72rem' }}>Remove</button>
                   </div>
                 ))}
 
@@ -279,11 +337,7 @@ export default function NewProductPage() {
                     <label style={labelStyle}>Swatch</label>
                     <input type="color" value={newColourHex} onChange={e => setNewColourHex(e.target.value)} style={{ width: '52px', height: '44px', border: '1px solid #E8DDD3', cursor: 'pointer', padding: '2px' }} />
                   </div>
-                  <button type="button" onClick={() => {
-                    if (!newColourName.trim()) return;
-                    setPendingColours(prev => [...prev, { name: newColourName.trim(), hex_code: newColourHex }]);
-                    setNewColourName(''); setNewColourHex('#000000');
-                  }} style={{ padding: '0.85rem 1.5rem', backgroundColor: '#2C2C2C', color: '#FAF7F4', border: 'none', cursor: 'pointer', fontFamily: "'Jost', sans-serif", fontSize: '0.72rem', letterSpacing: '0.12em', textTransform: 'uppercase', whiteSpace: 'nowrap', height: '44px' }}>
+                  <button type="button" onClick={addColour} style={{ padding: '0.85rem 1.5rem', backgroundColor: '#2C2C2C', color: '#FAF7F4', border: 'none', cursor: 'pointer', fontFamily: "'Jost', sans-serif", fontSize: '0.72rem', letterSpacing: '0.12em', textTransform: 'uppercase', whiteSpace: 'nowrap', height: '44px' }}>
                     Add Colour
                   </button>
                 </div>
@@ -330,19 +384,52 @@ export default function NewProductPage() {
 
             <div>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: '1rem' }}>
-                <label style={labelStyle}>Stock per Size</label>
+                <label style={labelStyle}>{useColourStock ? 'Stock per Size & Colour' : 'Stock per Size'}</label>
                 <span style={{ fontFamily: "'Jost', sans-serif", fontSize: '0.75rem', color: '#9A8F87' }}>
                   Total: {totalStock} units
                 </span>
               </div>
+
+              {useColourStock && (
+                <div style={{ marginBottom: '1rem' }}>
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem' }}>
+                    {pendingColours.map((colour, idx) => {
+                      const active = String(idx) === activeKey;
+                      return (
+                        <button
+                          key={idx}
+                          type="button"
+                          onClick={() => setActiveColourIndex(idx)}
+                          style={{
+                            display: 'flex', alignItems: 'center', gap: '0.5rem',
+                            padding: '0.5rem 0.9rem', cursor: 'pointer',
+                            backgroundColor: active ? '#FBF7F2' : '#FFFFFF',
+                            border: `1px solid ${active ? '#C9A882' : '#E8DDD3'}`,
+                            color: active ? '#2C2C2C' : '#9A8F87',
+                            fontFamily: "'Jost', sans-serif", fontSize: '0.78rem',
+                            letterSpacing: '0.05em',
+                          }}
+                        >
+                          <span style={{ width: 14, height: 14, borderRadius: '50%', backgroundColor: colour.hex_code, border: '1px solid #E8DDD3', flexShrink: 0 }} />
+                          {colour.name}
+                        </button>
+                      );
+                    })}
+                  </div>
+                  <p style={{ fontFamily: "'Jost', sans-serif", fontSize: '0.7rem', color: '#9A8F87', marginTop: '0.6rem' }}>
+                    All colours: {allColoursStock} units
+                  </p>
+                </div>
+              )}
+
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(8, 1fr)', gap: '0.75rem' }}>
-                {sizeInventory.map(({ size, quantity }) => (
+                {activeSizes.map(({ size, quantity }) => (
                   <div key={size} style={{ textAlign: 'center' }}>
                     <label style={{ ...labelStyle, textAlign: 'center', marginBottom: '0.4rem' }}>{size}</label>
                     <input
                       type="number" min="0"
                       value={quantity}
-                      onChange={e => setSizeInventory(prev => prev.map(s => s.size === size ? { ...s, quantity: parseInt(e.target.value) || 0 } : s))}
+                      onChange={e => setQuantity(size, parseInt(e.target.value) || 0)}
                       style={{ ...inputStyle, textAlign: 'center', padding: '0.6rem 0.4rem' }}
                     />
                     <p style={{ fontFamily: "'Jost', sans-serif", fontSize: '0.65rem', color: quantity === 0 ? '#C0392B' : quantity <= 3 ? '#E65100' : '#2E7D32', marginTop: '0.3rem' }}>

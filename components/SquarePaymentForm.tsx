@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from 'react';
 
 type Props = {
   amount: number;
-  items: { id: number; name: string; size: string; quantity: number; price: number }[];
+  items: { id: number; name: string; size: string; quantity: number; price: number; colourId?: string | null }[];
   shipping: {
     firstName: string; lastName: string; email: string; phone: string;
     address: string; apartment: string; city: string; postcode: string; country: string;
