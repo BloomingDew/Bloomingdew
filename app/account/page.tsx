@@ -5,6 +5,7 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { useUser } from '../../context/UserContext';
 import { supabase } from '../../lib/supabase';
+import PhoneInput from '../../components/PhoneInput';
 
 type Order = {
   id: string;
@@ -259,7 +260,11 @@ function AccountPageInner() {
                 </div>
                 <div>
                   <label style={fieldLabel}>Phone</label>
-                  <input style={fieldInput} value={profileForm.phone} onChange={e => setProfileForm({ ...profileForm, phone: e.target.value })} placeholder="+234 801 234 5678" />
+                  <PhoneInput
+                    value={profileForm.phone}
+                    onChange={phone => setProfileForm({ ...profileForm, phone })}
+                    inputStyle={fieldInput}
+                  />
                 </div>
                 <div>
                   <label style={fieldLabel}>Birthday</label>
@@ -340,7 +345,11 @@ function AccountPageInner() {
                 </div>
                 <div>
                   <label style={fieldLabel}>Phone</label>
-                  <input style={fieldInput} value={addressForm.phone} onChange={e => setAddressForm({ ...addressForm, phone: e.target.value })} placeholder="+234 801 234 5678" />
+                  <PhoneInput
+                    value={addressForm.phone}
+                    onChange={phone => setAddressForm({ ...addressForm, phone })}
+                    inputStyle={fieldInput}
+                  />
                 </div>
                 {saveAddressError && <p style={{ fontFamily: "'Jost', sans-serif", fontSize: '0.82rem', color: '#C0392B' }}>{saveAddressError}</p>}
                 <button onClick={handleSaveAddress} disabled={savingAddress || !addressForm.address || !addressForm.city} style={{
