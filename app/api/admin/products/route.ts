@@ -96,7 +96,7 @@ export async function POST(req: NextRequest) {
   if (!admin) return unauthorized();
   if (admin.role !== 'owner') return forbidden();
 
-  const { product, images = [], sizeInventory = [], colours = [] } = await req.json();
+  const { product, images = [], sizeInventory = [], colours = [], colourImages = [] } = await req.json();
   if (!product?.name || typeof product.price !== 'number') {
     return NextResponse.json({ error: 'Product name and price are required.' }, { status: 400 });
   }
@@ -140,6 +140,33 @@ export async function POST(req: NextRequest) {
     createdColourIds = (colourRows || [])
       .sort((a, b) => a.display_order - b.display_order)
       .map(r => r.id);
+  }
+
+  // Colour-tagged photos, sent with a colourIndex because the create form has
+  // no colour ids until the colours above are inserted.
+  if (colourImages.length > 0 && createdColourIds.length > 0) {
+    const rows = colourImages
+      .map((img: { colourIndex: number; url: string; alt_text?: string; position?: number }) => {
+        const colourId = createdColourIds[img.colourIndex];
+        if (!colourId) return null;
+        return {
+          product_id: created.id,
+          colour_id: colourId,
+          url: img.url,
+          alt_text: img.alt_text || product.name,
+          position: img.position ?? 0,
+        };
+      })
+      .filter(Boolean);
+    if (rows.length > 0) {
+      const { error: ciError } = await supabaseService.from('product_images').insert(rows);
+      if (ciError) {
+        return NextResponse.json(
+          { error: `Product saved but colour images failed: ${ciError.message}`, id: created.id },
+          { status: 500 },
+        );
+      }
+    }
   }
 
   if (sizeInventory.length > 0) {
