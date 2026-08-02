@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { priceOrder, savePendingOrder, type Shipping } from '../../../../lib/orders-server';
 import { validateDiscountCode } from '../../../../lib/discounts';
+import { getTaxRate, taxAmountUsd } from '../../../../lib/tax';
 import { supabaseService } from '../../../../lib/admin-server';
 import { convertFromUsd, toMinorUnits } from '../../../../lib/currency';
 import { rateLimit } from '../../../../lib/rate-limit';
@@ -59,7 +60,10 @@ export async function POST(req: NextRequest) {
       appliedCode = discountCode.toUpperCase().trim();
     }
   }
-  const totalUsd = Math.max(0, pricing.subtotal - discountUsd);
+  // Destination-based tax on the discounted subtotal (admin-configured rate).
+  const taxRate = await getTaxRate(shipping.country);
+  const taxUsd = taxAmountUsd(Math.max(0, pricing.subtotal - discountUsd), taxRate);
+  const totalUsd = Math.max(0, pricing.subtotal - discountUsd) + taxUsd;
 
   // Convert at the displayed storefront rate (fx_rates, refreshed daily).
   const { data: rateRow } = await supabaseService
@@ -107,7 +111,7 @@ export async function POST(req: NextRequest) {
       ...shipping,
       // Extra context rides inside the shipping jsonb (same pattern as Stripe's
       // discountCode) — the callback verifies the paid amount against this.
-      paystack: { amountKobo, totalUsd, discountUsd },
+      paystack: { amountKobo, totalUsd, discountUsd, taxUsd },
     } as Shipping,
     userId: userId ?? null,
     subtotal: pricing.subtotal,

@@ -5,6 +5,7 @@ import { priceOrder } from '../../../../lib/orders-server';
 import { supabaseService } from '../../../../lib/admin-server';
 import { rateLimit } from '../../../../lib/rate-limit';
 import { validateDiscountCode, incrementUse } from '../../../../lib/discounts';
+import { getTaxRate, taxAmountUsd } from '../../../../lib/tax';
 
 const square = new SquareClient({
   token: process.env.SQUARE_ACCESS_TOKEN!,
@@ -72,7 +73,11 @@ export async function POST(req: NextRequest) {
     discountUsd = result.discountUsd;
   }
 
-  const total = Math.max(0, subtotal - discountUsd);
+  // Destination-based tax on the discounted subtotal (admin-configured rate).
+  const taxRate = await getTaxRate(shipping.country);
+  const taxUsd = taxAmountUsd(Math.max(0, subtotal - discountUsd), taxRate);
+
+  const total = Math.max(0, subtotal - discountUsd) + taxUsd;
   const amountCents = BigInt(Math.round(total * 100));
 
   // Derive the idempotency key from the single-use card token so a retried
@@ -131,6 +136,7 @@ export async function POST(req: NextRequest) {
         })),
         subtotal,
         shipping_cost: shippingCost,
+        tax_usd: taxUsd > 0 ? taxUsd : null,
         total,
         discount_code: appliedCode,
         discount_usd: appliedCode ? discountUsd : null,

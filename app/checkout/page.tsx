@@ -92,6 +92,16 @@ export default function CheckoutPage() {
   const [paystackLoading, setPaystackLoading] = useState(false);
   const [paystackAvailable, setPaystackAvailable] = useState(false);
 
+  // Destination-based tax: rate follows the shipping country (display only —
+  // the payment routes recompute and enforce it server-side).
+  const [taxRate, setTaxRate] = useState(0);
+  useEffect(() => {
+    fetch(`/api/tax?country=${encodeURIComponent(shipping.country)}`)
+      .then(r => r.json())
+      .then(({ rate }) => setTaxRate(Number(rate) || 0))
+      .catch(() => setTaxRate(0));
+  }, [shipping.country]);
+
   // Only show the Paystack option where the key is configured (e.g. hidden in
   // production until the live key is added).
   useEffect(() => {
@@ -193,7 +203,8 @@ export default function CheckoutPage() {
   // orderTotal is in USD (base). Charging stays USD until local-currency
   // payment routing (Paystack/Stripe presentment) lands in a later PR.
   const discountUsd = appliedDiscount ? Math.min(appliedDiscount.amountUsd, totalPriceUsd) : 0;
-  const orderTotal = Math.max(0, totalPriceUsd - discountUsd);
+  const taxUsd = Math.round(Math.max(0, totalPriceUsd - discountUsd) * taxRate) / 100;
+  const orderTotal = Math.max(0, totalPriceUsd - discountUsd) + taxUsd;
 
   // Naira preview for the Paystack option — same rate the server charges at.
   const ngnTotal = rates.NGN
@@ -587,6 +598,12 @@ export default function CheckoutPage() {
               <span style={summaryLabel}>Shipping</span>
               <span style={{ ...summaryValue, color: '#C9A882' }}>TBD</span>
             </div>
+            {taxUsd > 0 && (
+              <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                <span style={summaryLabel}>Tax ({taxRate}%)</span>
+                <span style={summaryValue}>{format(taxUsd)}</span>
+              </div>
+            )}
             <div style={{ borderTop: '1px solid #E8DDD3', paddingTop: '0.75rem', display: 'flex', justifyContent: 'space-between' }}>
               <span style={{ fontFamily: "'Jost', sans-serif", fontSize: '0.88rem', fontWeight: 500, color: '#2C2C2C' }}>Total</span>
               <span style={{ fontFamily: "'Jost', sans-serif", fontSize: '0.95rem', fontWeight: 500, color: '#2C2C2C' }}>{format(orderTotal)}</span>

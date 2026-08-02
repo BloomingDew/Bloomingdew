@@ -6,7 +6,7 @@ import { sendOrderConfirmationEmail } from '../../../../lib/email';
 
 type PendingShipping = Shipping & {
   discountCode?: string;
-  paystack?: { amountKobo: number; totalUsd: number; discountUsd: number };
+  paystack?: { amountKobo: number; totalUsd: number; discountUsd: number; taxUsd?: number };
 };
 
 // Paystack redirects the customer here after payment. Verify the transaction
@@ -89,6 +89,7 @@ export async function GET(req: NextRequest) {
       })),
       subtotal: pricing.subtotal,
       shipping_cost: 0,
+      tax_usd: expected.taxUsd && expected.taxUsd > 0 ? expected.taxUsd : null,
       total: expected.totalUsd,
       status: 'paid',
       payment_provider: 'paystack',

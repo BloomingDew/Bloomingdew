@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { getSession } from '../../lib/supabase-admin';
+import { getSession, supabaseAuth } from '../../lib/supabase-admin';
 import { formatAdminPrice } from '../../lib/adminCurrency';
 import { toast } from '../../components/Toast';
 
@@ -31,6 +31,40 @@ export default function AdminDashboardPage() {
   const [lowStockThreshold, setLowStockThreshold] = useState('3');
   const [thresholdSaved, setThresholdSaved] = useState(false);
 
+  // Destination-based tax rates (percent per shipping country). Must mirror
+  // the checkout's country dropdown.
+  const TAX_COUNTRIES = ['Nigeria', 'United Kingdom', 'United States', 'Canada', 'Australia', 'France', 'Germany', 'Ghana', 'Other'];
+  const [taxRates, setTaxRates] = useState<Record<string, string>>({});
+  const [showTaxes, setShowTaxes] = useState(false);
+  const [taxSaved, setTaxSaved] = useState(false);
+  const [taxError, setTaxError] = useState('');
+
+  const saveTaxRates = async () => {
+    setTaxError('');
+    const clean: Record<string, number> = {};
+    for (const [country, value] of Object.entries(taxRates)) {
+      if (value === '' || value === null) continue;
+      const n = Number(value);
+      if (!Number.isFinite(n) || n < 0 || n > 50) {
+        setTaxError(`"${value}" isn't a valid percentage for ${country} (0–50).`);
+        return;
+      }
+      if (n > 0) clean[country] = n;
+    }
+    const res = await fetch('/api/admin/site-settings', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ key: 'tax_rates', value: JSON.stringify(clean) }),
+    });
+    if (!res.ok) {
+      const { error } = await res.json().catch(() => ({ error: 'Unknown error' }));
+      setTaxError(error || 'Save failed.');
+      return;
+    }
+    setTaxSaved(true);
+    setTimeout(() => setTaxSaved(false), 2000);
+  };
+
   useEffect(() => {
     getSession().then((session) => {
       if (!session) { router.push('/admin/login'); return; }
@@ -57,6 +91,18 @@ export default function AdminDashboardPage() {
       if (res.ok) setAnalytics(await res.json());
     } catch {
       // Analytics section simply doesn't render without data.
+    }
+    try {
+      const { data } = await supabaseAuth
+        .from('site_settings').select('value').eq('key', 'tax_rates').maybeSingle();
+      if (data?.value) {
+        const parsed = JSON.parse(data.value);
+        const asStrings: Record<string, string> = {};
+        for (const [country, rate] of Object.entries(parsed)) asStrings[country] = String(rate);
+        setTaxRates(asStrings);
+      }
+    } catch {
+      // Tax card just starts empty.
     }
     try {
       const res = await fetch('/api/admin/activity');
@@ -217,6 +263,54 @@ export default function AdminDashboardPage() {
             Save
           </button>
           {thresholdSaved && <span style={{ fontFamily: "'Jost', sans-serif", fontSize: '0.78rem', color: '#2E7D32' }}>Saved!</span>}
+        </div>
+
+        {/* Tax rates */}
+        <div style={{ backgroundColor: '#FFFFFF', border: '1px solid #E8DDD3', padding: '1.5rem 2rem', marginBottom: '2rem' }}>
+          <button onClick={() => setShowTaxes(!showTaxes)} style={{
+            display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%',
+            background: 'none', border: 'none', cursor: 'pointer', padding: 0,
+          }}>
+            <span style={{ display: 'flex', alignItems: 'baseline', gap: '1rem' }}>
+              <h2 style={{ fontFamily: "'Playfair Display', serif", fontSize: '1.1rem', fontWeight: 500, color: '#2C2C2C' }}>
+                Tax Rates
+              </h2>
+              {taxSaved && <span style={{ fontFamily: "'Jost', sans-serif", fontSize: '0.8rem', color: '#2E7D32' }}>Saved!</span>}
+            </span>
+            <span style={{ color: '#9A8F87', fontSize: '0.8rem' }}>{showTaxes ? '▲' : '▼'}</span>
+          </button>
+          {showTaxes && (
+            <div style={{ marginTop: '1.2rem' }}>
+              <p style={{ fontFamily: "'Jost', sans-serif", fontSize: '0.8rem', fontWeight: 300, color: '#9A8F87', marginBottom: '1.2rem', lineHeight: 1.7 }}>
+                Charged at checkout based on the customer&apos;s shipping country, on top of the
+                (discounted) subtotal. Leave a country empty or 0 to charge no tax there.
+              </p>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))', gap: '0.8rem', marginBottom: '1.2rem' }}>
+                {TAX_COUNTRIES.map(country => (
+                  <div key={country} style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
+                    <span style={{ fontFamily: "'Jost', sans-serif", fontSize: '0.82rem', color: '#2C2C2C', flex: 1 }}>{country}</span>
+                    <input
+                      type="number" min={0} max={50} step={0.5}
+                      value={taxRates[country] ?? ''}
+                      onChange={e => setTaxRates(prev => ({ ...prev, [country]: e.target.value }))}
+                      placeholder="0"
+                      style={{ width: '72px', padding: '0.35rem 0.5rem', border: '1px solid #E8DDD3', fontFamily: "'Jost', sans-serif", fontSize: '0.85rem', outline: 'none', textAlign: 'right' }}
+                    />
+                    <span style={{ fontFamily: "'Jost', sans-serif", fontSize: '0.8rem', color: '#9A8F87' }}>%</span>
+                  </div>
+                ))}
+              </div>
+              {taxError && (
+                <p style={{ fontFamily: "'Jost', sans-serif", fontSize: '0.8rem', color: '#C62828', marginBottom: '0.8rem' }}>{taxError}</p>
+              )}
+              <button onClick={saveTaxRates} style={{
+                padding: '0.5rem 1.5rem', backgroundColor: '#2C2C2C', color: '#FAF7F4', border: 'none',
+                fontFamily: "'Jost', sans-serif", fontSize: '0.72rem', letterSpacing: '0.12em', textTransform: 'uppercase', cursor: 'pointer',
+              }}>
+                Save Tax Rates
+              </button>
+            </div>
+          )}
         </div>
 
         {/* Recent admin activity */}
