@@ -6,7 +6,7 @@ import { sendOrderConfirmationEmail } from './email';
 import { formatMoney, toMinorUnits } from './currency';
 import { validateDiscountCode, incrementUse } from './discounts';
 
-export type IncomingItem = { id: number; size: string; quantity: number };
+export type IncomingItem = { id: number; size: string; quantity: number; colourId?: string | null };
 
 export type PricedLine = {
   id: number;
@@ -15,6 +15,8 @@ export type PricedLine = {
   quantity: number;
   unitPrice: number;   // sale price per unit, in USD (base currency)
   priceLabel: string;  // formatted, e.g. "$50.00"
+  colourId?: string | null;
+  colourName?: string | null;  // resolved server-side; shown on orders/packing slips
 };
 
 export type OrderPricing = {
@@ -37,10 +39,12 @@ export async function priceOrder(items: unknown): Promise<OrderPricing> {
     const id = Number((raw as any)?.id);
     const size = String((raw as any)?.size ?? '').trim();
     const quantity = Number((raw as any)?.quantity);
+    const rawColour = (raw as any)?.colourId;
+    const colourId = typeof rawColour === 'string' && rawColour.trim() ? rawColour.trim() : null;
     if (!isPositiveInt(id) || !size || !isPositiveInt(quantity) || quantity > 50) {
       throw new Error('Invalid cart item.');
     }
-    return { id, size, quantity };
+    return { id, size, quantity, colourId };
   });
 
   const ids = [...new Set(normalized.map(i => i.id))];
@@ -53,6 +57,20 @@ export async function priceOrder(items: unknown): Promise<OrderPricing> {
 
   const byId = new Map((data || []).map(p => [p.id, p]));
 
+  // Resolve colour names server-side so the order records what was actually
+  // bought (and so a client can't invent a colour that isn't ours).
+  const colourIds = [...new Set(normalized.map(i => i.colourId).filter((c): c is string => !!c))];
+  const colourById = new Map<string, { name: string; product_id: number }>();
+  if (colourIds.length > 0) {
+    const { data: colourRows } = await supabaseService
+      .from('product_colours')
+      .select('id, name, product_id')
+      .in('id', colourIds);
+    for (const row of colourRows || []) {
+      colourById.set(row.id, { name: row.name, product_id: row.product_id });
+    }
+  }
+
   const lines: PricedLine[] = normalized.map((item) => {
     const product = byId.get(item.id);
     if (!product || product.available === false) {
@@ -61,6 +79,17 @@ export async function priceOrder(items: unknown): Promise<OrderPricing> {
     const rawPrice = Number(product.price) || 0; // USD base price
     const discount = Number(product.discount) || 0;
     const unitPrice = discount > 0 ? rawPrice * (1 - discount / 100) : rawPrice;
+
+    // A colour must exist and belong to this product.
+    let colourName: string | null = null;
+    if (item.colourId) {
+      const colour = colourById.get(item.colourId);
+      if (!colour || colour.product_id !== item.id) {
+        throw new Error('One or more items are no longer available.');
+      }
+      colourName = colour.name;
+    }
+
     return {
       id: item.id,
       name: product.name,
@@ -68,6 +97,8 @@ export async function priceOrder(items: unknown): Promise<OrderPricing> {
       quantity: item.quantity,
       unitPrice,
       priceLabel: formatMoney(unitPrice, 'USD'),
+      colourId: item.colourId ?? null,
+      colourName,
     };
   });
 
@@ -210,7 +241,7 @@ export async function finalizeOrder(params: {
 
   // 4. Insert the order with server-priced line items.
   const orderItems = pricing.lines.map(l => ({
-    id: l.id, name: l.name, size: l.size, quantity: l.quantity, price: l.priceLabel,
+    id: l.id, name: l.name, size: l.size, colour: l.colourName ?? null, quantity: l.quantity, price: l.priceLabel,
   }));
 
   const { data: order, error: orderError } = await supabaseService

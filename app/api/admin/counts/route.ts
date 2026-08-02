@@ -22,7 +22,7 @@ export async function GET() {
     supabaseService.from('orders').select('*', { count: 'exact', head: true }).eq('status', 'pending'),
     supabaseService.from('orders').select('total').eq('status', 'delivered'),
     supabaseService.from('product_size_inventory')
-      .select('product_id, size, quantity, products(name)')
+      .select('product_id, size, quantity, products(name), product_colours(name)')
       .lte('quantity', threshold).gte('quantity', 0),
   ]);
 

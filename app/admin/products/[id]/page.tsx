@@ -11,19 +11,27 @@ import { toast } from '../../../../components/Toast';
 type Category = { id: number; name: string };
 type ProductImage = { id: number; url: string; alt_text: string; position: number };
 type SizeInventory = { size: string; quantity: number };
+type InventoryRow = { size: string; quantity: number; colour_id: string | null };
 type Colour = { id: string; name: string; hex_code: string; display_order: number; is_available: boolean };
 
 const DEFAULT_SIZES = ['6', '8', '10', '12', '14', '16', '18', '20'];
 const MAX_IMAGES = 4;
+// Bucket key used when a product has no colourways (colour_id IS NULL).
+const NO_COLOUR = '__none';
+
+const zeroedSizes = (): SizeInventory[] => DEFAULT_SIZES.map(size => ({ size, quantity: 0 }));
 
 export default function EditProductPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
   const router = useRouter();
   const [categories, setCategories] = useState<Category[]>([]);
   const [images, setImages] = useState<ProductImage[]>([]);
-  const [sizeInventory, setSizeInventory] = useState<SizeInventory[]>(
-    DEFAULT_SIZES.map(size => ({ size, quantity: 0 }))
-  );
+  // Stock is per colour: key is the colour id, or NO_COLOUR for products
+  // without colourways.
+  const [sizeInventory, setSizeInventory] = useState<Record<string, SizeInventory[]>>({
+    [NO_COLOUR]: zeroedSizes(),
+  });
+  const [activeColourId, setActiveColourId] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [uploadingImage, setUploadingImage] = useState(false);
   const [error, setError] = useState('');
@@ -51,7 +59,7 @@ export default function EditProductPage({ params }: { params: Promise<{ id: stri
   const fetchProduct = async () => {
     const [{ data }, { data: inventory }] = await Promise.all([
       supabase.from('products').select('*, product_images(*)').eq('id', id).single(),
-      supabase.from('product_size_inventory').select('size, quantity').eq('product_id', id),
+      supabase.from('product_size_inventory').select('size, quantity, colour_id').eq('product_id', id),
     ]);
 
     if (data) {
@@ -72,6 +80,7 @@ export default function EditProductPage({ params }: { params: Promise<{ id: stri
     const { data: coloursData } = await supabaseAuth.from('product_colours')
       .select('*').eq('product_id', id).order('display_order');
     setColours(coloursData || []);
+    if (coloursData?.length) setActiveColourId(coloursData[0].id);
     if (coloursData?.length) {
       const colImgs: Record<string, ProductImage[]> = {};
       for (const c of coloursData) {
@@ -82,12 +91,18 @@ export default function EditProductPage({ params }: { params: Promise<{ id: stri
       setColourImages(colImgs);
     }
 
-    if (inventory && inventory.length > 0) {
-      setSizeInventory(DEFAULT_SIZES.map(size => ({
-        size,
-        quantity: inventory.find((i: SizeInventory) => i.size === size)?.quantity || 0,
-      })));
+    // Every colour (plus the no-colour bucket) starts with all sizes at 0, then
+    // saved rows are bucketed in by colour_id.
+    const buckets: Record<string, SizeInventory[]> = { [NO_COLOUR]: zeroedSizes() };
+    for (const c of coloursData || []) buckets[c.id] = zeroedSizes();
+
+    for (const row of (inventory || []) as InventoryRow[]) {
+      const key = row.colour_id ?? NO_COLOUR;
+      if (!buckets[key]) buckets[key] = zeroedSizes();
+      const slot = buckets[key].find(s => s.size === row.size);
+      if (slot) slot.quantity = row.quantity || 0;
     }
+    setSizeInventory(buckets);
   };
 
   const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -184,6 +199,9 @@ export default function EditProductPage({ params }: { params: Promise<{ id: stri
     const { colour } = await res.json();
     setColours(prev => [...prev, colour]);
     setColourImages(prev => ({ ...prev, [colour.id]: [] }));
+    // A new colour gets its own zeroed size grid straight away.
+    setSizeInventory(prev => ({ ...prev, [colour.id]: zeroedSizes() }));
+    setActiveColourId(prev => prev ?? colour.id);
     setNewColourName(''); setNewColourHex('#000000');
   };
 
@@ -199,8 +217,13 @@ export default function EditProductPage({ params }: { params: Promise<{ id: stri
       toast(`Failed to delete colour: ${msg}`, 'error');
       return;
     }
-    setColours(prev => prev.filter(c => c.id !== colourId));
+    setColours(prev => {
+      const remaining = prev.filter(c => c.id !== colourId);
+      setActiveColourId(cur => (cur === colourId ? (remaining[0]?.id ?? null) : cur));
+      return remaining;
+    });
     setColourImages(prev => { const n = {...prev}; delete n[colourId]; return n; });
+    setSizeInventory(prev => { const n = {...prev}; delete n[colourId]; return n; });
   };
 
   const handleColourImageUpload = async (e: React.ChangeEvent<HTMLInputElement>, colourId: string) => {
@@ -255,10 +278,30 @@ export default function EditProductPage({ params }: { params: Promise<{ id: stri
     setColourImages(prev => ({ ...prev, [colourId]: (prev[colourId]||[]).filter(i=>i.id!==imageId) }));
   };
 
+  // When the product has colourways, stock is edited one colour at a time.
+  const useColourStock = hasColours && colours.length > 0;
+  const activeKey = useColourStock ? (activeColourId ?? colours[0].id) : NO_COLOUR;
+  const activeSizes = sizeInventory[activeKey] || zeroedSizes();
+
+  const setQuantity = (size: string, quantity: number) => {
+    setSizeInventory(prev => ({
+      ...prev,
+      [activeKey]: (prev[activeKey] || zeroedSizes()).map(s => s.size === size ? { ...s, quantity } : s),
+    }));
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    const allZero = sizeInventory.every(s => s.quantity === 0);
+    // Flatten every bucket into [{ size, quantity, colourId }] — colourId is
+    // null for the no-colour bucket.
+    const flatInventory = useColourStock
+      ? colours.flatMap(c => (sizeInventory[c.id] || zeroedSizes())
+          .map(s => ({ size: s.size, quantity: s.quantity, colourId: c.id })))
+      : (sizeInventory[NO_COLOUR] || zeroedSizes())
+          .map(s => ({ size: s.size, quantity: s.quantity, colourId: null }));
+
+    const allZero = flatInventory.every(s => s.quantity === 0);
     if (allZero && !window.confirm('All sizes have 0 stock. Save anyway?')) return;
 
     setLoading(true);
@@ -283,7 +326,7 @@ export default function EditProductPage({ params }: { params: Promise<{ id: stri
           lead_time: form.lead_time,
           has_colours: hasColours,
         },
-        sizeInventory,
+        sizeInventory: flatInventory,
       }),
     });
 
@@ -315,7 +358,10 @@ export default function EditProductPage({ params }: { params: Promise<{ id: stri
     router.push('/admin');
   };
 
-  const totalStock = sizeInventory.reduce((sum, s) => sum + s.quantity, 0);
+  const totalStock = activeSizes.reduce((sum, s) => sum + s.quantity, 0);
+  const allColoursStock = useColourStock
+    ? colours.reduce((sum, c) => sum + (sizeInventory[c.id] || []).reduce((n, s) => n + s.quantity, 0), 0)
+    : totalStock;
 
   // Warn before leaving with unsaved form/stock changes.
   const [dirty, setDirty] = useState(false);
@@ -546,19 +592,52 @@ export default function EditProductPage({ params }: { params: Promise<{ id: stri
 
             <div>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: '1rem' }}>
-                <label style={labelStyle}>Stock per Size</label>
+                <label style={labelStyle}>{useColourStock ? 'Stock per Size & Colour' : 'Stock per Size'}</label>
                 <span style={{ fontFamily: "'Jost', sans-serif", fontSize: '0.75rem', color: '#9A8F87' }}>
                   Total: {totalStock} units
                 </span>
               </div>
+
+              {useColourStock && (
+                <div style={{ marginBottom: '1rem' }}>
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem' }}>
+                    {colours.map(colour => {
+                      const active = colour.id === activeKey;
+                      return (
+                        <button
+                          key={colour.id}
+                          type="button"
+                          onClick={() => setActiveColourId(colour.id)}
+                          style={{
+                            display: 'flex', alignItems: 'center', gap: '0.5rem',
+                            padding: '0.5rem 0.9rem', cursor: 'pointer',
+                            backgroundColor: active ? '#FBF7F2' : '#FFFFFF',
+                            border: `1px solid ${active ? '#C9A882' : '#E8DDD3'}`,
+                            color: active ? '#2C2C2C' : '#9A8F87',
+                            fontFamily: "'Jost', sans-serif", fontSize: '0.78rem',
+                            letterSpacing: '0.05em',
+                          }}
+                        >
+                          <span style={{ width: 14, height: 14, borderRadius: '50%', backgroundColor: colour.hex_code, border: '1px solid #E8DDD3', flexShrink: 0 }} />
+                          {colour.name}
+                        </button>
+                      );
+                    })}
+                  </div>
+                  <p style={{ fontFamily: "'Jost', sans-serif", fontSize: '0.7rem', color: '#9A8F87', marginTop: '0.6rem' }}>
+                    All colours: {allColoursStock} units
+                  </p>
+                </div>
+              )}
+
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(8, 1fr)', gap: '0.75rem' }}>
-                {sizeInventory.map(({ size, quantity }) => (
+                {activeSizes.map(({ size, quantity }) => (
                   <div key={size} style={{ textAlign: 'center' }}>
                     <label style={{ ...labelStyle, textAlign: 'center', marginBottom: '0.4rem' }}>{size}</label>
                     <input
                       type="number" min="0"
                       value={quantity}
-                      onChange={e => setSizeInventory(prev => prev.map(s => s.size === size ? { ...s, quantity: parseInt(e.target.value) || 0 } : s))}
+                      onChange={e => setQuantity(size, parseInt(e.target.value) || 0)}
                       style={{ ...inputStyle, textAlign: 'center', padding: '0.6rem 0.4rem' }}
                     />
                     <p style={{ fontFamily: "'Jost', sans-serif", fontSize: '0.65rem', color: quantity === 0 ? '#C0392B' : quantity <= 3 ? '#E65100' : '#2E7D32', marginTop: '0.3rem' }}>

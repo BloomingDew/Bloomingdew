@@ -85,7 +85,7 @@ export async function GET(req: NextRequest) {
         country: shipping.country,
       },
       items: pricing.lines.map(l => ({
-        id: l.id, name: l.name, size: l.size, quantity: l.quantity, price: l.unitPrice,
+        id: l.id, name: l.name, size: l.size, colour: l.colourName ?? null, quantity: l.quantity, price: l.unitPrice,
       })),
       subtotal: pricing.subtotal,
       shipping_cost: 0,

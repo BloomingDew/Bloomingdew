@@ -81,7 +81,7 @@ export default function CheckoutPage() {
         body: JSON.stringify({
           email: shipping.email,
           firstName: shipping.firstName,
-          items: items.map(i => ({ id: i.id, size: i.size, quantity: i.quantity })),
+          items: items.map(i => ({ id: i.id, size: i.size, quantity: i.quantity, colourId: i.colourId ?? null })),
         }),
       }).catch(() => {});
     } catch {}
@@ -141,7 +141,7 @@ export default function CheckoutPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           code,
-          items: items.map(i => ({ id: i.id, size: i.size, quantity: i.quantity })),
+          items: items.map(i => ({ id: i.id, size: i.size, quantity: i.quantity, colourId: i.colourId ?? null })),
         }),
       });
       const data = await res.json().catch(() => ({}));
@@ -181,7 +181,7 @@ export default function CheckoutPage() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          items: items.map(i => ({ id: i.id, size: i.size, quantity: i.quantity })),
+          items: items.map(i => ({ id: i.id, size: i.size, quantity: i.quantity, colourId: i.colourId ?? null })),
           shipping,
           userId: user?.id ?? null,
           discountCode: appliedDiscount?.code ?? null,
@@ -419,7 +419,7 @@ export default function CheckoutPage() {
                     <div style={{ padding: '1.2rem', borderTop: '1px solid #F0EAE3' }}>
                       <SquarePaymentForm
                         amount={orderTotal}
-                        items={items.map(i => ({ id: i.id, name: i.name, size: i.size, quantity: i.quantity, price: i.priceUsd }))}
+                        items={items.map(i => ({ id: i.id, name: i.name, size: i.size, quantity: i.quantity, price: i.priceUsd, colourId: i.colourId ?? null }))}
                         shipping={shipping}
                         userId={user?.id ?? null}
                         discountCode={appliedDiscount?.code ?? null}
@@ -512,7 +512,7 @@ export default function CheckoutPage() {
 
           <div style={{ display: 'flex', flexDirection: 'column', gap: '1.2rem', marginBottom: '1.5rem' }}>
             {items.map((item) => (
-              <div key={`${item.id}-${item.size}`} style={{ display: 'flex', gap: '1rem', alignItems: 'center' }}>
+              <div key={`${item.id}-${item.colourId ?? "x"}-${item.size}`} style={{ display: 'flex', gap: '1rem', alignItems: 'center' }}>
                 <div style={{
                   width: '64px', height: '80px', flexShrink: 0,
                   background: 'linear-gradient(150deg, #F0E8E0, #D4C4B5)',
@@ -533,7 +533,7 @@ export default function CheckoutPage() {
                 </div>
                 <div style={{ flex: 1 }}>
                   <p style={{ fontFamily: "'Jost', sans-serif", fontSize: '0.85rem', fontWeight: 400, color: '#2C2C2C', marginBottom: '0.2rem' }}>{item.name}</p>
-                  <p style={{ fontFamily: "'Jost', sans-serif", fontSize: '0.75rem', color: '#9A8F87' }}>Size: {item.size}</p>
+                  <p style={{ fontFamily: "'Jost', sans-serif", fontSize: '0.75rem', color: '#9A8F87' }}>{item.colourName ? `${item.colourName} · ` : ''}Size: {item.size}</p>
                 </div>
                 <span style={{ fontFamily: "'Jost', sans-serif", fontSize: '0.85rem', color: '#2C2C2C' }}>{format(item.priceUsd * item.quantity)}</span>
               </div>

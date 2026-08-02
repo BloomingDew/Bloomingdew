@@ -12,18 +12,23 @@ const forbidden = () => NextResponse.json({ error: 'Your admin role cannot modif
 // Record stock deltas so "why does this say 0?" is answerable.
 async function recordInventoryMovements(
   productId: number,
-  next: { size: string; quantity: number }[],
+  next: { size: string; quantity: number; colourId?: string | null }[],
   adminEmail: string | null | undefined,
 ) {
   try {
     const { data: existing } = await supabaseService
-      .from('product_size_inventory').select('size, quantity').eq('product_id', productId);
-    const before = new Map((existing || []).map(r => [r.size, Number(r.quantity) || 0]));
+      .from('product_size_inventory').select('size, quantity, colour_id').eq('product_id', productId);
+    const key = (colourId: string | null, size: string) => `${colourId ?? 'none'}::${size}`;
+    const before = new Map((existing || []).map(r => [key(r.colour_id ?? null, r.size), Number(r.quantity) || 0]));
     const movements = next
-      .map(s => ({ size: s.size, delta: (Number(s.quantity) || 0) - (before.get(s.size) ?? 0) }))
+      .map(s => ({
+        size: s.size,
+        colourId: s.colourId ?? null,
+        delta: (Number(s.quantity) || 0) - (before.get(key(s.colourId ?? null, s.size)) ?? 0),
+      }))
       .filter(m => m.delta !== 0)
       .map(m => ({
-        product_id: productId, size: m.size, delta: m.delta,
+        product_id: productId, size: m.size, colour_id: m.colourId, delta: m.delta,
         reason: 'manual-adjust', admin_email: adminEmail ?? null,
       }));
     if (movements.length > 0) {
@@ -32,6 +37,51 @@ async function recordInventoryMovements(
   } catch {
     // Auxiliary — never block the save.
   }
+}
+
+// Writes per-colour stock. Partial unique indexes (one for colour_id IS NULL,
+// one for NOT NULL) can't be targeted by upsert's onConflict, so match existing
+// rows explicitly and update or insert. Returns an error message or null.
+async function writeInventory(
+  productId: number,
+  rows: { size: string; quantity: number; colourId?: string | null }[],
+): Promise<string | null> {
+  const { data: existing, error: readError } = await supabaseService
+    .from('product_size_inventory')
+    .select('id, size, colour_id')
+    .eq('product_id', productId);
+  if (readError) return readError.message;
+
+  const key = (colourId: string | null, size: string) => `${colourId ?? 'none'}::${size}`;
+  const existingByKey = new Map(
+    (existing || []).map(r => [key(r.colour_id ?? null, r.size), r.id]),
+  );
+
+  const toInsert: Record<string, unknown>[] = [];
+  const updates: PromiseLike<{ error: { message: string } | null }>[] = [];
+
+  for (const row of rows) {
+    const colourId = row.colourId ?? null;
+    const quantity = Math.max(0, Number(row.quantity) || 0);
+    const rowId = existingByKey.get(key(colourId, row.size));
+    if (rowId) {
+      updates.push(
+        supabaseService.from('product_size_inventory').update({ quantity }).eq('id', rowId),
+      );
+    } else {
+      toInsert.push({ product_id: productId, colour_id: colourId, size: row.size, quantity });
+    }
+  }
+
+  const results = await Promise.all(updates);
+  const failed = results.find(r => r.error)?.error;
+  if (failed) return failed.message;
+
+  if (toInsert.length > 0) {
+    const { error } = await supabaseService.from('product_size_inventory').insert(toInsert);
+    if (error) return error.message;
+  }
+  return null;
 }
 
 const storagePathFromUrl = (url: string): string | null => {
@@ -69,10 +119,36 @@ export async function POST(req: NextRequest) {
     }
   }
 
+  // Colours first — the stock rows reference them by index (the create form
+  // has no colour ids yet, so it sends colourIndex).
+  let createdColourIds: string[] = [];
+  if (colours.length > 0) {
+    const { data: colourRows, error: colError } = await supabaseService
+      .from('product_colours')
+      .insert(
+        colours.map((c: { name: string; hex_code: string }, i: number) => ({
+          product_id: created.id, name: c.name, hex_code: c.hex_code, display_order: i, is_available: true,
+        })),
+      )
+      .select('id, display_order');
+    if (colError) {
+      return NextResponse.json(
+        { error: `Product saved but colours failed: ${colError.message}`, id: created.id },
+        { status: 500 },
+      );
+    }
+    createdColourIds = (colourRows || [])
+      .sort((a, b) => a.display_order - b.display_order)
+      .map(r => r.id);
+  }
+
   if (sizeInventory.length > 0) {
     const { error: invError } = await supabaseService.from('product_size_inventory').insert(
-      sizeInventory.map((s: { size: string; quantity: number }) => ({
-        product_id: created.id, size: s.size, quantity: s.quantity,
+      sizeInventory.map((s: { size: string; quantity: number; colourIndex?: number | null }) => ({
+        product_id: created.id,
+        colour_id: typeof s.colourIndex === 'number' ? createdColourIds[s.colourIndex] ?? null : null,
+        size: s.size,
+        quantity: Math.max(0, Number(s.quantity) || 0),
       })),
     );
     if (invError) {
@@ -81,20 +157,7 @@ export async function POST(req: NextRequest) {
         { status: 500 },
       );
     }
-  }
-
-  if (colours.length > 0) {
-    const { error: colError } = await supabaseService.from('product_colours').insert(
-      colours.map((c: { name: string; hex_code: string }, i: number) => ({
-        product_id: created.id, name: c.name, hex_code: c.hex_code, display_order: i, is_available: true,
-      })),
-    );
-    if (colError) {
-      return NextResponse.json(
-        { error: `Product saved but colours failed: ${colError.message}`, id: created.id },
-        { status: 500 },
-      );
-    }
+    await supabaseService.rpc('refresh_product_stock_total', { p_product_id: created.id });
   }
 
   logActivity({ adminEmail: admin.user.email, action: 'create', entity: 'product', entityId: created.id, details: { name: product.name } });
@@ -145,17 +208,13 @@ export async function PATCH(req: NextRequest) {
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 
   if (Array.isArray(sizeInventory)) {
-    // Record deltas before the upsert overwrites the previous quantities.
+    // Record deltas before the write overwrites the previous quantities.
     await recordInventoryMovements(Number(id), sizeInventory, adminEmail);
-    const { error: invError } = await supabaseService.from('product_size_inventory').upsert(
-      sizeInventory.map((s: { size: string; quantity: number }) => ({
-        product_id: Number(id), size: s.size, quantity: s.quantity,
-      })),
-      { onConflict: 'product_id,size' },
-    );
+    const invError = await writeInventory(Number(id), sizeInventory);
     if (invError) {
-      return NextResponse.json({ error: `Product saved but stock failed: ${invError.message}` }, { status: 500 });
+      return NextResponse.json({ error: `Product saved but stock failed: ${invError}` }, { status: 500 });
     }
+    await supabaseService.rpc('refresh_product_stock_total', { p_product_id: Number(id) });
   }
 
   logActivity({ adminEmail, action: 'update', entity: 'product', entityId: id, details: { name: fields.name } });

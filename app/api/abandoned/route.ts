@@ -32,7 +32,7 @@ export async function POST(req: NextRequest) {
     }
 
     const storedItems = pricing.lines.map(l => ({
-      id: l.id, name: l.name, size: l.size, quantity: l.quantity, unitPrice: l.unitPrice,
+      id: l.id, name: l.name, size: l.size, colour: l.colourName ?? null, quantity: l.quantity, unitPrice: l.unitPrice,
     }));
     const cleanFirstName = typeof firstName === 'string' ? firstName.trim().slice(0, 100) : '';
 
