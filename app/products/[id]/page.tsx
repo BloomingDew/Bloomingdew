@@ -8,6 +8,7 @@ import { useWishlist } from '../../../context/WishlistContext';
 import { useCurrency } from '../../../context/CurrencyContext';
 import { getProductById, type Product } from '../../../lib/products';
 import { getAvailableStock, getAllSizesStock } from '../../../lib/inventory';
+import { trackTikTok } from '../../../lib/tiktok';
 
 const sizes = ['6', '8', '10', '12', '14', '16', '18', '20'];
 
@@ -52,6 +53,27 @@ export default function ProductPage({ params }: { params: Promise<{ id: string }
   }, [id]);
 
   useEffect(() => { loadProduct(); }, [loadProduct]);
+
+  // ViewContent — once per product, at the discounted price the shopper sees.
+  useEffect(() => {
+    if (!product) return;
+    const price = product.discount > 0
+      ? product.price * (1 - product.discount / 100)
+      : product.price;
+    trackTikTok('ViewContent', {
+      contents: [{
+        content_id: String(product.id),
+        content_name: product.name,
+        content_type: 'product',
+        price: Number(price.toFixed(2)),
+        quantity: 1,
+      }],
+      value: Number(price.toFixed(2)),
+      currency: 'USD',
+    });
+    // Keyed on id so re-renders (size/colour changes) don't re-fire.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [product?.id]);
 
   // Close size dropdown on outside click
   useEffect(() => {

@@ -6,6 +6,7 @@ import { supabaseService } from '../../../../lib/admin-server';
 import { rateLimit } from '../../../../lib/rate-limit';
 import { validateDiscountCode, incrementUse } from '../../../../lib/discounts';
 import { getTaxRate, taxAmountUsd } from '../../../../lib/tax';
+import { sendTikTokEvent, tiktokRequestContext } from '../../../../lib/tiktok-server';
 
 const square = new SquareClient({
   token: process.env.SQUARE_ACCESS_TOKEN!,
@@ -165,6 +166,27 @@ export async function POST(req: NextRequest) {
         .eq('status', 'started')
         .ilike('email', shipping.email);
     } catch {}
+
+    // Mirror the purchase to TikTok server-side. Same event_id as the browser
+    // event on the confirmation page, so TikTok deduplicates the pair. This
+    // block runs after the idempotency check above, so a retried request that
+    // reuses an existing payment never reaches it.
+    await sendTikTokEvent({
+      event: 'CompletePayment',
+      eventId: String(order.id),
+      email: shipping.email,
+      phone: shipping.phone,
+      value: total,
+      currency: 'USD',
+      contents: pricing.lines.map(l => ({
+        content_id: String(l.id),
+        content_name: l.name,
+        content_type: 'product' as const,
+        price: Number(l.unitPrice.toFixed(2)),
+        quantity: l.quantity,
+      })),
+      ...tiktokRequestContext(req),
+    });
 
     return NextResponse.json({ orderId: order.id, paymentId: payment.id });
   } catch (err) {
