@@ -494,8 +494,13 @@ export default function CheckoutPage() {
               )}
 
               {/* Terms */}
-              <p style={{ fontFamily: "'Jost', sans-serif", fontSize: '0.78rem', fontWeight: 300, color: '#9A8F87', lineHeight: 1.7, marginTop: '1.5rem' }}>
-                By placing your order you agree to our terms of service.
+              <p style={{ fontFamily: "'Jost', sans-serif", fontSize: '0.78rem', fontWeight: 400, color: '#5C5450', lineHeight: 1.7, marginTop: '1.5rem' }}>
+                By placing your order you acknowledge that{' '}
+                <strong style={{ fontWeight: 500, color: '#2C2C2C' }}>all purchases are final sale</strong>{' '}
+                and agree to our{' '}
+                <Link href="/refund-policy" target="_blank" style={{ color: '#2C2C2C', textDecoration: 'underline', textUnderlineOffset: '3px' }}>
+                  Refund, Return &amp; Exchange Policy
+                </Link>.
                 {items.some(i => i.madeToOrder)
                   ? ' Made-to-order pieces take 2–4 weeks for production.'
                   : ''}

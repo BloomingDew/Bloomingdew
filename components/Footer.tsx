@@ -44,6 +44,7 @@ export default function Footer() {
             <li><Link href="/faq" style={footerLink}>FAQ</Link></li>
             <li><Link href="/about" style={footerLink}>About</Link></li>
             <li><Link href="/contact" style={footerLink}>Contact</Link></li>
+            <li><Link href="/refund-policy" style={footerLink}>Refund Policy</Link></li>
           </ul>
         </div>
 
