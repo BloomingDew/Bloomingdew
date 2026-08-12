@@ -7,7 +7,7 @@
 // regardless of where the buyer is.
 
 export const TIKTOK_PIXEL_ID =
-  process.env.NEXT_PUBLIC_TIKTOK_PIXEL_ID || 'D9T2LRRC77U97D5QI9O0';
+  process.env.NEXT_PUBLIC_TIKTOK_PIXEL_ID || 'D9UCPTBC77UDTFS1R7M0';
 
 type Ttq = {
   page: () => void;
