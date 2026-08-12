@@ -224,10 +224,7 @@ export default function RefundPolicyPage() {
           <p style={{ ...body, marginBottom: '0.35rem' }}>
             Phone / WhatsApp: <a href="https://wa.me/2349062013707" target="_blank" rel="noopener noreferrer" style={{ color: '#2C2C2C', textDecoration: 'underline', textUnderlineOffset: '3px' }}>+234 906 201 3707</a>
           </p>
-          <p style={{ ...body, marginBottom: '0.35rem' }}>Website: www.bloomingdew.com</p>
-          <p style={{ ...body, marginBottom: '2rem' }}>
-            Business Address: Alma 9 Richmond Gate Estate, Lekki Phase 1, Lagos.
-          </p>
+          <p style={{ ...body, marginBottom: '2rem' }}>Website: www.bloomingdew.com</p>
           <p style={{ ...body, fontStyle: 'italic', marginBottom: 0 }}>
             Thank you for choosing Bloomingdew. We truly appreciate your trust in our brand.
           </p>
