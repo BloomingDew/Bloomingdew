@@ -1,3 +1,5 @@
+import Link from 'next/link';
+
 export default function OrderGuidePage() {
   return (
     <div>
@@ -146,12 +148,18 @@ export default function OrderGuidePage() {
 
         {/* Returns */}
         <div style={{ marginTop: '5rem' }}>
-          <h2 style={sectionHeading}>Returns & Exchanges</h2>
+          <h2 style={sectionHeading}>Returns &amp; Exchanges</h2>
           <p style={{ ...bodyText, marginTop: '1.5rem' }}>
-            Because every piece is made to order, we are unable to accept returns unless the item arrives damaged or faulty. If there is an issue with your order, please contact us within 7 days of receiving it and we'll make it right.
+            All Bloomingdew purchases are final sale and are not eligible for return or exchange — this includes sale, promotional and discounted items, as well as all bespoke and made-to-measure pieces.
           </p>
           <p style={{ ...bodyText, marginTop: '1rem' }}>
-            For custom orders, all sales are final once production has begun.
+            If your item arrives incorrect, damaged in transit, or with a confirmed manufacturing defect, please contact us within 48 hours of delivery with your order number and clear photographs. Once verified, we&apos;ll determine the appropriate resolution.
+          </p>
+          <p style={{ ...bodyText, marginTop: '1rem' }}>
+            Please don&apos;t send anything back before contacting us — unauthorized returns may not be accepted. Read the full{' '}
+            <Link href="/refund-policy" style={{ color: '#2C2C2C', textDecoration: 'underline', textUnderlineOffset: '3px' }}>
+              Refund, Return &amp; Exchange Policy
+            </Link>.
           </p>
         </div>
 

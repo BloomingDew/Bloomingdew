@@ -7,7 +7,7 @@ const faqs = [
     category: 'Ordering',
     questions: [
       { q: 'How long does it take to receive my order?', a: 'All pieces are made to order. Once you place your order, please allow 2–4 weeks for production, plus shipping time. You\'ll receive a dispatch notification with tracking when your piece is on its way.' },
-      { q: 'Can I change or cancel my order?', a: 'You can cancel or amend your order within 24 hours of placing it. After that, production will have begun and we\'re unable to make changes. Please contact us as soon as possible via our contact page.' },
+      { q: 'Can I change or cancel my order?', a: 'All purchases are final sale, so orders cannot be cancelled or amended once placed. For bespoke and made-to-measure pieces, an order cannot be cancelled once production or material procurement has begun. If something is wrong with your order, please contact us straight away via our contact page and we\'ll do our best to help.' },
       { q: 'Do you restock sold-out items?', a: 'Because everything is made to order, items don\'t technically sell out. If a style is unavailable, it\'s usually because we\'re updating it. Feel free to reach out and we\'ll let you know when it returns.' },
     ],
   },
@@ -23,8 +23,8 @@ const faqs = [
     category: 'Shipping & Returns',
     questions: [
       { q: 'Do you ship internationally?', a: 'Yes, we ship worldwide. Shipping times and costs vary by location — full details are on our Order Guide page.' },
-      { q: 'Can I return my order?', a: 'Because every piece is made to order, we\'re unable to accept returns unless the item arrives damaged or faulty. If there\'s an issue, contact us within 7 days of receiving your order and we\'ll resolve it.' },
-      { q: 'My order arrived damaged — what do I do?', a: 'We\'re so sorry to hear that. Please reach out via our contact page with your order number and photos of the damage within 7 days of receiving it. We\'ll send a replacement or issue a full refund.' },
+      { q: 'Can I return my order?', a: 'All Bloomingdew purchases are final sale and are not eligible for return or exchange — including sale and promotional items. The only exception is an item that arrives incorrect, damaged in transit, or with a confirmed manufacturing defect: contact us within 48 hours of delivery and we\'ll put it right. Please read our full Refund, Return & Exchange Policy for details.' },
+      { q: 'My order arrived damaged — what do I do?', a: 'We\'re so sorry to hear that. Please contact us within 48 hours of delivery with your order number and clear photographs showing the issue. Once verified, we may repair, replace or alter the item, or provide another suitable resolution. A refund will be considered where appropriate and subject to applicable law.' },
     ],
   },
   {
