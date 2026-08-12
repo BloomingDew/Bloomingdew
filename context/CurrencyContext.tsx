@@ -13,9 +13,6 @@ type CurrencyContextType = {
   setCurrency: (code: string) => void;
   rates: Record<string, number>;
   ready: boolean;
-  // True when we couldn't detect a currency and the visitor must pick one.
-  needsSelection: boolean;
-  dismissSelection: () => void;
   selectable: string[];
   // USD base amount -> formatted local string, e.g. 50 -> "₦80,000"
   format: (usd: number) => string;
@@ -41,16 +38,29 @@ export function CurrencyProvider({ children }: { children: ReactNode }) {
   const [rates, setRates] = useState<Record<string, number>>({ [BASE_CURRENCY]: 1 });
   const [currency, setCurrencyState] = useState<string>(BASE_CURRENCY);
   const [ready, setReady] = useState(false);
-  const [needsSelection, setNeedsSelection] = useState(false);
 
   useEffect(() => {
-    // Currency resolution order: explicit cookie (user pick or geo, set by
-    // middleware) -> otherwise prompt the picker. Never silently default to USD.
+    // Currency resolution order: explicit cookie (user pick, or geo set by the
+    // middleware) -> a direct geo lookup -> USD. Never block the page with a
+    // prompt: the navbar selector is always there if someone wants to change it.
     const cookie = readCookie(COOKIE);
     if (cookie) {
       setCurrencyState(cookie);
     } else {
-      setNeedsSelection(true); // geo unknown & no prior pick -> force selector
+      // No cookie yet (e.g. the page was served from the CDN cache before the
+      // middleware could set one). Ask the server what it detects.
+      fetch('/api/geo')
+        .then(r => r.json())
+        .then(({ mappedCurrency }) => {
+          if (mappedCurrency && SELECTABLE_CURRENCIES.includes(mappedCurrency)) {
+            setCurrencyState(mappedCurrency);
+            writeCookie(COOKIE, mappedCurrency);
+            writeCookie(COOKIE + '_src', 'geo');
+          }
+        })
+        .catch(() => {
+          // Stay on the USD default — prices still render.
+        });
     }
 
     fetch('/api/rates')
@@ -66,10 +76,7 @@ export function CurrencyProvider({ children }: { children: ReactNode }) {
     // Mark this as an explicit user choice so geo detection in the middleware
     // never overrides it (only geo-derived currencies follow location changes).
     writeCookie(COOKIE + '_src', 'user');
-    setNeedsSelection(false);
   }, []);
-
-  const dismissSelection = useCallback(() => setNeedsSelection(false), []);
 
   const rateFor = (code: string) => rates[code] ?? (code === BASE_CURRENCY ? 1 : undefined);
 
@@ -93,8 +100,6 @@ export function CurrencyProvider({ children }: { children: ReactNode }) {
         setCurrency,
         rates,
         ready,
-        needsSelection,
-        dismissSelection,
         selectable: SELECTABLE_CURRENCIES,
         format,
         convert,
