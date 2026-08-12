@@ -4,6 +4,7 @@ import './globals.css';
 import { usePathname } from 'next/navigation';
 import { Analytics } from '@vercel/analytics/next';
 import { SpeedInsights } from '@vercel/speed-insights/next';
+import TikTokPixel from '../components/TikTokPixel';
 import Navbar from '../components/Navbar';
 import Footer from '../components/Footer';
 import CartDrawer from '../components/CartDrawer';
@@ -47,6 +48,8 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         </CurrencyProvider>
         <Analytics />
         <SpeedInsights />
+        {/* Storefront only — deliberately absent from the admin branch above. */}
+        <TikTokPixel />
       </body>
     </html>
   );

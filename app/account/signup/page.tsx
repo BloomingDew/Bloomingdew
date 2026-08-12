@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { useUser } from '../../../context/UserContext';
 import PasswordInput from '../../../components/PasswordInput';
+import { trackTikTok, identifyTikTok } from '../../../lib/tiktok';
 
 export default function SignupPage() {
   const { signUp } = useUser();
@@ -25,7 +26,15 @@ export default function SignupPage() {
     if (error) {
       setError(error);
       setLoading(false);
-    } else if (infoMessage) {
+      return;
+    }
+
+    // The account exists from here on, whether or not email confirmation is
+    // still pending. The pixel hashes the address in-browser.
+    identifyTikTok({ email: form.email });
+    trackTikTok('CompleteRegistration');
+
+    if (infoMessage) {
       // Account created but email confirmation is required — success, not an error.
       setInfo(infoMessage);
       setLoading(false);

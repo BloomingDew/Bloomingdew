@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import Image from 'next/image';
@@ -11,6 +11,7 @@ import { formatMoney, convertFromUsd } from '../../lib/currency';
 import { supabase } from '../../lib/supabase';
 import SquarePaymentForm from '../../components/SquarePaymentForm';
 import PhoneInput from '../../components/PhoneInput';
+import { trackTikTok, toContents } from '../../lib/tiktok';
 
 export default function CheckoutPage() {
   const { items, totalPriceUsd, clearCart } = useCart();
@@ -23,6 +24,19 @@ export default function CheckoutPage() {
   const [itemImages, setItemImages] = useState<Record<number, string>>({});
   const [timeLeft, setTimeLeft] = useState<string | null>(null);
   const [reservationExpired, setReservationExpired] = useState(false);
+  const checkoutTracked = useRef(false);
+
+  // InitiateCheckout — fires once, on the first render where the cart has
+  // actually hydrated from localStorage (it's empty on the very first pass).
+  useEffect(() => {
+    if (checkoutTracked.current || items.length === 0) return;
+    checkoutTracked.current = true;
+    trackTikTok('InitiateCheckout', {
+      contents: toContents(items),
+      value: Number(totalPriceUsd.toFixed(2)),
+      currency: 'USD',
+    });
+  }, [items, totalPriceUsd]);
 
   useEffect(() => {
     const reservedItems = items.filter(i => !i.madeToOrder && i.expiresAt);

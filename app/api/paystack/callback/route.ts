@@ -3,6 +3,7 @@ import { priceOrder, getPendingOrder, deletePendingOrder, type Shipping } from '
 import { incrementUse } from '../../../../lib/discounts';
 import { supabaseService } from '../../../../lib/admin-server';
 import { sendOrderConfirmationEmail } from '../../../../lib/email';
+import { sendTikTokEvent, tiktokRequestContext } from '../../../../lib/tiktok-server';
 
 type PendingShipping = Shipping & {
   discountCode?: string;
@@ -137,6 +138,27 @@ export async function GET(req: NextRequest) {
   } catch (err) {
     console.error('[paystack/callback] confirmation email failed:', err);
   }
+  // Mirror the purchase to TikTok server-side, sharing event_id with the
+  // browser event on the confirmation page so the pair is deduplicated. Only
+  // reached on a fresh order — the idempotency check above returns early for a
+  // reference that already produced one.
+  await sendTikTokEvent({
+    event: 'CompletePayment',
+    eventId: String(order.id),
+    email: shipping.email,
+    phone: shipping.phone,
+    value: expected.totalUsd,
+    currency: 'USD',
+    contents: pricing.lines.map(l => ({
+      content_id: String(l.id),
+      content_name: l.name,
+      content_type: 'product' as const,
+      price: Number(l.unitPrice.toFixed(2)),
+      quantity: l.quantity,
+    })),
+    ...tiktokRequestContext(req),
+  });
+
   await deletePendingOrder(reference);
 
   return NextResponse.redirect(`${origin}/order-confirmation?ref=${encodeURIComponent(order.id)}`);

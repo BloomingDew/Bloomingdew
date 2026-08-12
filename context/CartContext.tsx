@@ -2,6 +2,7 @@
 
 import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { createReservation, removeReservation, clearAllReservations } from '../lib/inventory';
+import { trackTikTok, toContents } from '../lib/tiktok';
 
 export type CartItem = {
   id: number;
@@ -82,6 +83,16 @@ export function CartProvider({ children }: { children: ReactNode }) {
     return () => clearInterval(interval);
   }, []);
 
+  // Every add-to-cart in the app funnels through addItem, so this is the one
+  // place the pixel event needs to live.
+  const trackAdd = (item: CartItem) => {
+    trackTikTok('AddToCart', {
+      contents: toContents([item]),
+      value: Number((item.priceUsd * item.quantity).toFixed(2)),
+      currency: 'USD',
+    });
+  };
+
   const addItem = async (item: CartItem): Promise<{ success: boolean; message?: string }> => {
     const colourId = item.colourId ?? null;
 
@@ -98,6 +109,7 @@ export function CartProvider({ children }: { children: ReactNode }) {
         return [...prev, item];
       });
       setIsOpen(true);
+      trackAdd(item);
       return { success: true };
     }
 
@@ -128,6 +140,7 @@ export function CartProvider({ children }: { children: ReactNode }) {
       return [...prev, { ...item, expiresAt }];
     });
     setIsOpen(true);
+    trackAdd(item);
     return { success: true };
   };
 

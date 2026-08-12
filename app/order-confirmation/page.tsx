@@ -1,5 +1,6 @@
 import Link from 'next/link';
 import ClearCart from './ClearCart';
+import TrackPurchase from './TrackPurchase';
 
 export default async function OrderConfirmationPage({
   searchParams,
@@ -14,6 +15,7 @@ export default async function OrderConfirmationPage({
   return (
     <>
       {paymentSucceeded && <ClearCart />}
+      {paymentSucceeded && ref && <TrackPurchase orderId={ref} />}
     <div style={{ minHeight: '80vh', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '4rem 2rem' }}>
       <div style={{ maxWidth: '560px', width: '100%', textAlign: 'center' }}>
 
