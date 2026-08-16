@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getResend, FROM_EMAIL, buildEmail } from '../../../../lib/email';
+import { sendShippingNotificationEmail } from '../../../../lib/email';
 import { getAdminUser } from '../../../../lib/admin-server';
 
 export async function POST(req: NextRequest) {
@@ -14,35 +14,22 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'customerEmail and items are required.' }, { status: 400 });
     }
 
-    // Only allow real web links in the tracking line.
+    // Only allow real web links in the tracking button — this value ends up as
+    // an href in an email we send on the customer's behalf.
     const safeTrackingUrl =
       typeof trackingUrl === 'string' && /^https?:\/\//i.test(trackingUrl.trim())
         ? trackingUrl.trim()
         : null;
 
-    const itemsList = items
-      .map((i: { name?: string; size?: string; quantity?: number }) =>
-        `• ${i?.name ?? ''} (Size ${i?.size ?? ''}) x${i?.quantity ?? 1}`)
-      .join('\n');
-    const trackingInfo = trackingNumber
-      ? `Your tracking number is: ${trackingNumber}${safeTrackingUrl ? `\nTrack your order here: ${safeTrackingUrl}` : ''}`
-      : '';
-
-    const email = await buildEmail('shipping-notification', {
-      '{{customerName}}': customerName,
-      '{{items}}': itemsList,
-      '{{trackingInfo}}': trackingInfo,
+    const ok = await sendShippingNotificationEmail({
+      customerName,
+      customerEmail,
+      items,
+      trackingNumber: typeof trackingNumber === 'string' ? trackingNumber : null,
+      trackingUrl: safeTrackingUrl,
     });
 
-    if (!email) return NextResponse.json({ error: 'Template not found' }, { status: 404 });
-
-    const resend = getResend();
-    await resend.emails.send({
-      from: FROM_EMAIL,
-      to: customerEmail,
-      subject: email.subject,
-      html: email.html,
-    });
+    if (!ok) return NextResponse.json({ error: 'Template not found' }, { status: 404 });
 
     return NextResponse.json({ success: true });
   } catch (err) {

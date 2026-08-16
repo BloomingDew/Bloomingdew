@@ -502,3 +502,89 @@ export async function sendOrderEmails(payload: OrderNotificationPayload): Promis
     console.error('[email] order notification failed:', err);
   }
 }
+
+// ---------------------------------------------------------------------------
+// Shipping notification
+// ---------------------------------------------------------------------------
+
+export type ShippedItem = { name?: string; size?: string; quantity?: number; colour?: string | null };
+
+/**
+ * What's in the parcel. No price column — by this point the customer has
+ * already paid and what they want to know is which pieces are on the way.
+ */
+export function renderShippedItems(items: ShippedItem[]): string {
+  const rows = items.map(i => {
+    const detail = [
+      i.size ? `Size ${i.size}` : null,
+      i.colour || null,
+      `Qty ${i.quantity ?? 1}`,
+    ].filter(Boolean).join(' · ');
+    return `
+    <tr>
+      <td style="padding:14px 0;border-bottom:1px solid ${BRAND.border};font-family:${SANS};">
+        <span style="display:block;font-size:14px;color:${BRAND.ink};">${escapeHtml(i.name ?? '')}</span>
+        <span style="display:block;padding-top:4px;font-size:12px;color:${BRAND.muted};">${escapeHtml(detail)}</span>
+      </td>
+    </tr>`;
+  }).join('');
+
+  return `
+  <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="margin:20px 0 28px;">
+    <tr><td style="font-family:${SANS};font-size:11px;letter-spacing:0.2em;text-transform:uppercase;color:${BRAND.muted};border-bottom:1px solid ${BRAND.ink};padding-bottom:10px;">In this parcel</td></tr>
+    ${rows}
+  </table>`;
+}
+
+/** Tracking number plus, where we have a real link, a button to follow it. */
+export function renderTracking(trackingNumber?: string | null, trackingUrl?: string | null): string {
+  if (!trackingNumber && !trackingUrl) return '';
+
+  const numberBlock = trackingNumber
+    ? `<div style="font-family:${SANS};font-size:11px;letter-spacing:0.2em;text-transform:uppercase;color:${BRAND.muted};padding-bottom:8px;">Tracking number</div>
+       <div style="font-family:${SERIF};font-size:20px;letter-spacing:0.04em;color:${BRAND.ink};">${escapeHtml(trackingNumber)}</div>`
+    : '';
+
+  return `
+  <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="margin:0 0 28px;background-color:${BRAND.cream};border:1px solid ${BRAND.border};">
+    <tr><td align="center" style="padding:22px 20px;">
+      ${numberBlock}
+      ${trackingUrl ? `<div style="padding-top:${trackingNumber ? '18px' : '0'};">${button('Track your parcel', trackingUrl)}</div>` : ''}
+    </td></tr>
+  </table>`;
+}
+
+export async function sendShippingNotificationEmail(params: {
+  customerName: string;
+  customerEmail: string;
+  items: ShippedItem[];
+  trackingNumber?: string | null;
+  trackingUrl?: string | null;
+}): Promise<boolean> {
+  const email = await buildEmail(
+    'shipping-notification',
+    {
+      '{{customerName}}': params.customerName || 'there',
+      '{{emailEyebrow}}': 'On its way',
+      '{{emailHeading}}': 'Your order is on its way.',
+      '{{emailPreheader}}': params.trackingNumber
+        ? `Tracking ${params.trackingNumber} — your Bloomingdew order has shipped.`
+        : 'Your Bloomingdew order has shipped.',
+    },
+    {
+      '{{shippedItems}}': renderShippedItems(params.items),
+      '{{trackingBlock}}': renderTracking(params.trackingNumber, params.trackingUrl),
+    },
+  );
+  if (!email) return false;
+
+  const resend = getResend();
+  await resend.emails.send({
+    from: FROM_EMAIL,
+    replyTo: CONTACT_EMAIL,
+    to: params.customerEmail,
+    subject: email.subject,
+    html: email.html,
+  });
+  return true;
+}
