@@ -1,6 +1,7 @@
 import { createClient } from '@supabase/supabase-js';
 import { NextRequest, NextResponse } from 'next/server';
 import { rateLimit } from '../../../lib/rate-limit';
+import { sendCustomRequestEmails } from '../../../lib/email';
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -38,8 +39,10 @@ export async function POST(req: NextRequest) {
     );
   }
 
+  const type = str(body.type, 50) || 'contact';
+
   const { error } = await supabase.from('enquiries').insert({
-    type: str(body.type, 50) || 'contact',
+    type,
     first_name: firstName,
     last_name: str(body.last_name, 100),
     email,
@@ -55,6 +58,26 @@ export async function POST(req: NextRequest) {
   if (error) {
     console.error('[enquiry] insert error:', error.message);
     return NextResponse.json({ error: 'Something went wrong. Please try again.' }, { status: 500 });
+  }
+
+  // Acknowledge to the customer and notify the studio. Best-effort: the
+  // enquiry is already saved, so a mail failure must not tell the customer
+  // their request didn't go through.
+  if (type === 'custom') {
+    try {
+      await sendCustomRequestEmails({
+        firstName,
+        lastName: str(body.last_name, 100),
+        email,
+        phone: str(body.phone, 50),
+        occasion: str(body.occasion, 200),
+        budget: str(body.budget, 100),
+        message,
+        measurements: (body.measurements as Record<string, string>) ?? null,
+      });
+    } catch (err) {
+      console.error('[enquiry] custom request email failed:', err);
+    }
   }
 
   return NextResponse.json({ success: true });
