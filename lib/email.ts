@@ -419,3 +419,86 @@ export async function sendCustomRequestEmails(payload: CustomRequestPayload): Pr
     html,
   });
 }
+
+// ---------------------------------------------------------------------------
+// Team order notification
+//
+// Every order path sends both the customer confirmation and this studio
+// notification through sendOrderEmails() below. They were separate calls
+// before, which is how the Square route ended up sending neither.
+// ---------------------------------------------------------------------------
+
+/** Comma-separated override so recipients can change without a deploy. */
+function notificationRecipients(): string[] {
+  const raw = process.env.ORDER_NOTIFICATION_EMAILS;
+  if (raw) {
+    const list = raw.split(',').map(s => s.trim()).filter(Boolean);
+    if (list.length) return list;
+  }
+  return ['t.mol.med@gmail.com', 'info@bloomingdew.com'];
+}
+
+export type OrderNotificationPayload = OrderConfirmationPayload & {
+  orderId?: string | null;
+  customerPhone?: string | null;
+  paymentProvider?: string | null;
+};
+
+export async function sendOrderNotificationEmail(payload: OrderNotificationPayload): Promise<void> {
+  const orderTotal = `$${Number(payload.orderTotal).toFixed(2)}`;
+  const shippingAddress = [
+    payload.shipping.address,
+    payload.shipping.apartment,
+    payload.shipping.city,
+    payload.shipping.postcode,
+    payload.shipping.country,
+  ].filter(Boolean).join(', ');
+
+  const details = detailRows([
+    ['Order', payload.orderId ? String(payload.orderId) : null],
+    ['Customer', payload.customerName],
+    ['Email', payload.customerEmail],
+    ['Phone', payload.customerPhone],
+    ['Paid via', payload.paymentProvider],
+  ]);
+
+  const html = shell({
+    eyebrow: 'New order',
+    heading: `${orderTotal} — ${payload.customerName}`,
+    preheader: `${payload.customerName} ordered ${payload.items.length} item(s) — ${orderTotal}`,
+    contentHtml: `
+      ${renderOrderSummary(payload.items, orderTotal, shippingAddress)}
+      ${details}
+      <p style="margin:26px 0 0;font-family:${SANS};font-size:13px;line-height:1.8;color:${BRAND.muted};">Reply to this email to reach the customer directly.</p>`,
+  });
+
+  const resend = getResend();
+  await resend.emails.send({
+    from: FROM_EMAIL,
+    replyTo: payload.customerEmail,
+    to: notificationRecipients(),
+    subject: `New order — ${orderTotal} — ${payload.customerName}`,
+    html,
+  });
+}
+
+/**
+ * Single entry point for every order path: confirms to the customer and
+ * notifies the studio.
+ *
+ * Each send is isolated so a failure on one still lets the other through, and
+ * neither can throw into a payment handler — the money has already moved by
+ * the time this runs.
+ */
+export async function sendOrderEmails(payload: OrderNotificationPayload): Promise<void> {
+  try {
+    await sendOrderConfirmationEmail(payload);
+  } catch (err) {
+    console.error('[email] order confirmation failed:', err);
+  }
+  try {
+    await sendOrderNotificationEmail(payload);
+  } catch (err) {
+    console.error('[email] order notification failed:', err);
+  }
+}

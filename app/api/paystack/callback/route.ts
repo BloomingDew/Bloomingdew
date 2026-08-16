@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { priceOrder, getPendingOrder, deletePendingOrder, type Shipping } from '../../../../lib/orders-server';
 import { incrementUse } from '../../../../lib/discounts';
 import { supabaseService } from '../../../../lib/admin-server';
-import { sendOrderConfirmationEmail } from '../../../../lib/email';
+import { sendOrderEmails } from '../../../../lib/email';
 import { sendTikTokEvent, tiktokRequestContext } from '../../../../lib/tiktok-server';
 
 type PendingShipping = Shipping & {
@@ -119,25 +119,25 @@ export async function GET(req: NextRequest) {
       .eq('status', 'started')
       .ilike('email', shipping.email);
   } catch { /* non-fatal */ }
-  try {
-    await sendOrderConfirmationEmail({
-      customerName: `${shipping.firstName} ${shipping.lastName}`,
-      customerEmail: shipping.email,
-      items: pricing.lines.map(l => ({
-        name: l.name, size: l.size, quantity: l.quantity, price: l.priceLabel,
-      })),
-      orderTotal: expected.totalUsd,
-      shipping: {
-        address: shipping.address,
-        apartment: shipping.apartment,
-        city: shipping.city,
-        postcode: shipping.postcode,
-        country: shipping.country,
-      },
-    });
-  } catch (err) {
-    console.error('[paystack/callback] confirmation email failed:', err);
-  }
+  // Customer confirmation + studio notification (failures handled inside).
+  await sendOrderEmails({
+    orderId: String(order.id),
+    customerName: `${shipping.firstName} ${shipping.lastName}`,
+    customerEmail: shipping.email,
+    customerPhone: shipping.phone ?? null,
+    paymentProvider: 'Paystack',
+    items: pricing.lines.map(l => ({
+      name: l.name, size: l.size, quantity: l.quantity, price: l.priceLabel,
+    })),
+    orderTotal: expected.totalUsd,
+    shipping: {
+      address: shipping.address,
+      apartment: shipping.apartment,
+      city: shipping.city,
+      postcode: shipping.postcode,
+      country: shipping.country,
+    },
+  });
   // Mirror the purchase to TikTok server-side, sharing event_id with the
   // browser event on the confirmation page so the pair is deduplicated. Only
   // reached on a fresh order — the idempotency check above returns early for a

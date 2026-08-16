@@ -2,7 +2,7 @@
 // client can never dictate what it pays.
 import Stripe from 'stripe';
 import { supabaseService } from './admin-server';
-import { sendOrderConfirmationEmail } from './email';
+import { sendOrderEmails } from './email';
 import { formatMoney, toMinorUnits } from './currency';
 import { validateDiscountCode, incrementUse } from './discounts';
 
@@ -327,24 +327,23 @@ export async function finalizeOrder(params: {
     }
   }
 
-  // 7. Send the confirmation email (non-blocking failure).
-  try {
-    await sendOrderConfirmationEmail({
-      customerName: `${shipping.firstName} ${shipping.lastName}`.trim(),
-      customerEmail: shipping.email,
-      items: orderItems,
-      orderTotal: Math.max(0, pricing.subtotal - discountUsd),
-      shipping: {
-        address: shipping.address,
-        apartment: shipping.apartment,
-        city: shipping.city,
-        postcode: shipping.postcode,
-        country: shipping.country,
-      },
-    });
-  } catch (emailErr) {
-    console.error('[finalizeOrder] confirmation email failed:', emailErr);
-  }
+  // 7. Customer confirmation + studio notification (failures handled inside).
+  await sendOrderEmails({
+    orderId: String(order.id),
+    customerName: `${shipping.firstName} ${shipping.lastName}`.trim(),
+    customerEmail: shipping.email,
+    customerPhone: shipping.phone ?? null,
+    paymentProvider: 'Stripe',
+    items: orderItems,
+    orderTotal: Math.max(0, pricing.subtotal - discountUsd),
+    shipping: {
+      address: shipping.address,
+      apartment: shipping.apartment,
+      city: shipping.city,
+      postcode: shipping.postcode,
+      country: shipping.country,
+    },
+  });
 
   await deletePendingOrder(paymentIntentId);
   return { ok: true, orderId: order.id, alreadyRecorded: false };
