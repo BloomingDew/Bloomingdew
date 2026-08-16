@@ -99,7 +99,7 @@ function shell(opts: { eyebrow: string; heading: string; preheader: string; cont
 
   <tr><td align="center" style="padding:28px 24px 0;">
     <p style="margin:0 0 10px;font-family:${SANS};font-size:12px;line-height:1.8;color:${BRAND.muted};">
-      Questions about your order? Just reply to this email &mdash; a real person reads it.
+      Questions? Just reply to this email &mdash; a real person reads it.
     </p>
     <p style="margin:0 0 14px;font-family:${SANS};font-size:12px;line-height:1.8;color:${BRAND.muted};">
       <a href="mailto:${CONTACT_EMAIL}" style="color:${BRAND.gold};text-decoration:none;">${CONTACT_EMAIL}</a>
@@ -295,4 +295,127 @@ export async function sendOrderConfirmationEmail(payload: OrderConfirmationPaylo
     html: email.html,
   });
   return true;
+}
+
+// ---------------------------------------------------------------------------
+// Welcome email (new account)
+// ---------------------------------------------------------------------------
+
+export async function sendWelcomeEmail(params: { to: string; firstName: string }): Promise<boolean> {
+  const email = await buildEmail(
+    'welcome',
+    {
+      '{{customerName}}': params.firstName || 'there',
+      '{{emailEyebrow}}': 'Welcome',
+      '{{emailHeading}}': 'Welcome to Bloomingdew.',
+      '{{emailPreheader}}': 'Your account is ready — here is what you can do with it.',
+    },
+    { '{{shopButton}}': button('Start shopping', `${SITE}/shop`) },
+  );
+  if (!email) return false;
+
+  const resend = getResend();
+  await resend.emails.send({
+    from: FROM_EMAIL,
+    replyTo: CONTACT_EMAIL,
+    to: params.to,
+    subject: email.subject,
+    html: email.html,
+  });
+  return true;
+}
+
+// ---------------------------------------------------------------------------
+// Custom outfit request
+//
+// Two emails: an acknowledgement to the customer so they know it arrived, and
+// a notification to the studio with the full brief and measurements. Without
+// the second one a custom request just sits unseen in the admin.
+// ---------------------------------------------------------------------------
+
+export type CustomRequestPayload = {
+  firstName: string;
+  lastName?: string | null;
+  email: string;
+  phone?: string | null;
+  occasion?: string | null;
+  budget?: string | null;
+  message: string;
+  measurements?: Record<string, string> | null;
+};
+
+/** Definition-list block used by the studio notification. */
+function detailRows(rows: Array<[string, string | null | undefined]>): string {
+  const visible = rows.filter(([, v]) => v && String(v).trim());
+  if (!visible.length) return '';
+  return `
+  <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="margin:20px 0 0;">
+    ${visible.map(([label, value]) => `
+    <tr>
+      <td width="38%" valign="top" style="padding:10px 12px 10px 0;border-bottom:1px solid ${BRAND.border};font-family:${SANS};font-size:11px;letter-spacing:0.14em;text-transform:uppercase;color:${BRAND.muted};">${escapeHtml(label)}</td>
+      <td valign="top" style="padding:10px 0;border-bottom:1px solid ${BRAND.border};font-family:${SANS};font-size:14px;line-height:1.7;color:${BRAND.ink};">${escapeHtml(String(value))}</td>
+    </tr>`).join('')}
+  </table>`;
+}
+
+export async function sendCustomRequestEmails(payload: CustomRequestPayload): Promise<void> {
+  const resend = getResend();
+  const fullName = [payload.firstName, payload.lastName].filter(Boolean).join(' ');
+  const m = payload.measurements || {};
+  const measurementText = Object.entries(m)
+    .filter(([, v]) => v && String(v).trim())
+    .map(([k, v]) => `${k}: ${v}`)
+    .join(' · ');
+
+  // 1. Acknowledgement to the customer.
+  const ack = await buildEmail(
+    'custom-request',
+    {
+      '{{customerName}}': payload.firstName || 'there',
+      '{{occasion}}': payload.occasion || 'your occasion',
+      '{{emailEyebrow}}': 'Request received',
+      '{{emailHeading}}': 'We have your custom request.',
+      '{{emailPreheader}}': 'Our team will be in touch within 48 hours to talk through your piece.',
+    },
+    {},
+  );
+  if (ack) {
+    await resend.emails.send({
+      from: FROM_EMAIL,
+      replyTo: CONTACT_EMAIL,
+      to: payload.email,
+      subject: ack.subject,
+      html: ack.html,
+    });
+  }
+
+  // 2. Notification to the studio.
+  const details = detailRows([
+    ['Name', fullName],
+    ['Email', payload.email],
+    ['Phone', payload.phone],
+    ['Occasion', payload.occasion],
+    ['Budget', payload.budget],
+    ['Measurements', measurementText],
+  ]);
+
+  const html = shell({
+    eyebrow: 'New custom request',
+    heading: fullName || 'New custom request',
+    preheader: `${fullName} — ${payload.occasion || 'custom piece'}`,
+    contentHtml: `
+      <p style="margin:0 0 4px;font-family:${SANS};font-size:11px;letter-spacing:0.14em;text-transform:uppercase;color:${BRAND.muted};">Their vision</p>
+      <p style="margin:0;font-family:${SANS};font-size:15px;line-height:1.85;color:${BRAND.body};">${escapeHtml(payload.message).replace(/\n/g, '<br>')}</p>
+      ${details}
+      <p style="margin:26px 0 0;font-family:${SANS};font-size:13px;line-height:1.8;color:${BRAND.muted};">Reply directly to this email to reach ${escapeHtml(payload.firstName)}.</p>`,
+  });
+
+  await resend.emails.send({
+    from: FROM_EMAIL,
+    // Replying to the notification should reach the customer, not ourselves.
+    replyTo: payload.email,
+    to: CONTACT_EMAIL,
+    subject: `Custom request — ${fullName || payload.email}`,
+    html,
+  });
 }

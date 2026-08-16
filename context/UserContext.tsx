@@ -38,12 +38,25 @@ export function UserProvider({ children }: { children: ReactNode }) {
       setLoading(false);
     });
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
       setSession(session);
       setUser(session?.user ?? null);
       if (session?.user) fetchProfile(session.user.id);
       else setProfile(null);
       setLoading(false);
+
+      // Welcome email on first sign-in. Sent here rather than at sign-up
+      // because with email confirmation enabled there's no session until the
+      // address is confirmed. The route is idempotent, so the repeat SIGNED_IN
+      // events from token refreshes only ever produce one email.
+      if (event === 'SIGNED_IN' && session?.access_token) {
+        fetch('/api/email/welcome', {
+          method: 'POST',
+          headers: { Authorization: `Bearer ${session.access_token}` },
+        }).catch(() => {
+          // Best-effort — never block sign-in on a mail call.
+        });
+      }
     });
 
     return () => subscription.unsubscribe();

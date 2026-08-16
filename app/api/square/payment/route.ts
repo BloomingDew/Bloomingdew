@@ -6,6 +6,7 @@ import { supabaseService } from '../../../../lib/admin-server';
 import { rateLimit } from '../../../../lib/rate-limit';
 import { validateDiscountCode, incrementUse } from '../../../../lib/discounts';
 import { getTaxRate, taxAmountUsd } from '../../../../lib/tax';
+import { sendOrderConfirmationEmail } from '../../../../lib/email';
 import { sendTikTokEvent, tiktokRequestContext } from '../../../../lib/tiktok-server';
 
 const square = new SquareClient({
@@ -166,6 +167,28 @@ export async function POST(req: NextRequest) {
         .eq('status', 'started')
         .ilike('email', shipping.email);
     } catch {}
+
+    // Confirmation email. Best-effort: the payment has already succeeded and
+    // the order is recorded, so a mail failure must not fail the response.
+    try {
+      await sendOrderConfirmationEmail({
+        customerName: `${shipping.firstName} ${shipping.lastName}`,
+        customerEmail: shipping.email,
+        items: pricing.lines.map(l => ({
+          name: l.name, size: l.size, quantity: l.quantity, price: l.priceLabel,
+        })),
+        orderTotal: total,
+        shipping: {
+          address: shipping.address,
+          apartment: shipping.apartment,
+          city: shipping.city,
+          postcode: shipping.postcode,
+          country: shipping.country,
+        },
+      });
+    } catch (err) {
+      console.error('[square/payment] confirmation email failed:', err);
+    }
 
     // Mirror the purchase to TikTok server-side. Same event_id as the browser
     // event on the confirmation page, so TikTok deduplicates the pair. This
