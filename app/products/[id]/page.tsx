@@ -9,19 +9,9 @@ import { useCurrency } from '../../../context/CurrencyContext';
 import { getProductById, type Product } from '../../../lib/products';
 import { getAvailableStock, getAllSizesStock } from '../../../lib/inventory';
 import { trackTikTok } from '../../../lib/tiktok';
+import { STOCKED_SIZES, SIZE_GUIDE } from '../../../lib/sizes';
 
-const sizes = ['6', '8', '10', '12', '14', '16', '18', '20'];
-
-const SIZE_GUIDE = [
-  { size: '6',  bust: 34, waist: 26, hip: 36 },
-  { size: '8',  bust: 36, waist: 28, hip: 38 },
-  { size: '10', bust: 38, waist: 30, hip: 40 },
-  { size: '12', bust: 40, waist: 32, hip: 42 },
-  { size: '14', bust: 42, waist: 34, hip: 44 },
-  { size: '16', bust: 44, waist: 36, hip: 46 },
-  { size: '18', bust: 46, waist: 38, hip: 48 },
-  { size: '20', bust: 48, waist: 40, hip: 50 },
-];
+const sizes = STOCKED_SIZES;
 
 export default function ProductPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
@@ -420,6 +410,34 @@ export default function ProductPage({ params }: { params: Promise<{ id: string }
               )}
             </div>
           </div>
+
+          {/* Made-to-order escape hatch. Every piece is offered in 12–18 only,
+              so for a large share of visitors the size they need simply isn't
+              in the list — without this the page is a dead end for them.
+              Shown on every product, since the size range is the same either
+              way. */}
+          {(
+            <div style={{
+              display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+              flexWrap: 'wrap', gap: '0.75rem',
+              padding: '0.9rem 1rem', marginBottom: '1.5rem',
+              backgroundColor: '#FAF7F4', border: '1px solid #E8DDD3',
+            }}>
+              <span style={{ fontFamily: "'Jost', sans-serif", fontSize: '0.82rem', fontWeight: 300, color: '#5C5450' }}>
+                Don&apos;t see your size? You can get your size made to order.
+              </span>
+              <Link
+                href={`/custom?tab=made-to-order&product=${product.id}`}
+                style={{
+                  fontFamily: "'Jost', sans-serif", fontSize: '0.7rem', letterSpacing: '0.16em',
+                  textTransform: 'uppercase', color: '#2C2C2C', backgroundColor: '#C9A882',
+                  padding: '0.65rem 1.2rem', textDecoration: 'none', whiteSpace: 'nowrap',
+                }}
+              >
+                Made to order
+              </Link>
+            </div>
+          )}
 
           {/* Stock indicator */}
           {!product.made_to_order && selectedSize && availableStock !== null && (
