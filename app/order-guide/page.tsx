@@ -1,16 +1,13 @@
 import Link from 'next/link';
-import type { Metadata } from 'next';
 import { SIZE_GUIDE } from '../../lib/sizes';
+import { pageMetadata } from '../../lib/seo';
 
-const description =
-  'How to order from Bloomingdew: the size guide for 12–18, delivery timelines for ready-to-wear and made-to-order pieces, where we ship, and our returns position.';
-
-export const metadata: Metadata = {
+export const metadata = pageMetadata({
   title: 'Order Guide',
-  description,
-  alternates: { canonical: '/order-guide' },
-  openGraph: { title: 'Order Guide | Bloomingdew', description, url: '/order-guide' },
-};
+  description:
+    'How to order from Bloomingdew: the size guide for 12–18, delivery timelines for ready-to-wear and made-to-order pieces, where we ship, and our returns position.',
+  path: '/order-guide',
+});
 
 export default function OrderGuidePage() {
   return (

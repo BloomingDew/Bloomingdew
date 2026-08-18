@@ -1,5 +1,5 @@
 import type { MetadataRoute } from 'next';
-import { getProducts } from '../lib/products';
+import { supabaseService } from '../lib/admin-server';
 import { SITE_URL } from '../lib/seo';
 
 // Public pages only. Checkout, account, wishlist, order confirmation and the
@@ -7,6 +7,10 @@ import { SITE_URL } from '../lib/seo';
 // have nothing to offer a search result.
 export const revalidate = 3600;
 
+// No lastModified on static routes: a build timestamp is not a content
+// timestamp, and claiming every page changed at the moment of deploy tells a
+// crawler something false. An absent lastmod is more honest than a
+// fabricated one.
 const STATIC_ROUTES: Array<{ path: string; priority: number; changeFrequency: MetadataRoute.Sitemap[number]['changeFrequency'] }> = [
   { path: '/', priority: 1.0, changeFrequency: 'weekly' },
   { path: '/shop', priority: 0.9, changeFrequency: 'daily' },
@@ -19,23 +23,27 @@ const STATIC_ROUTES: Array<{ path: string; priority: number; changeFrequency: Me
 ];
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
-  const now = new Date();
-
-  const staticEntries = STATIC_ROUTES.map(({ path, priority, changeFrequency }) => ({
-    url: `${SITE_URL}${path === '/' ? '' : path}`,
-    lastModified: now,
-    changeFrequency,
-    priority,
-  }));
+  const staticEntries: MetadataRoute.Sitemap = STATIC_ROUTES.map(
+    ({ path, priority, changeFrequency }) => ({
+      url: `${SITE_URL}${path === '/' ? '' : path}`,
+      changeFrequency,
+      priority,
+    }),
+  );
 
   // Generated from the live catalogue, so a new piece appears without a code
-  // change and a withdrawn one drops out.
+  // change and a withdrawn one drops out. lastModified is the product's own
+  // created_at — the truest per-product date the schema holds (there is no
+  // updated_at column yet).
   let productEntries: MetadataRoute.Sitemap = [];
   try {
-    const products = await getProducts();
-    productEntries = products.map(p => ({
+    const { data } = await supabaseService
+      .from('products')
+      .select('id, created_at')
+      .eq('available', true);
+    productEntries = (data || []).map(p => ({
       url: `${SITE_URL}/products/${p.id}`,
-      lastModified: now,
+      lastModified: p.created_at ? new Date(p.created_at) : undefined,
       changeFrequency: 'weekly' as const,
       priority: 0.8,
     }));

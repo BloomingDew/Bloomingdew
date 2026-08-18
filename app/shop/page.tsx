@@ -1,12 +1,11 @@
-import type { Metadata } from 'next';
 import ShopClient from './ShopClient';
+import { pageMetadata } from '../../lib/seo';
 
-export const metadata: Metadata = {
+export const metadata = pageMetadata({
   title: 'Shop',
-  description: 'Browse the Bloomingdew collection — handcrafted dresses, sets and bubus in sizes 12–18, cut in Lagos and shipped worldwide.',
-  alternates: { canonical: '/shop' },
-  openGraph: { title: 'Shop | Bloomingdew', description: 'Browse the Bloomingdew collection — handcrafted dresses, sets and bubus in sizes 12–18, cut in Lagos and shipped worldwide.', url: '/shop' },
-};
+  description: "Browse the Bloomingdew collection — handcrafted dresses, sets and bubus in sizes 12–18, cut in Lagos and shipped worldwide.",
+  path: '/shop',
+});
 
 export default function Page() {
   return <ShopClient />;
