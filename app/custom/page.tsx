@@ -4,6 +4,8 @@ import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { getProducts, type Product } from '../../lib/products';
 import { MADE_TO_ORDER_SIZES, STOCKED_SIZES } from '../../lib/sizes';
+import { useCart } from '../../context/CartContext';
+import { useCurrency } from '../../context/CurrencyContext';
 
 const steps = [
   {
@@ -72,6 +74,10 @@ export default function CustomPage() {
     bust: '', waist: '', hips: '', height: '', shoulder: '', inseam: '',
   });
   const [mtoSent, setMtoSent] = useState(false);
+  const [mtoAdded, setMtoAdded] = useState(false);
+  const [surchargePct, setSurchargePct] = useState(20);
+  const { addItem } = useCart();
+  const { format } = useCurrency();
   const [mtoLoading, setMtoLoading] = useState(false);
   const [mtoError, setMtoError] = useState('');
 
@@ -84,11 +90,51 @@ export default function CustomPage() {
 
   useEffect(() => {
     getProducts().then(setProducts).catch(() => setProducts([]));
+    // Display only — the charge is recomputed server-side at payment.
+    fetch('/api/made-to-order')
+      .then(r => r.json())
+      .then(d => { if (Number.isFinite(d?.surchargePct)) setSurchargePct(d.surchargePct); })
+      .catch(() => {});
   }, []);
 
   const selectedProduct = products.find(p => String(p.id) === mtoForm.productId) || null;
   // Measurements only matter when no standard size fits.
   const needsMeasurements = mtoForm.size === 'custom';
+
+  // A named size can be bought outright. "My measurements" still has to be an
+  // enquiry — we can't price a garment before seeing the measurements.
+  const canAddToBag = !!selectedProduct && !!mtoForm.size && mtoForm.size !== 'custom';
+
+  const shelfPrice = selectedProduct
+    ? (selectedProduct.discount > 0
+        ? selectedProduct.price * (1 - selectedProduct.discount / 100)
+        : selectedProduct.price)
+    : 0;
+  const madeToOrderPrice = Math.round(shelfPrice * (1 + surchargePct / 100) * 100) / 100;
+
+  const handleAddMtoToBag = async () => {
+    if (!selectedProduct || !canAddToBag) return;
+    setMtoError('');
+    const colour = selectedProduct.colours.find(c => c.name === mtoForm.colour) || null;
+    const result = await addItem({
+      id: selectedProduct.id,
+      name: selectedProduct.name,
+      priceUsd: madeToOrderPrice,
+      size: mtoForm.size,
+      quantity: 1,
+      // No stock is held for these sizes — the piece is cut to order — so the
+      // cart must not try to reserve one.
+      madeToOrder: true,
+      colourId: colour ? colour.id : null,
+      colourName: colour ? colour.name : null,
+    });
+    if (!result.success) {
+      setMtoError(result.message || 'Could not add this piece to your bag.');
+      return;
+    }
+    setMtoAdded(true);
+    setTimeout(() => setMtoAdded(false), 2500);
+  };
 
   const handleMtoSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -473,6 +519,51 @@ export default function CustomPage() {
               </div>
             )}
 
+            {/* Price breakdown — shown as soon as a buyable size is chosen, so
+                the uplift is never a surprise at checkout. */}
+            {canAddToBag && selectedProduct && (
+              <div style={{ border: '1px solid #9A8F8740', padding: '1.2rem 1.4rem' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.6rem' }}>
+                  <span style={{ fontFamily: "'Jost', sans-serif", fontSize: '0.85rem', fontWeight: 300, color: '#9A8F87' }}>Shop price</span>
+                  <span style={{ fontFamily: "'Jost', sans-serif", fontSize: '0.85rem', fontWeight: 300, color: '#9A8F87' }}>{format(shelfPrice)}</span>
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.9rem' }}>
+                  <span style={{ fontFamily: "'Jost', sans-serif", fontSize: '0.85rem', fontWeight: 300, color: '#9A8F87' }}>Made-to-order ({surchargePct}%)</span>
+                  <span style={{ fontFamily: "'Jost', sans-serif", fontSize: '0.85rem', fontWeight: 300, color: '#9A8F87' }}>+ {format(madeToOrderPrice - shelfPrice)}</span>
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', paddingTop: '0.9rem', borderTop: '1px solid #9A8F8740' }}>
+                  <span style={{ fontFamily: "'Jost', sans-serif", fontSize: '0.8rem', letterSpacing: '0.14em', textTransform: 'uppercase', color: '#FAF7F4' }}>Your price</span>
+                  <span style={{ fontFamily: "'Playfair Display', serif", fontSize: '1.3rem', color: '#FAF7F4' }}>{format(madeToOrderPrice)}</span>
+                </div>
+                <p style={{ fontFamily: "'Jost', sans-serif", fontSize: '0.72rem', fontWeight: 300, color: '#9A8F87', marginTop: '0.9rem', lineHeight: 1.7 }}>
+                  Cut to your size and delivered in 7&ndash;10 days. Made-to-order pieces are final sale.
+                </p>
+              </div>
+            )}
+
+            {canAddToBag ? (
+              <>
+                {mtoError && (
+                  <p style={{ fontFamily: "'Jost', sans-serif", fontSize: '0.82rem', color: '#E88' }}>{mtoError}</p>
+                )}
+                <button
+                  type="button"
+                  onClick={handleAddMtoToBag}
+                  style={{
+                    fontFamily: "'Jost', sans-serif", fontSize: '0.75rem', letterSpacing: '0.18em',
+                    textTransform: 'uppercase', padding: '1rem', marginTop: '0.5rem',
+                    backgroundColor: mtoAdded ? '#FAF7F4' : '#C9A882', color: '#2C2C2C',
+                    border: 'none', cursor: 'pointer',
+                  }}
+                >
+                  {mtoAdded ? 'Added to bag' : 'Add to bag'}
+                </button>
+                <p style={{ fontFamily: "'Jost', sans-serif", fontSize: '0.75rem', fontWeight: 300, color: '#9A8F87', textAlign: 'center' }}>
+                  Not quite your fit? Choose <em>My measurements</em> above and we&apos;ll make it exactly to you.
+                </p>
+              </>
+            ) : (
+            <>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1.2rem' }} className="form-row">
               <div>
                 <label style={labelStyle}>First Name</label>
@@ -523,6 +614,8 @@ export default function CustomPage() {
             }}>
               {mtoLoading ? 'Sending…' : 'Request this piece'}
             </button>
+            </>
+            )}
           </form>
           )}
         </div>

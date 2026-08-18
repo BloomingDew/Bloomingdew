@@ -5,6 +5,7 @@ import { supabaseService } from './admin-server';
 import { sendOrderEmails } from './email';
 import { formatMoney, toMinorUnits } from './currency';
 import { validateDiscountCode, incrementUse } from './discounts';
+import { getMadeToOrderSurchargePct, applySurcharge, isMadeToOrderSize } from './made-to-order';
 
 export type IncomingItem = { id: number; size: string; quantity: number; colourId?: string | null };
 
@@ -17,6 +18,7 @@ export type PricedLine = {
   priceLabel: string;  // formatted, e.g. "$50.00"
   colourId?: string | null;
   colourName?: string | null;  // resolved server-side; shown on orders/packing slips
+  madeToOrder?: boolean;       // size outside the stocked range, priced with the uplift
 };
 
 export type OrderPricing = {
@@ -71,6 +73,11 @@ export async function priceOrder(items: unknown): Promise<OrderPricing> {
     }
   }
 
+  // Sizes outside the stocked range are cut individually and carry an uplift.
+  // Derived here from the size itself, so a tampered cart can't buy a
+  // made-to-order size at the shelf price.
+  const surchargePct = await getMadeToOrderSurchargePct();
+
   const lines: PricedLine[] = normalized.map((item) => {
     const product = byId.get(item.id);
     if (!product || product.available === false) {
@@ -78,7 +85,9 @@ export async function priceOrder(items: unknown): Promise<OrderPricing> {
     }
     const rawPrice = Number(product.price) || 0; // USD base price
     const discount = Number(product.discount) || 0;
-    const unitPrice = discount > 0 ? rawPrice * (1 - discount / 100) : rawPrice;
+    const shelfPrice = discount > 0 ? rawPrice * (1 - discount / 100) : rawPrice;
+    const madeToOrder = isMadeToOrderSize(item.size);
+    const unitPrice = madeToOrder ? applySurcharge(shelfPrice, surchargePct) : shelfPrice;
 
     // A colour must exist and belong to this product.
     let colourName: string | null = null;
@@ -99,6 +108,7 @@ export async function priceOrder(items: unknown): Promise<OrderPricing> {
       priceLabel: formatMoney(unitPrice, 'USD'),
       colourId: item.colourId ?? null,
       colourName,
+      madeToOrder,
     };
   });
 
