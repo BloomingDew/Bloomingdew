@@ -122,11 +122,14 @@ export default function OrderGuidePage() {
         <div style={{ margin: '5rem 0' }}>
           <h2 style={sectionHeading}>Shipping</h2>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem', marginTop: '1.5rem' }}>
+            {/* Delivery times are quoted for Nigeria only — outside it, transit
+                depends on the destination and customs, so we name where we
+                deliver rather than promise a window we don't control. */}
             {[
-              { label: 'Lagos & Abuja', value: '2–4 business days after dispatch · Free over ₦50,000' },
-              { label: 'Other States', value: '3–6 business days after dispatch · ₦3,500' },
-              { label: 'West Africa', value: '7–10 business days after dispatch · ₦15,000' },
-              { label: 'International', value: '10–14 business days after dispatch · ₦25,000' },
+              { label: 'Lagos & Abuja', value: '2–4 business days after dispatch' },
+              { label: 'Other States in Nigeria', value: '3–6 business days after dispatch' },
+              { label: 'West Africa', value: 'Delivered with DHL' },
+              { label: 'Worldwide', value: 'Delivered with DHL' },
             ].map(({ label, value }) => (
               <div key={label} style={{
                 display: 'flex',

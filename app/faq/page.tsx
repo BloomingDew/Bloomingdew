@@ -22,7 +22,7 @@ const faqs = [
   {
     category: 'Shipping & Returns',
     questions: [
-      { q: 'Do you ship internationally?', a: 'Yes, Bloomingdew ships worldwide. For international orders we use DHL, while orders within Nigeria are delivered through GIG. Shipping times and costs vary depending on your location and will be calculated at checkout where applicable. Once your order is dispatched, you\'ll receive a dispatch notification with tracking details so you can follow your delivery.' },
+      { q: 'Do you ship internationally?', a: 'Yes, Bloomingdew ships worldwide. For international orders we use DHL, while orders within Nigeria are delivered through GIG. Delivery times vary depending on your location. Once your order is dispatched, you\'ll receive a dispatch notification with tracking details so you can follow your delivery.' },
       { q: 'Can I return my order?', a: 'All Bloomingdew purchases are final sale and are not eligible for return or exchange — including sale and promotional items. The only exception is an item that arrives incorrect, damaged in transit, or with a confirmed manufacturing defect: contact us within 48 hours of delivery and we\'ll put it right. Please read our full Refund, Return & Exchange Policy for details.' },
       { q: 'My order arrived damaged — what do I do?', a: 'We\'re so sorry to hear that. Please contact us within 48 hours of delivery with your order number and clear photographs showing the issue. Once verified, we may repair, replace or alter the item, or provide another suitable resolution. A refund will be considered where appropriate and subject to applicable law.' },
     ],

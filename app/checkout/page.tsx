@@ -620,7 +620,10 @@ export default function CheckoutPage() {
             )}
             <div style={{ display: 'flex', justifyContent: 'space-between' }}>
               <span style={summaryLabel}>Shipping</span>
-              <span style={{ ...summaryValue, color: '#C9A882' }}>TBD</span>
+              {/* Nothing is charged for shipping at checkout. "TBD" next to a
+                  total reads like a pending surprise charge, which is the last
+                  thing a buyer wants to see on the payment step. */}
+              <span style={{ ...summaryValue, color: '#C9A882' }}>Arranged after checkout</span>
             </div>
             {taxUsd > 0 && (
               <div style={{ display: 'flex', justifyContent: 'space-between' }}>
