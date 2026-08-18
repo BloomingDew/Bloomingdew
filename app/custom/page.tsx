@@ -17,7 +17,7 @@ const steps = [
   {
     number: '03',
     title: 'Your piece is made',
-    body: "Once we've agreed on everything, your garment is handmade from scratch. Typical turnaround is 2–4 weeks.",
+    body: "Once we've agreed on everything, your garment is handmade from scratch. Please allow 7–10 days for production and delivery.",
   },
   {
     number: '04',

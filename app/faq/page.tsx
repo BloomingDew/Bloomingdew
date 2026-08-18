@@ -6,23 +6,23 @@ const faqs = [
   {
     category: 'Ordering',
     questions: [
-      { q: 'How long does it take to receive my order?', a: 'All pieces are made to order. Once you place your order, please allow 2–4 weeks for production, plus shipping time. You\'ll receive a dispatch notification with tracking when your piece is on its way.' },
+      { q: 'How long does it take to receive my order?', a: 'Our ready-to-wear pieces are available within 3–7 days. For custom orders, please allow 7–10 days for production and delivery. Once your order has been dispatched, you\'ll receive a dispatch notification with tracking details, allowing you to follow your piece every step of the way.' },
       { q: 'Can I change or cancel my order?', a: 'All purchases are final sale, so orders cannot be cancelled or amended once placed. For bespoke and made-to-measure pieces, an order cannot be cancelled once production or material procurement has begun. If something is wrong with your order, please contact us straight away via our contact page and we\'ll do our best to help.' },
-      { q: 'Do you restock sold-out items?', a: 'Because everything is made to order, items don\'t technically sell out. If a style is unavailable, it\'s usually because we\'re updating it. Feel free to reach out and we\'ll let you know when it returns.' },
+      { q: 'Is everything shown available to order?', a: 'At Bloomingdew, we only display ready-to-wear pieces that are currently available and ready to be ordered. If your preferred size is not currently available on the website, simply visit our Custom Order page to select your desired piece and size. Alternatively, feel free to reach out to us, and we\'ll be happy to let you know when the style becomes available again.' },
     ],
   },
   {
     category: 'Sizing & Fit',
     questions: [
-      { q: 'What if I\'m between sizes?', a: 'We recommend sizing up if you\'re between sizes. Alternatively, our custom service allows us to make any piece to your exact measurements at no extra cost.' },
-      { q: 'Do you offer custom sizing?', a: 'Yes — all pieces can be made to your measurements. Head to our Custom page to get started or contact us directly.' },
+      { q: 'What if I\'m between sizes?', a: 'If you\'re between sizes, we recommend sizing up for a more comfortable fit. Alternatively, our Custom Order service allows us to make any piece to your exact measurements. Custom orders carry a standard 20–25% additional cost, with the possibility of a higher additional charge depending on the sizing and specific requirements of the piece. This ensures your Bloomingdew piece is thoughtfully made to your measurements for a more personalised fit.' },
+      { q: 'Do you offer custom sizing?', a: 'Yes — all pieces can be made to your measurements. Custom orders carry a standard 20–25% additional cost, which may be higher depending on the sizing and specific requirements of the piece. Head to our Custom page to get started, or contact us directly and we\'ll talk you through it.' },
       { q: 'How do I measure myself?', a: 'You\'ll need a soft measuring tape. Measure your bust (around the fullest part), waist (natural waistline, usually the narrowest point), and hips (around the fullest part). Compare to our size guide on the Order Guide page.' },
     ],
   },
   {
     category: 'Shipping & Returns',
     questions: [
-      { q: 'Do you ship internationally?', a: 'Yes, we ship worldwide. Shipping times and costs vary by location — full details are on our Order Guide page.' },
+      { q: 'Do you ship internationally?', a: 'Yes, Bloomingdew ships worldwide. For international orders we use DHL, while orders within Nigeria are delivered through GIG. Delivery times vary depending on your location. Once your order is dispatched, you\'ll receive a dispatch notification with tracking details so you can follow your delivery.' },
       { q: 'Can I return my order?', a: 'All Bloomingdew purchases are final sale and are not eligible for return or exchange — including sale and promotional items. The only exception is an item that arrives incorrect, damaged in transit, or with a confirmed manufacturing defect: contact us within 48 hours of delivery and we\'ll put it right. Please read our full Refund, Return & Exchange Policy for details.' },
       { q: 'My order arrived damaged — what do I do?', a: 'We\'re so sorry to hear that. Please contact us within 48 hours of delivery with your order number and clear photographs showing the issue. Once verified, we may repair, replace or alter the item, or provide another suitable resolution. A refund will be considered where appropriate and subject to applicable law.' },
     ],

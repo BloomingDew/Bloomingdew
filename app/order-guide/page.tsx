@@ -96,8 +96,8 @@ export default function OrderGuidePage() {
             {[
               { step: '1', text: 'Browse the shop and select your piece, size, and quantity.' },
               { step: '2', text: 'Add to bag and proceed to checkout. You\'ll receive a confirmation email immediately.' },
-              { step: '3', text: 'Your order goes into production — each piece is made to order so please allow 2–4 weeks.' },
-              { step: '4', text: 'Once complete, your piece is carefully packed and dispatched with tracking.' },
+              { step: '3', text: 'Ready-to-wear pieces are available within 3–7 days. For custom orders, please allow 7–10 days for production and delivery.' },
+              { step: '4', text: 'Once dispatched, you\'ll receive a dispatch notification with tracking details — international orders travel with DHL, and orders within Nigeria with GIG.' },
             ].map(({ step, text }) => (
               <div key={step} style={{ display: 'flex', gap: '1.5rem', alignItems: 'flex-start' }}>
                 <span style={{
@@ -122,11 +122,14 @@ export default function OrderGuidePage() {
         <div style={{ margin: '5rem 0' }}>
           <h2 style={sectionHeading}>Shipping</h2>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem', marginTop: '1.5rem' }}>
+            {/* Delivery times are quoted for Nigeria only — outside it, transit
+                depends on the destination and customs, so we name where we
+                deliver rather than promise a window we don't control. */}
             {[
-              { label: 'Lagos & Abuja', value: '2–4 business days after dispatch · Free over ₦50,000' },
-              { label: 'Other States', value: '3–6 business days after dispatch · ₦3,500' },
-              { label: 'West Africa', value: '7–10 business days after dispatch · ₦15,000' },
-              { label: 'International', value: '10–14 business days after dispatch · ₦25,000' },
+              { label: 'Lagos & Abuja', value: '2–4 business days after dispatch' },
+              { label: 'Other States in Nigeria', value: '3–6 business days after dispatch' },
+              { label: 'West Africa', value: 'Delivered with DHL' },
+              { label: 'Worldwide', value: 'Delivered with DHL' },
             ].map(({ label, value }) => (
               <div key={label} style={{
                 display: 'flex',
