@@ -1,7 +1,9 @@
 import Link from 'next/link';
 
 export const metadata = {
-  title: 'Refund, Return & Exchange Policy — Bloomingdew',
+  // The root template appends "| Bloomingdew", so the brand must not repeat here.
+  title: 'Refund, Return & Exchange Policy',
+  alternates: { canonical: '/refund-policy' },
   description:
     'All Bloomingdew purchases are final sale. Read our full refund, return and exchange policy, including how to report a damaged, defective or incorrect item.',
 };
