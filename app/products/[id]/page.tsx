@@ -1,581 +1,115 @@
-'use client';
+import type { Metadata } from 'next';
+import { notFound } from 'next/navigation';
+import ProductClient from './ProductClient';
+import { getProductById } from '../../../lib/products';
+import { getMadeToOrderSurchargePct, applySurcharge } from '../../../lib/made-to-order';
+import { MADE_TO_ORDER_SIZES } from '../../../lib/sizes';
+import { SITE_URL, absoluteUrl } from '../../../lib/seo';
 
-import { useState, use, useEffect, useCallback } from 'react';
-import Link from 'next/link';
-import Image from 'next/image';
-import { useCart } from '../../../context/CartContext';
-import { useWishlist } from '../../../context/WishlistContext';
-import { useCurrency } from '../../../context/CurrencyContext';
-import { getProductById, type Product } from '../../../lib/products';
-import { getAvailableStock, getAllSizesStock } from '../../../lib/inventory';
-import { trackTikTok } from '../../../lib/tiktok';
-import { STOCKED_SIZES, SIZE_GUIDE } from '../../../lib/sizes';
+type Params = { params: Promise<{ id: string }> };
 
-const sizes = STOCKED_SIZES;
+/** The price the checkout would actually charge for a stocked size. */
+function shelfPrice(product: { price: number; discount: number }): number {
+  return product.discount > 0
+    ? Math.round(product.price * (1 - product.discount / 100) * 100) / 100
+    : product.price;
+}
 
-export default function ProductPage({ params }: { params: Promise<{ id: string }> }) {
-  const { id } = use(params);
-  const [product, setProduct] = useState<Product | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [selectedSize, setSelectedSize] = useState<string | null>(null);
-  const [activeTab, setActiveTab] = useState<'details' | 'care'>('details');
-  const [addedMsg, setAddedMsg] = useState(false);
-  const [stockError, setStockError] = useState('');
-  const [availableStock, setAvailableStock] = useState<number | null>(null);
-  const [activeImage, setActiveImage] = useState(0);
-  const [selectedColour, setSelectedColour] = useState<string | null>(null);
-  const [sizeGuideOpen, setSizeGuideOpen] = useState(false);
-  const [sizeDropdownOpen, setSizeDropdownOpen] = useState(false);
-  const [allStock, setAllStock] = useState<Record<string, number>>({});
-  const { addItem } = useCart();
-  const { addItem: wishlistAdd, removeItem: wishlistRemove, isWishlisted } = useWishlist();
-  const { format } = useCurrency();
+export async function generateMetadata({ params }: Params): Promise<Metadata> {
+  const { id } = await params;
+  const product = await getProductById(Number(id)).catch(() => null);
+  if (!product) return { title: 'Product not found' };
 
-  const [loadError, setLoadError] = useState(false);
+  // The stored description is the real copy shown on the page; fall back to a
+  // factual sentence rather than keyword filler when a product has none.
+  const description = (product.description || '').trim()
+    || `${product.name} — handcrafted by Bloomingdew in Lagos and shipped worldwide.`;
 
-  const loadProduct = useCallback(() => {
-    setLoading(true);
-    setLoadError(false);
-    getProductById(Number(id))
-      .then((data) => setProduct(data))
-      .catch(() => setLoadError(true))
-      .finally(() => setLoading(false));
-  }, [id]);
+  const canonical = `/products/${product.id}`;
+  const image = product.images[0]?.url;
 
-  useEffect(() => { loadProduct(); }, [loadProduct]);
+  return {
+    title: product.name,
+    description: description.slice(0, 300),
+    alternates: { canonical },
+    openGraph: {
+      type: 'website',
+      title: `${product.name} | Bloomingdew`,
+      description: description.slice(0, 300),
+      url: canonical,
+      ...(image ? { images: [{ url: image, alt: product.images[0]?.alt_text || product.name }] } : {}),
+    },
+    twitter: {
+      card: 'summary_large_image',
+      title: `${product.name} | Bloomingdew`,
+      description: description.slice(0, 300),
+      ...(image ? { images: [image] } : {}),
+    },
+  };
+}
 
-  // ViewContent — once per product, at the discounted price the shopper sees.
-  useEffect(() => {
-    if (!product) return;
-    const price = product.discount > 0
-      ? product.price * (1 - product.discount / 100)
-      : product.price;
-    trackTikTok('ViewContent', {
-      contents: [{
-        content_id: String(product.id),
-        content_name: product.name,
-        content_type: 'product',
-        price: Number(price.toFixed(2)),
-        quantity: 1,
-      }],
-      value: Number(price.toFixed(2)),
-      currency: 'USD',
-    });
-    // Keyed on id so re-renders (size/colour changes) don't re-fire.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [product?.id]);
+export default async function Page({ params }: Params) {
+  const { id } = await params;
+  const product = await getProductById(Number(id)).catch(() => null);
+  if (!product) notFound();
 
-  // Close size dropdown on outside click
-  useEffect(() => {
-    if (!sizeDropdownOpen) return;
-    const handler = () => setSizeDropdownOpen(false);
-    document.addEventListener('click', handler);
-    return () => document.removeEventListener('click', handler);
-  }, [sizeDropdownOpen]);
+  // Prices come from the same helpers the checkout uses, so a rich result can
+  // never advertise a figure the basket contradicts.
+  const surchargePct = await getMadeToOrderSurchargePct();
+  const base = shelfPrice(product);
+  const madeToOrder = applySurcharge(base, surchargePct);
 
-  // Auto-select first colour when product loads
-  useEffect(() => {
-    if (product?.has_colours && product.colours.length > 0) {
-      setSelectedColour(product.colours[0].id);
-    }
-  }, [product]);
-
-  // Switching colour shows a different set of photos and a different set of
-  // stock, so clear the size choice rather than leaving one selected that may
-  // be sold out in the new colourway.
-  useEffect(() => {
-    setActiveImage(0);
-    setSelectedSize('');
-    setStockError('');
-  }, [selectedColour]);
-
-  // Stock is tracked per colourway, so every lookup passes the selected colour
-  // (null for products without colours).
-  const stockColourId = product?.has_colours ? selectedColour : null;
-
-  // Fetch all sizes stock when the product loads or the colour changes
-  useEffect(() => {
-    if (!product || product.made_to_order) return;
-    const productSizes = product.sizes || sizes;
-    getAllSizesStock(product.id, productSizes, stockColourId).then(setAllStock);
-  }, [product, stockColourId]);
-
-  // Fetch stock when size (or colour) is selected
-  useEffect(() => {
-    if (!product || !selectedSize) return;
-    if (product.made_to_order) { setAvailableStock(null); return; }
-    getAvailableStock(product.id, selectedSize, stockColourId).then(setAvailableStock);
-  }, [selectedSize, product, stockColourId]);
-
-  const handleAddToCart = async () => {
-    if (!product) return;
-    setStockError('');
-    // Require an explicit size choice — never silently default.
-    if (!selectedSize) {
-      setStockError('Please select a size first.');
-      return;
-    }
-    const salePriceUsd = product.discount > 0 ? product.price * (1 - product.discount / 100) : product.price;
-    const result = await addItem({
-      id: product.id, name: product.name,
-      priceUsd: salePriceUsd,
-      originalPriceUsd: product.discount > 0 ? product.price : undefined,
-      size: selectedSize,
-      quantity: 1, madeToOrder: product.made_to_order,
-      colourId: stockColourId,
-      colourName: stockColourId
-        ? product.colours.find(c => c.id === stockColourId)?.name ?? null
-        : null,
-    });
-    if (!result.success) {
-      setStockError(result.message || 'Item unavailable.');
-      return;
-    }
-    setAddedMsg(true);
-    setTimeout(() => setAddedMsg(false), 2000);
-    // Refresh stock
-    if (!product.made_to_order && selectedSize) {
-      getAvailableStock(product.id, selectedSize, stockColourId).then(setAvailableStock);
-      const productSizes = product.sizes || sizes;
-      getAllSizesStock(product.id, productSizes, stockColourId).then(setAllStock);
-    }
+  const productLd = {
+    '@context': 'https://schema.org',
+    '@type': 'Product',
+    name: product.name,
+    description: (product.description || '').trim() || undefined,
+    sku: String(product.id),
+    url: absoluteUrl(`/products/${product.id}`),
+    image: product.images.map(i => i.url),
+    brand: { '@type': 'Brand', name: 'Bloomingdew' },
+    ...(product.fabric ? { material: product.fabric } : {}),
+    // Two price points are genuinely offered: the stocked sizes and the
+    // made-to-order uplift. Declaring the range is honest about both.
+    offers: {
+      '@type': 'AggregateOffer',
+      priceCurrency: 'USD',
+      lowPrice: base.toFixed(2),
+      highPrice: madeToOrder.toFixed(2),
+      offerCount: 1 + MADE_TO_ORDER_SIZES.length,
+      availability: product.available
+        ? 'https://schema.org/InStock'
+        : 'https://schema.org/OutOfStock',
+      url: absoluteUrl(`/products/${product.id}`),
+      seller: { '@type': 'Organization', name: 'Bloomingdew' },
+    },
+    // No aggregateRating: there are no reviews on this site, and inventing
+    // them would breach Google's guidelines and mislead customers.
   };
 
-  const handleWishlist = () => {
-    if (!product) return;
-    isWishlisted(product.id)
-      ? wishlistRemove(product.id)
-      : wishlistAdd({ id: product.id, name: product.name, priceUsd: product.discount > 0 ? product.price * (1 - product.discount / 100) : product.price, originalPriceUsd: product.discount > 0 ? product.price : undefined, category: product.category });
+  const breadcrumbLd = {
+    '@context': 'https://schema.org',
+    '@type': 'BreadcrumbList',
+    itemListElement: [
+      { '@type': 'ListItem', position: 1, name: 'Home', item: SITE_URL },
+      { '@type': 'ListItem', position: 2, name: 'Shop', item: absoluteUrl('/shop') },
+      ...(product.category
+        ? [{ '@type': 'ListItem', position: 3, name: product.category, item: absoluteUrl(`/shop?category=${product.category_slug}`) }]
+        : []),
+      {
+        '@type': 'ListItem',
+        position: product.category ? 4 : 3,
+        name: product.name,
+        item: absoluteUrl(`/products/${product.id}`),
+      },
+    ],
   };
-
-  if (loading) return (
-    <div style={{ maxWidth: '1280px', margin: '0 auto', padding: '3rem 2rem' }}>
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '5rem' }}>
-        <div style={{ aspectRatio: '3/4', backgroundColor: '#E8DDD3' }} />
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem', paddingTop: '2rem' }}>
-          {[80, 50, 30, 100, 100].map((w, i) => (
-            <div key={i} style={{ height: '16px', backgroundColor: '#E8DDD3', width: `${w}%` }} />
-          ))}
-        </div>
-      </div>
-    </div>
-  );
-
-  if (loadError) return (
-    <div style={{ textAlign: 'center', padding: '8rem 2rem' }}>
-      <h2 style={{ fontFamily: "'Playfair Display', serif", fontSize: '1.8rem', marginBottom: '1rem' }}>Something went wrong</h2>
-      <p style={{ fontFamily: "'Jost', sans-serif", fontSize: '0.85rem', color: '#9A8F87', marginBottom: '1.5rem' }}>
-        We couldn&apos;t load this piece. Please try again.
-      </p>
-      <button onClick={loadProduct} style={{
-        fontFamily: "'Jost', sans-serif", fontSize: '0.75rem', letterSpacing: '0.15em',
-        textTransform: 'uppercase', padding: '0.8rem 2rem',
-        backgroundColor: '#2C2C2C', color: '#FAF7F4', border: 'none', cursor: 'pointer',
-      }}>
-        Try Again
-      </button>
-    </div>
-  );
-
-  if (!product) return (
-    <div style={{ textAlign: 'center', padding: '8rem 2rem' }}>
-      <h2 style={{ fontFamily: "'Playfair Display', serif", fontSize: '1.8rem', marginBottom: '1rem' }}>Product not found</h2>
-      <Link href="/shop" style={{ fontFamily: "'Jost', sans-serif", fontSize: '0.8rem', letterSpacing: '0.12em', textTransform: 'uppercase', borderBottom: '1px solid #2C2C2C' }}>Back to Shop</Link>
-    </div>
-  );
-
-  const displayedImages = product
-    ? product.has_colours && selectedColour
-      ? product.images.filter(img => img.colour_id === selectedColour).length > 0
-        ? product.images.filter(img => img.colour_id === selectedColour)
-        : product.images.filter(img => !img.colour_id)
-      : product.images.filter(img => !img.colour_id || !product.has_colours)
-    : [];
-
-  const details = [
-    product.fabric && product.fabric,
-    product.made_to_order ? 'Handmade to order' : 'Ready to ship',
-    `Available in sizes ${(product.sizes || []).join(', ')}`,
-    product.care_instructions && product.care_instructions,
-    'Made in Nigeria',
-  ].filter(Boolean) as string[];
 
   return (
-    <div style={{ maxWidth: '1280px', margin: '0 auto', padding: '3rem 2rem 6rem' }}>
-
-      {/* Breadcrumb */}
-      <div style={{ marginBottom: '2.5rem', display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
-        {[{ label: 'Home', href: '/' }, { label: 'Shop', href: '/shop' }, { label: product.name, href: '#' }].map((crumb, i, arr) => (
-          <span key={crumb.href} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-            {i < arr.length - 1 ? (
-              <>
-                <Link href={crumb.href} style={{ fontFamily: "'Jost', sans-serif", fontSize: '0.75rem', color: '#9A8F87' }}>{crumb.label}</Link>
-                <span style={{ color: '#C9A882', fontSize: '0.7rem' }}>›</span>
-              </>
-            ) : (
-              <span style={{ fontFamily: "'Jost', sans-serif", fontSize: '0.75rem', color: '#2C2C2C' }}>{crumb.label}</span>
-            )}
-          </span>
-        ))}
-      </div>
-
-      {/* Main layout */}
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '5rem', alignItems: 'start' }} className="product-grid">
-
-        {/* Left — images */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', minWidth: 0, overflow: 'hidden' }}>
-          {/* Main image */}
-          <div style={{
-            width: '100%', aspectRatio: '3/4',
-            backgroundColor: '#FAF7F4', position: 'relative',
-            overflow: 'hidden', display: 'flex', alignItems: 'center', justifyContent: 'center',
-          }}>
-            {displayedImages[activeImage] ? (
-              <Image
-                src={displayedImages[activeImage].url}
-                alt={displayedImages[activeImage].alt_text || product.name}
-                fill
-                priority
-                sizes="(max-width: 900px) 100vw, 50vw"
-                style={{ objectFit: 'contain' }}
-              />
-            ) : (
-              <span style={{
-                fontFamily: "'Jost', sans-serif", fontSize: '0.65rem', letterSpacing: '0.15em', textTransform: 'uppercase', color: '#9A8F87',
-              }}>
-                Photo coming soon
-              </span>
-            )}
-          </div>
-
-          {/* Thumbnails */}
-          {displayedImages.length > 1 && (
-            <div style={{ display: 'flex', gap: '0.5rem' }}>
-              {displayedImages.map((img, i) => (
-                <button key={i} onClick={() => setActiveImage(i)} style={{
-                  width: '72px', height: '88px', border: `2px solid ${activeImage === i ? '#2C2C2C' : 'transparent'}`,
-                  padding: 0, cursor: 'pointer', overflow: 'hidden', background: 'none',
-                }}>
-                  <Image src={img.url} alt={img.alt_text || ''} width={72} height={88} style={{ width: '100%', height: '100%', objectFit: 'contain', display: 'block', backgroundColor: '#FAF7F4' }} />
-                </button>
-              ))}
-            </div>
-          )}
-
-          {/* Placeholder thumbnails when no images */}
-          {displayedImages.length === 0 && (
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem' }}>
-              {[1, 2].map((n) => (
-                <div key={n} style={{ aspectRatio: '1/1', background: 'linear-gradient(150deg, #EDE4DA, #C9A882)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                  <span style={{ fontFamily: "'Jost', sans-serif", fontSize: '0.6rem', letterSpacing: '0.1em', textTransform: 'uppercase', color: '#9A8F87' }}>Detail {n}</span>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
-
-        {/* Right — product info */}
-        <div style={{ position: 'sticky', top: '130px' }}>
-          <p style={{ fontFamily: "'Jost', sans-serif", fontSize: '0.72rem', letterSpacing: '0.2em', textTransform: 'uppercase', color: '#C9A882', marginBottom: '0.75rem' }}>
-            {product.category}
-          </p>
-          <h1 style={{ fontFamily: "'Playfair Display', serif", fontSize: 'clamp(1.6rem, 3vw, 2.2rem)', fontWeight: 500, color: '#2C2C2C', marginBottom: '1rem', lineHeight: 1.2 }}>
-            {product.name}
-          </h1>
-          <div style={{ marginBottom: '2rem' }}>
-            {product.discount > 0 ? (
-              <div style={{ display: 'flex', alignItems: 'baseline', gap: '0.75rem', flexWrap: 'wrap' }}>
-                <p style={{ fontFamily: "'Jost', sans-serif", fontSize: '1.1rem', fontWeight: 400, color: '#C0392B' }}>
-                  {format(product.price * (1 - product.discount / 100))}
-                </p>
-                <p style={{ fontFamily: "'Jost', sans-serif", fontSize: '0.95rem', fontWeight: 300, color: '#9A8F87', textDecoration: 'line-through' }}>
-                  {format(product.price)}
-                </p>
-                <span style={{ fontFamily: "'Jost', sans-serif", fontSize: '0.78rem', color: '#C0392B', fontWeight: 400 }}>
-                  -{product.discount}%
-                </span>
-              </div>
-            ) : (
-              <p style={{ fontFamily: "'Jost', sans-serif", fontSize: '1.1rem', fontWeight: 300, color: '#2C2C2C' }}>
-                {format(product.price)}
-              </p>
-            )}
-          </div>
-          <p style={{ fontFamily: "'Jost', sans-serif", fontSize: '0.9rem', fontWeight: 300, color: '#5C5450', lineHeight: 1.8, marginBottom: '2.5rem' }}>
-            {product.description}
-          </p>
-
-          {/* Colour swatches */}
-          {product.has_colours && product.colours.length > 0 && (
-            <div style={{ marginBottom: '2rem' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: '1rem' }}>
-                <span style={{ fontFamily: "'Jost', sans-serif", fontSize: '0.75rem', letterSpacing: '0.12em', textTransform: 'uppercase', color: '#2C2C2C' }}>
-                  Colour
-                </span>
-                <span style={{ fontFamily: "'Jost', sans-serif", fontSize: '0.78rem', fontWeight: 300, color: '#5C5450' }}>
-                  {product.colours.find(c => c.id === selectedColour)?.name || ''}
-                </span>
-              </div>
-              <div style={{ display: 'flex', gap: '0.6rem', flexWrap: 'wrap' }}>
-                {product.colours.map(colour => (
-                  <button
-                    key={colour.id}
-                    onClick={() => setSelectedColour(colour.id)}
-                    title={colour.name}
-                    style={{
-                      width: '32px', height: '32px', borderRadius: '50%',
-                      backgroundColor: colour.hex_code,
-                      border: selectedColour === colour.id ? '2px solid #2C2C2C' : '2px solid transparent',
-                      outline: selectedColour === colour.id ? '2px solid #2C2C2C' : '2px solid #E8DDD3',
-                      outlineOffset: '2px',
-                      cursor: 'pointer', padding: 0, flexShrink: 0,
-                      transition: 'outline 0.15s',
-                    }}
-                  />
-                ))}
-              </div>
-            </div>
-          )}
-
-          {/* Size selector */}
-          <div style={{ marginBottom: '2rem' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: '1rem' }}>
-              <span style={{ fontFamily: "'Jost', sans-serif", fontSize: '0.75rem', letterSpacing: '0.12em', textTransform: 'uppercase', color: '#2C2C2C' }}>
-                Size
-              </span>
-              <button onClick={() => setSizeGuideOpen(true)} style={{ fontFamily: "'Jost', sans-serif", fontSize: '0.72rem', color: '#9A8F87', background: 'none', borderTop: 'none', borderLeft: 'none', borderRight: 'none', borderBottom: '1px solid #9A8F87', cursor: 'pointer', padding: 0 }}>
-                Size Guide
-              </button>
-            </div>
-            <div style={{ position: 'relative' }}>
-              {/* Trigger */}
-              <button
-                onClick={() => setSizeDropdownOpen(o => !o)}
-                style={{
-                  width: '100%', padding: '1rem 1.2rem',
-                  border: '1px solid #2C2C2C',
-                  backgroundColor: '#FFFFFF',
-                  display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-                  cursor: 'pointer', fontFamily: "'Jost', sans-serif",
-                  fontSize: '0.88rem', fontWeight: 300,
-                  color: selectedSize ? '#2C2C2C' : '#9A8F87',
-                }}
-              >
-                <span>{selectedSize || 'Select a size'}</span>
-                <svg width="12" height="8" viewBox="0 0 12 8" fill="none" stroke="#9A8F87" strokeWidth="1.5" strokeLinecap="round">
-                  <path d={sizeDropdownOpen ? 'M1 7l5-5 5 5' : 'M1 1l5 5 5-5'} />
-                </svg>
-              </button>
-
-              {/* Dropdown list */}
-              {sizeDropdownOpen && (
-                <div style={{
-                  position: 'absolute', top: '100%', left: 0, right: 0, zIndex: 50,
-                  borderLeft: '1px solid #2C2C2C', borderRight: '1px solid #2C2C2C', borderBottom: '1px solid #2C2C2C', borderTop: 'none',
-                  backgroundColor: '#FFFFFF', boxShadow: '0 4px 12px rgba(0,0,0,0.08)',
-                }}>
-                  {(product.sizes || sizes).map((size) => {
-                    const stock = product.made_to_order ? null : (allStock[size] ?? null);
-                    const soldOut = stock !== null && stock === 0;
-                    const lastOne = stock !== null && stock > 0 && stock <= 3;
-                    const salePriceUsd = product.discount > 0
-                      ? product.price * (1 - product.discount / 100)
-                      : product.price;
-                    return (
-                      <button
-                        key={size}
-                        onClick={() => { if (!soldOut) { setSelectedSize(size); setSizeDropdownOpen(false); } }}
-                        style={{
-                          width: '100%', padding: '0.85rem 1.2rem',
-                          display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-                          backgroundColor: selectedSize === size ? '#F9F6F3' : '#FFFFFF',
-                          borderTop: 'none', borderLeft: 'none', borderRight: 'none', borderBottom: '1px solid #F0EBE5',
-                          cursor: soldOut ? 'not-allowed' : 'pointer',
-                          fontFamily: "'Jost', sans-serif", fontSize: '0.88rem',
-                          textAlign: 'left', opacity: soldOut ? 0.45 : 1,
-                        }}
-                      >
-                        <span style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
-                          <span style={{ color: '#2C2C2C', fontWeight: selectedSize === size ? 500 : 300 }}>{size}</span>
-                          {soldOut && <span style={{ fontSize: '0.7rem', color: '#9A8F87', letterSpacing: '0.08em' }}>Sold out</span>}
-                          {lastOne && <span style={{ fontSize: '0.7rem', color: '#C0392B', letterSpacing: '0.08em' }}>Last {stock} left</span>}
-                        </span>
-                        <span style={{ fontFamily: "'Jost', sans-serif", fontSize: '0.85rem', fontWeight: 300, color: soldOut ? '#9A8F87' : '#2C2C2C' }}>
-                          {format(salePriceUsd)}
-                        </span>
-                      </button>
-                    );
-                  })}
-                </div>
-              )}
-            </div>
-          </div>
-
-          {/* Made-to-order escape hatch. Every piece is offered in 12–18 only,
-              so for a large share of visitors the size they need simply isn't
-              in the list — without this the page is a dead end for them.
-              Shown on every product, since the size range is the same either
-              way. */}
-          {(
-            <div style={{
-              display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-              flexWrap: 'wrap', gap: '0.75rem',
-              padding: '0.9rem 1rem', marginBottom: '1.5rem',
-              backgroundColor: '#FAF7F4', border: '1px solid #E8DDD3',
-            }}>
-              <span style={{ fontFamily: "'Jost', sans-serif", fontSize: '0.82rem', fontWeight: 300, color: '#5C5450' }}>
-                Don&apos;t see your size? You can get your size made to order.
-              </span>
-              <Link
-                href={`/custom?tab=made-to-order&product=${product.id}`}
-                style={{
-                  fontFamily: "'Jost', sans-serif", fontSize: '0.7rem', letterSpacing: '0.16em',
-                  textTransform: 'uppercase', color: '#2C2C2C', backgroundColor: '#C9A882',
-                  padding: '0.65rem 1.2rem', textDecoration: 'none', whiteSpace: 'nowrap',
-                }}
-              >
-                Made to order
-              </Link>
-            </div>
-          )}
-
-          {/* Stock indicator */}
-          {!product.made_to_order && selectedSize && availableStock !== null && (
-            <div style={{ marginBottom: '1rem' }}>
-              {availableStock === 0 ? (
-                <p style={{ fontFamily: "'Jost', sans-serif", fontSize: '0.78rem', color: '#C0392B', letterSpacing: '0.1em', textTransform: 'uppercase' }}>
-                  Sold Out in this size
-                </p>
-              ) : availableStock <= 3 ? (
-                <p style={{ fontFamily: "'Jost', sans-serif", fontSize: '0.78rem', color: '#E65100', letterSpacing: '0.1em' }}>
-                  Only {availableStock} left
-                </p>
-              ) : (
-                <p style={{ fontFamily: "'Jost', sans-serif", fontSize: '0.78rem', color: '#2E7D32', letterSpacing: '0.1em' }}>
-                  In stock
-                </p>
-              )}
-            </div>
-          )}
-
-          {stockError && (
-            <p style={{ fontFamily: "'Jost', sans-serif", fontSize: '0.82rem', color: '#C0392B', marginBottom: '1rem' }}>
-              {stockError}
-            </p>
-          )}
-
-          <button
-            onClick={handleAddToCart}
-            disabled={!product.made_to_order && availableStock === 0}
-            style={{
-              width: '100%', padding: '1.1rem',
-              backgroundColor: availableStock === 0 && !product.made_to_order ? '#E8DDD3' : addedMsg ? '#C9A882' : '#2C2C2C',
-              color: availableStock === 0 && !product.made_to_order ? '#9A8F87' : '#FAF7F4',
-              fontFamily: "'Jost', sans-serif", fontSize: '0.8rem',
-              letterSpacing: '0.18em', textTransform: 'uppercase',
-              border: 'none', cursor: availableStock === 0 && !product.made_to_order ? 'not-allowed' : 'pointer',
-              marginBottom: '1rem', transition: 'background-color 0.3s',
-            }}>
-            {availableStock === 0 && !product.made_to_order ? 'Sold Out' : addedMsg ? 'Added to Bag ✓' : 'Add to Bag'}
-          </button>
-
-          <button onClick={handleWishlist} style={{
-            width: '100%', padding: '1.1rem', backgroundColor: 'transparent',
-            fontFamily: "'Jost', sans-serif", fontSize: '0.8rem',
-            letterSpacing: '0.18em', textTransform: 'uppercase',
-            border: `1px solid ${isWishlisted(product.id) ? '#C9A882' : '#E8DDD3'}`,
-            color: isWishlisted(product.id) ? '#C9A882' : '#2C2C2C',
-            cursor: 'pointer', marginBottom: '2.5rem', transition: 'all 0.2s',
-          }}>
-            {isWishlisted(product.id) ? 'Saved to Wishlist ♥' : 'Save to Wishlist'}
-          </button>
-
-          {/* Details tabs */}
-          <div style={{ borderTop: '1px solid #E8DDD3' }}>
-            <div style={{ display: 'flex' }}>
-              {(['details', 'care'] as const).map((tab) => (
-                <button key={tab} onClick={() => setActiveTab(tab)} style={{
-                  flex: 1, padding: '1rem',
-                  fontFamily: "'Jost', sans-serif", fontSize: '0.72rem', letterSpacing: '0.14em', textTransform: 'uppercase',
-                  color: activeTab === tab ? '#2C2C2C' : '#9A8F87', backgroundColor: 'transparent',
-                  borderTop: 'none', borderLeft: 'none', borderRight: 'none', borderBottom: `2px solid ${activeTab === tab ? '#2C2C2C' : 'transparent'}`,
-                  cursor: 'pointer', transition: 'all 0.2s',
-                }}>
-                  {tab === 'details' ? 'Product Details' : 'Care & Fabric'}
-                </button>
-              ))}
-            </div>
-            <ul style={{ padding: '1.5rem 0', listStyle: 'none', display: 'flex', flexDirection: 'column', gap: '0.6rem' }}>
-              {details.map((d, i) => (
-                <li key={i} style={{ fontFamily: "'Jost', sans-serif", fontSize: '0.85rem', fontWeight: 300, color: '#5C5450', display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-                  <span style={{ color: '#C9A882', fontSize: '0.5rem' }}>●</span>{d}
-                </li>
-              ))}
-            </ul>
-          </div>
-        </div>
-      </div>
-
-      {/* Size Guide Modal */}
-      {sizeGuideOpen && (
-        <div onClick={() => setSizeGuideOpen(false)} style={{
-          position: 'fixed', inset: 0, backgroundColor: 'rgba(0,0,0,0.5)',
-          zIndex: 200, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '1rem',
-        }}>
-          <div onClick={e => e.stopPropagation()} style={{
-            backgroundColor: '#FAF7F4', maxWidth: '520px', width: '100%',
-            padding: '2.5rem', position: 'relative', maxHeight: '90vh', overflowY: 'auto',
-          }}>
-            <button onClick={() => setSizeGuideOpen(false)} style={{
-              position: 'absolute', top: '1.2rem', right: '1.2rem',
-              background: 'none', border: 'none', cursor: 'pointer',
-              fontSize: '1.1rem', color: '#9A8F87',
-            }}>✕</button>
-
-            <p style={{ fontFamily: "'Jost', sans-serif", fontSize: '0.7rem', letterSpacing: '0.2em', textTransform: 'uppercase', color: '#C9A882', marginBottom: '0.5rem' }}>
-              Bloomingdew
-            </p>
-            <h2 style={{ fontFamily: "'Playfair Display', serif", fontSize: '1.3rem', fontWeight: 500, color: '#2C2C2C', marginBottom: '0.5rem' }}>
-              Size Guide
-            </h2>
-            <p style={{ fontFamily: "'Jost', sans-serif", fontSize: '0.8rem', fontWeight: 300, color: '#9A8F87', marginBottom: '2rem' }}>
-              All measurements are in inches.
-            </p>
-
-            <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-              <thead>
-                <tr style={{ borderBottom: '2px solid #E8DDD3' }}>
-                  {['Size', 'Bust', 'Waist', 'Hip'].map(h => (
-                    <th key={h} style={{ fontFamily: "'Jost', sans-serif", fontSize: '0.72rem', letterSpacing: '0.12em', textTransform: 'uppercase', color: '#9A8F87', padding: '0.75rem 1rem', textAlign: 'left', fontWeight: 400 }}>
-                      {h}
-                    </th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody>
-                {SIZE_GUIDE.map((row, i) => (
-                  <tr key={row.size} style={{ backgroundColor: i % 2 === 0 ? '#FFFFFF' : '#F9F6F3', borderBottom: '1px solid #E8DDD3' }}>
-                    <td style={{ fontFamily: "'Jost', sans-serif", fontSize: '0.88rem', fontWeight: 500, color: '#2C2C2C', padding: '0.85rem 1rem' }}>{row.size}</td>
-                    <td style={{ fontFamily: "'Jost', sans-serif", fontSize: '0.88rem', fontWeight: 300, color: '#5C5450', padding: '0.85rem 1rem' }}>{row.bust}"</td>
-                    <td style={{ fontFamily: "'Jost', sans-serif", fontSize: '0.88rem', fontWeight: 300, color: '#5C5450', padding: '0.85rem 1rem' }}>{row.waist}"</td>
-                    <td style={{ fontFamily: "'Jost', sans-serif", fontSize: '0.88rem', fontWeight: 300, color: '#5C5450', padding: '0.85rem 1rem' }}>{row.hip}"</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-
-            <p style={{ fontFamily: "'Jost', sans-serif", fontSize: '0.78rem', fontWeight: 300, color: '#9A8F87', marginTop: '1.5rem', lineHeight: 1.7 }}>
-              Between sizes? We recommend sizing up. Need a size we don't stock? Visit <a href="/custom?tab=made-to-order" style={{ color: '#C9A882', borderBottom: '1px solid #C9A882' }}>Made for You</a>.
-            </p>
-          </div>
-        </div>
-      )}
-
-      <style>{`
-        @media (max-width: 768px) {
-          .product-grid { grid-template-columns: 1fr !important; gap: 2.5rem !important; }
-        }
-      `}</style>
-    </div>
+    <>
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(productLd) }} />
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbLd) }} />
+      <ProductClient />
+    </>
   );
 }
