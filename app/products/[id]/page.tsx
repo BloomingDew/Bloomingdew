@@ -565,7 +565,7 @@ export default function ProductPage({ params }: { params: Promise<{ id: string }
             </table>
 
             <p style={{ fontFamily: "'Jost', sans-serif", fontSize: '0.78rem', fontWeight: 300, color: '#9A8F87', marginTop: '1.5rem', lineHeight: 1.7 }}>
-              Between sizes? We recommend sizing up. For custom fit, visit our <a href="/custom" style={{ color: '#C9A882', borderBottom: '1px solid #C9A882' }}>Custom page</a>.
+              Between sizes? We recommend sizing up. Need a size we don't stock? Visit <a href="/custom?tab=made-to-order" style={{ color: '#C9A882', borderBottom: '1px solid #C9A882' }}>Made for You</a>.
             </p>
           </div>
         </div>

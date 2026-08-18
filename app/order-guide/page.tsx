@@ -75,7 +75,7 @@ export default function OrderGuidePage() {
           </div>
 
           <p style={{ ...bodyText, marginTop: '1.2rem', fontSize: '0.8rem', color: '#9A8F87' }}>
-            Not sure? <a href="/custom" style={{ color: '#C9A882', borderBottom: '1px solid #C9A882' }}>Request a custom order</a> and we'll make it to your exact measurements.
+            Need a size outside 12&ndash;18? <a href="/custom?tab=made-to-order" style={{ color: '#C9A882', borderBottom: '1px solid #C9A882' }}>Made for You</a> covers made-to-order and fully custom pieces.
           </p>
         </div>
 

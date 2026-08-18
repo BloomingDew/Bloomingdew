@@ -28,3 +28,8 @@ export const SIZE_GUIDE: SizeGuideRow[] = [
   { size: '16', bust: 44, waist: 36, hip: 46 },
   { size: '18', bust: 46, waist: 38, hip: 48 },
 ];
+
+/** True when a size is only obtainable made-to-order (i.e. not stocked). */
+export function isMadeToOrderSize(size: string): boolean {
+  return !STOCKED_SIZES.includes(String(size).trim());
+}

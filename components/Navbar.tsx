@@ -228,7 +228,7 @@ function Badge({ count }: { count: number }) {
 
 const navLinks = [
   { label: 'Shop', href: '/shop' },
-  { label: 'Custom', href: '/custom' },
+  { label: 'Made for You', href: '/custom' },
   { label: 'Order Guide', href: '/order-guide' },
   { label: 'FAQ', href: '/faq' },
   { label: 'About', href: '/about' },

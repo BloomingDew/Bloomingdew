@@ -287,7 +287,7 @@ export default function Home() {
             letterSpacing: '0.28em', textTransform: 'uppercase',
             color: '#C9A882', marginBottom: '1.2rem',
           }}>
-            Custom Orders
+            Made for You
           </p>
           <h2 style={{
             fontFamily: "'Playfair Display', serif",
@@ -303,7 +303,7 @@ export default function Home() {
             fontWeight: 300, color: '#9A8F87',
             lineHeight: 1.8, marginBottom: '2.5rem', maxWidth: '380px',
           }}>
-            Have a vision in mind? We craft bespoke pieces tailored to your measurements, your fabric, your story.
+            Need a size we don't stock, or a piece imagined entirely from scratch? Either way, we'll make it yours.
           </p>
           <Link href="/custom" style={{
             display: 'inline-block', border: '1px solid #C9A882',
@@ -312,7 +312,7 @@ export default function Home() {
             letterSpacing: '0.18em', textTransform: 'uppercase',
             alignSelf: 'flex-start',
           }}>
-            Start Your Custom Order
+            Explore Made for You
           </Link>
         </div>
         <style>{`
