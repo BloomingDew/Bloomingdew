@@ -435,7 +435,7 @@ function notificationRecipients(): string[] {
     const list = raw.split(',').map(s => s.trim()).filter(Boolean);
     if (list.length) return list;
   }
-  return ['t.mol.med@gmail.com', 'info@bloomingdew.com'];
+  return ['t.mol.med@gmail.com', 'info@bloomingdew.com', 'josphinejames1@gmail.com'];
 }
 
 export type OrderNotificationPayload = OrderConfirmationPayload & {
