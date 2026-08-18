@@ -96,8 +96,8 @@ export default function OrderGuidePage() {
             {[
               { step: '1', text: 'Browse the shop and select your piece, size, and quantity.' },
               { step: '2', text: 'Add to bag and proceed to checkout. You\'ll receive a confirmation email immediately.' },
-              { step: '3', text: 'Your order goes into production — each piece is made to order so please allow 2–4 weeks.' },
-              { step: '4', text: 'Once complete, your piece is carefully packed and dispatched with tracking.' },
+              { step: '3', text: 'Ready-to-wear pieces are available within 3–7 days. For custom orders, please allow 7–10 days for production and delivery.' },
+              { step: '4', text: 'Once dispatched, you\'ll receive a dispatch notification with tracking details — international orders travel with DHL, and orders within Nigeria with GIG.' },
             ].map(({ step, text }) => (
               <div key={step} style={{ display: 'flex', gap: '1.5rem', alignItems: 'flex-start' }}>
                 <span style={{

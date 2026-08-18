@@ -516,7 +516,7 @@ export default function CheckoutPage() {
                   Refund, Return &amp; Exchange Policy
                 </Link>.
                 {items.some(i => i.madeToOrder)
-                  ? ' Made-to-order pieces take 2–4 weeks for production.'
+                  ? ' Custom and made-to-order pieces take 7–10 days for production and delivery.'
                   : ''}
               </p>
             </div>

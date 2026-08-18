@@ -46,7 +46,7 @@ export default function EditProductPage({ params }: { params: Promise<{ id: stri
   const [form, setForm] = useState({
     name: '', price: '', category_id: '', discount: '0',
     description: '', fabric: '', care_instructions: '',
-    available: true, made_to_order: true, lead_time: '2–4 weeks',
+    available: true, made_to_order: true, lead_time: '7–10 days',
   });
 
   useEffect(() => {
@@ -68,7 +68,7 @@ export default function EditProductPage({ params }: { params: Promise<{ id: stri
         description: data.description || '', fabric: data.fabric || '',
         care_instructions: data.care_instructions || '',
         available: data.available, made_to_order: data.made_to_order,
-        lead_time: data.lead_time || '2–4 weeks',
+        lead_time: data.lead_time || '7–10 days',
       });
       // One gallery: every photo, colour-tagged or not, lives in `images`.
       const sorted = [...(data.product_images || [])].sort((a: ProductImage, b: ProductImage) => a.position - b.position);

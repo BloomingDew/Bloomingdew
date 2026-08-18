@@ -42,7 +42,7 @@ export default function NewProductPage() {
   const [form, setForm] = useState({
     name: '', price: '', category_id: '', discount: '0',
     description: '', fabric: '', care_instructions: '',
-    available: true, made_to_order: true, lead_time: '2–4 weeks',
+    available: true, made_to_order: true, lead_time: '7–10 days',
   });
 
   useEffect(() => {
@@ -405,7 +405,7 @@ export default function NewProductPage() {
               </div>
               <div>
                 <label style={labelStyle}>Lead Time</label>
-                <input style={inputStyle} value={form.lead_time} onChange={e => setForm({ ...form, lead_time: e.target.value })} placeholder="2–4 weeks" />
+                <input style={inputStyle} value={form.lead_time} onChange={e => setForm({ ...form, lead_time: e.target.value })} placeholder="7–10 days" />
               </div>
             </div>
           </div>
