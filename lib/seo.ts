@@ -24,3 +24,53 @@ export const PRIVATE_PATHS = [
   '/order-confirmation',
   '/api',
 ];
+
+// ---------------------------------------------------------------------------
+// Page metadata helper
+//
+// In the App Router a child's `openGraph` object REPLACES the parent's rather
+// than merging, and the generated image from app/opengraph-image.tsx only
+// attaches to segments that don't define their own block. Six pages set
+// custom Open Graph and silently dropped the image — the shared link preview
+// became a blank rectangle again, the exact failure the image exists to
+// prevent. Composing metadata through this helper makes that mistake
+// unrepresentable: the image is always included, so the next page anyone adds
+// can't reintroduce the bug.
+// ---------------------------------------------------------------------------
+
+import type { Metadata } from 'next';
+
+const OG_IMAGE = {
+  url: '/opengraph-image',
+  width: 1200,
+  height: 630,
+  alt: 'Bloomingdew — handcrafted clothing, made in Lagos',
+};
+
+export function pageMetadata(opts: {
+  title: string;
+  description: string;
+  /** Site-relative canonical path, e.g. '/shop'. */
+  path: string;
+}): Metadata {
+  const { title, description, path } = opts;
+  return {
+    title,
+    description,
+    alternates: { canonical: path },
+    openGraph: {
+      type: 'website',
+      siteName: SITE_NAME,
+      title: `${title} | ${SITE_NAME}`,
+      description,
+      url: path,
+      images: [OG_IMAGE],
+    },
+    twitter: {
+      card: 'summary_large_image',
+      title: `${title} | ${SITE_NAME}`,
+      description,
+      images: [OG_IMAGE.url],
+    },
+  };
+}

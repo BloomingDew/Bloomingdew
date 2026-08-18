@@ -1,15 +1,11 @@
-import type { Metadata } from 'next';
 import CustomClient from './CustomClient';
+import { pageMetadata } from '../../lib/seo';
 
-const description =
-  "Order a Bloomingdew piece in a size we don't stock, or have one made entirely to your measurements. Made-to-order pieces are ready in 7–10 days.";
-
-export const metadata: Metadata = {
+export const metadata = pageMetadata({
   title: 'Made for You',
-  description,
-  alternates: { canonical: '/custom' },
-  openGraph: { title: 'Made for You | Bloomingdew', description, url: '/custom' },
-};
+  description: "Order a Bloomingdew piece in a size we don't stock, or have one made entirely to your measurements. Made-to-order pieces are ready in 7–10 days.",
+  path: '/custom',
+});
 
 export default function Page() {
   return <CustomClient />;
