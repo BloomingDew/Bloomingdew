@@ -7,6 +7,7 @@ import { getSession, supabaseAuth } from '../../../../lib/supabase-admin';
 import { supabase } from '../../../../lib/supabase';
 import { compressImage } from '../../../../lib/compressImage';
 import { toast } from '../../../../components/Toast';
+import { STOCKED_SIZES } from '../../../../lib/sizes';
 
 type Category = { id: number; name: string };
 // colour_id tags a photo to a colourway (null = shown for every colour).
@@ -15,7 +16,7 @@ type SizeInventory = { size: string; quantity: number };
 type InventoryRow = { size: string; quantity: number; colour_id: string | null };
 type Colour = { id: string; name: string; hex_code: string; display_order: number; is_available: boolean };
 
-const DEFAULT_SIZES = ['6', '8', '10', '12', '14', '16', '18', '20'];
+const DEFAULT_SIZES = STOCKED_SIZES;
 const MAX_IMAGES = 12;
 // Bucket key used when a product has no colourways (colour_id IS NULL).
 const NO_COLOUR = '__none';

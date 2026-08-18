@@ -1,4 +1,5 @@
 import Link from 'next/link';
+import { SIZE_GUIDE } from '../../lib/sizes';
 
 export default function OrderGuidePage() {
   return (
@@ -62,16 +63,7 @@ export default function OrderGuidePage() {
                 </tr>
               </thead>
               <tbody>
-                {[
-                  ['6',  '34', '26', '36'],
-                  ['8',  '36', '28', '38'],
-                  ['10', '38', '30', '40'],
-                  ['12', '40', '32', '42'],
-                  ['14', '42', '34', '44'],
-                  ['16', '44', '36', '46'],
-                  ['18', '46', '38', '48'],
-                  ['20', '48', '40', '50'],
-                ].map(([size, burst, waist, hip], i) => (
+                {SIZE_GUIDE.map(({ size, bust, waist, hip }) => [size, String(bust), String(waist), String(hip)]).map(([size, burst, waist, hip], i) => (
                   <tr key={size} style={{ backgroundColor: i % 2 === 0 ? '#FFFFFF' : '#FAF7F4', borderBottom: '1px solid #E8DDD3' }}>
                     {[size, burst, waist, hip].map((val, j) => (
                       <td key={j} style={{ padding: '0.85rem 1rem', color: j === 0 ? '#2C2C2C' : '#9A8F87', fontWeight: j === 0 ? 500 : 300 }}>{val}</td>

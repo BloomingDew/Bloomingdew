@@ -7,12 +7,13 @@ import { getSession, supabaseAuth } from '../../../../lib/supabase-admin';
 import { supabase } from '../../../../lib/supabase';
 import { compressImage } from '../../../../lib/compressImage';
 import { toast } from '../../../../components/Toast';
+import { STOCKED_SIZES } from '../../../../lib/sizes';
 
 type Category = { id: number; name: string };
 type PendingColour = { name: string; hex_code: string };
 type SizeInventory = { size: string; quantity: number };
 
-const DEFAULT_SIZES = ['6', '8', '10', '12', '14', '16', '18', '20'];
+const DEFAULT_SIZES = STOCKED_SIZES;
 const MAX_IMAGES = 12;
 // Bucket key used when the product has no colourways.
 const NO_COLOUR = '__none';

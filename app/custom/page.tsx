@@ -1,7 +1,9 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
+import { getProducts, type Product } from '../../lib/products';
+import { MADE_TO_ORDER_SIZES, STOCKED_SIZES } from '../../lib/sizes';
 
 const steps = [
   {
@@ -26,7 +28,10 @@ const steps = [
   },
 ];
 
+type Tab = 'custom' | 'made-to-order';
+
 export default function CustomPage() {
+  const [tab, setTab] = useState<Tab>('custom');
   const [loading, setLoading] = useState(false);
   const [sent, setSent] = useState(false);
   const [error, setError] = useState('');
@@ -47,7 +52,7 @@ export default function CustomPage() {
       });
       if (!res.ok) {
         const data = await res.json().catch(() => ({}));
-        setError(data.error || 'Something went wrong. Please try again or email hello@bloomingdew.com.');
+        setError(data.error || 'Something went wrong. Please try again or email info@bloomingdew.com.');
         return;
       }
       setSent(true);
@@ -55,6 +60,77 @@ export default function CustomPage() {
       setError('Could not reach the server. Please check your connection and try again.');
     } finally {
       setLoading(false);
+    }
+  };
+
+  // Made-to-order state. Deep links from a product page arrive as
+  // ?tab=made-to-order&product=<id>, so the piece is preselected.
+  const [products, setProducts] = useState<Product[]>([]);
+  const [mtoForm, setMtoForm] = useState({
+    productId: '', size: '', firstName: '', lastName: '', email: '', phone: '',
+    colour: '', notes: '',
+    bust: '', waist: '', hips: '', height: '', shoulder: '', inseam: '',
+  });
+  const [mtoSent, setMtoSent] = useState(false);
+  const [mtoLoading, setMtoLoading] = useState(false);
+  const [mtoError, setMtoError] = useState('');
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    if (params.get('tab') === 'made-to-order') setTab('made-to-order');
+    const product = params.get('product');
+    if (product) setMtoForm(prev => ({ ...prev, productId: product }));
+  }, []);
+
+  useEffect(() => {
+    getProducts().then(setProducts).catch(() => setProducts([]));
+  }, []);
+
+  const selectedProduct = products.find(p => String(p.id) === mtoForm.productId) || null;
+  // Measurements only matter when no standard size fits.
+  const needsMeasurements = mtoForm.size === 'custom';
+
+  const handleMtoSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setMtoLoading(true);
+    setMtoError('');
+    try {
+      const piece = selectedProduct ? `${selectedProduct.name} (#${selectedProduct.id})` : 'Not specified';
+      const sizeLabel = mtoForm.size === 'custom' ? 'Custom measurements' : `Size ${mtoForm.size}`;
+      const message = [
+        `Piece: ${piece}`,
+        `Requested size: ${sizeLabel}`,
+        mtoForm.colour ? `Colour preference: ${mtoForm.colour}` : null,
+        mtoForm.notes ? `Notes: ${mtoForm.notes}` : null,
+      ].filter(Boolean).join('\n');
+
+      const res = await fetch('/api/enquiry', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          type: 'made-to-order',
+          first_name: mtoForm.firstName,
+          last_name: mtoForm.lastName,
+          email: mtoForm.email,
+          phone: mtoForm.phone,
+          subject: selectedProduct ? `Made to order — ${selectedProduct.name}` : 'Made to order',
+          occasion: sizeLabel,
+          message,
+          measurements: needsMeasurements
+            ? { bust: mtoForm.bust, waist: mtoForm.waist, hips: mtoForm.hips, height: mtoForm.height, shoulder: mtoForm.shoulder, inseam: mtoForm.inseam }
+            : null,
+        }),
+      });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        setMtoError(data.error || 'Something went wrong. Please try again or email info@bloomingdew.com.');
+        return;
+      }
+      setMtoSent(true);
+    } catch {
+      setMtoError('Could not reach the server. Please check your connection and try again.');
+    } finally {
+      setMtoLoading(false);
     }
   };
 
@@ -106,7 +182,46 @@ export default function CustomPage() {
         </div>
       </section>
 
+      {/* Tab switcher */}
+      <section style={{ padding: '3rem 2rem 0' }}>
+        <div style={{ maxWidth: '640px', margin: '0 auto', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+          {([
+            { key: 'custom' as Tab, label: 'Custom', caption: 'Designed from scratch', icon: (
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M12 19l7-7 3 3-7 7-3-3z" /><path d="M18 13l-1.5-7.5L2 2l3.5 14.5L13 18l5-5z" /><path d="M2 2l7.586 7.586" /><circle cx="11" cy="11" r="2" />
+              </svg>
+            ) },
+            { key: 'made-to-order' as Tab, label: 'Made to Order', caption: 'Our pieces, your size', icon: (
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M20.38 3.46L16 2a4 4 0 01-8 0L3.62 3.46a2 2 0 00-1.34 2.23l.58 3.47a1 1 0 00.99.84H6v10a1 1 0 001 1h10a1 1 0 001-1V10h2.15a1 1 0 00.99-.84l.58-3.47a2 2 0 00-1.34-2.23z" />
+              </svg>
+            ) },
+          ]).map(({ key, label, caption, icon }) => {
+            const active = tab === key;
+            return (
+              <button
+                key={key}
+                onClick={() => setTab(key)}
+                style={{
+                  display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0.5rem',
+                  padding: '1.4rem 1rem', cursor: 'pointer',
+                  backgroundColor: active ? '#2C2C2C' : 'transparent',
+                  color: active ? '#FAF7F4' : '#2C2C2C',
+                  border: `1px solid ${active ? '#2C2C2C' : '#E8DDD3'}`,
+                  transition: 'background-color 0.2s, color 0.2s',
+                }}
+              >
+                {icon}
+                <span style={{ fontFamily: "'Jost', sans-serif", fontSize: '0.78rem', letterSpacing: '0.16em', textTransform: 'uppercase' }}>{label}</span>
+                <span style={{ fontFamily: "'Jost', sans-serif", fontSize: '0.72rem', fontWeight: 300, color: active ? '#C9A882' : '#9A8F87' }}>{caption}</span>
+              </button>
+            );
+          })}
+        </div>
+      </section>
+
       {/* How it works */}
+      {tab === 'custom' && (
       <section style={{ padding: '7rem 2rem' }}>
         <div style={{ maxWidth: '1100px', margin: '0 auto' }}>
           <h2 style={{
@@ -160,7 +275,10 @@ export default function CustomPage() {
         </div>
       </section>
 
+      )}
+
       {/* Enquiry form */}
+      {tab === 'custom' && (
       <section style={{
         padding: '7rem 2rem',
         backgroundColor: '#2C2C2C',
@@ -280,6 +398,136 @@ export default function CustomPage() {
           )}
         </div>
       </section>
+      )}
+
+      {/* Made to order */}
+      {tab === 'made-to-order' && (
+      <section style={{ padding: '5rem 2rem 7rem', backgroundColor: '#2C2C2C' }}>
+        <div style={{ maxWidth: '640px', margin: '0 auto' }}>
+          <p style={{ fontFamily: "'Jost', sans-serif", fontSize: '0.72rem', letterSpacing: '0.25em', textTransform: 'uppercase', color: '#C9A882', marginBottom: '1rem', textAlign: 'center' }}>
+            Our pieces, your size
+          </p>
+          <h2 style={{ fontFamily: "'Playfair Display', serif", fontSize: '2rem', fontWeight: 500, color: '#FAF7F4', textAlign: 'center', marginBottom: '1rem' }}>
+            Made to Order
+          </h2>
+          <p style={{ fontFamily: "'Jost', sans-serif", fontSize: '0.88rem', fontWeight: 300, color: '#9A8F87', textAlign: 'center', lineHeight: 1.8, marginBottom: '3rem' }}>
+            We stock sizes {STOCKED_SIZES[0]}&ndash;{STOCKED_SIZES[STOCKED_SIZES.length - 1]}. If yours falls outside that, choose the piece you love and we&apos;ll make it to your size. Made-to-order pieces carry a 20&ndash;25% additional cost and take 7&ndash;10 days.
+          </p>
+
+          {mtoSent ? (
+            <div style={{ padding: '2rem', backgroundColor: 'rgba(250,247,244,0.1)', border: '1px solid #9A8F8740', textAlign: 'center' }}>
+              <p style={{ fontFamily: "'Playfair Display', serif", fontSize: '1.2rem', color: '#FAF7F4', marginBottom: '0.5rem' }}>Request received.</p>
+              <p style={{ fontFamily: "'Jost', sans-serif", fontSize: '0.85rem', fontWeight: 300, color: '#9A8F87' }}>
+                {"We'll confirm your size, price and timeline within 48 hours."}
+              </p>
+            </div>
+          ) : (
+          <form onSubmit={handleMtoSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '1.2rem' }}>
+            <div>
+              <label style={labelStyle}>Which piece?</label>
+              <select
+                required
+                style={{ ...inputStyle, ...selectStyle }}
+                value={mtoForm.productId}
+                onChange={e => setMtoForm({ ...mtoForm, productId: e.target.value, colour: '' })}
+              >
+                <option value="" disabled style={optionStyle}>Select a piece</option>
+                {products.map(p => (
+                  <option key={p.id} value={String(p.id)} style={optionStyle}>{p.name}</option>
+                ))}
+              </select>
+            </div>
+
+            <div>
+              <label style={labelStyle}>Your size</label>
+              <select
+                required
+                style={{ ...inputStyle, ...selectStyle }}
+                value={mtoForm.size}
+                onChange={e => setMtoForm({ ...mtoForm, size: e.target.value })}
+              >
+                <option value="" disabled style={optionStyle}>Select a size</option>
+                {MADE_TO_ORDER_SIZES.map(size => (
+                  <option key={size} value={size} style={optionStyle}>UK {size}</option>
+                ))}
+                <option value="custom" style={optionStyle}>My measurements (none of the above)</option>
+              </select>
+              <p style={{ fontFamily: "'Jost', sans-serif", fontSize: '0.72rem', fontWeight: 300, color: '#9A8F87', marginTop: '0.5rem' }}>
+                Sizes {STOCKED_SIZES.join(', ')} are available to buy directly from the shop.
+              </p>
+            </div>
+
+            {selectedProduct?.has_colours && selectedProduct.colours.length > 0 && (
+              <div>
+                <label style={labelStyle}>Colour</label>
+                <select
+                  style={{ ...inputStyle, ...selectStyle }}
+                  value={mtoForm.colour}
+                  onChange={e => setMtoForm({ ...mtoForm, colour: e.target.value })}
+                >
+                  <option value="" style={optionStyle}>No preference</option>
+                  {selectedProduct.colours.map(c => (
+                    <option key={c.id} value={c.name} style={optionStyle}>{c.name}</option>
+                  ))}
+                </select>
+              </div>
+            )}
+
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1.2rem' }} className="form-row">
+              <div>
+                <label style={labelStyle}>First Name</label>
+                <input required style={inputStyle} value={mtoForm.firstName} onChange={e => setMtoForm({ ...mtoForm, firstName: e.target.value })} />
+              </div>
+              <div>
+                <label style={labelStyle}>Last Name</label>
+                <input style={inputStyle} value={mtoForm.lastName} onChange={e => setMtoForm({ ...mtoForm, lastName: e.target.value })} />
+              </div>
+            </div>
+
+            <div>
+              <label style={labelStyle}>Email</label>
+              <input required type="email" style={inputStyle} value={mtoForm.email} onChange={e => setMtoForm({ ...mtoForm, email: e.target.value })} />
+            </div>
+
+            {needsMeasurements && (
+              <div>
+                <label style={labelStyle}>Your measurements (inches)</label>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '0.8rem' }}>
+                  {([['bust', 'Bust'], ['waist', 'Waist'], ['hips', 'Hips'], ['height', 'Height'], ['shoulder', 'Shoulder'], ['inseam', 'Inseam']] as const).map(([key, label]) => (
+                    <input
+                      key={key}
+                      style={inputStyle}
+                      placeholder={label}
+                      value={mtoForm[key]}
+                      onChange={e => setMtoForm({ ...mtoForm, [key]: e.target.value })}
+                    />
+                  ))}
+                </div>
+              </div>
+            )}
+
+            <div>
+              <label style={labelStyle}>Anything else?</label>
+              <textarea rows={3} style={{ ...inputStyle, resize: 'vertical' }} value={mtoForm.notes} onChange={e => setMtoForm({ ...mtoForm, notes: e.target.value })} placeholder="Length, sleeves, when you need it by..." />
+            </div>
+
+            {mtoError && (
+              <p style={{ fontFamily: "'Jost', sans-serif", fontSize: '0.82rem', color: '#E88' }}>{mtoError}</p>
+            )}
+
+            <button type="submit" disabled={mtoLoading} style={{
+              fontFamily: "'Jost', sans-serif", fontSize: '0.75rem', letterSpacing: '0.18em',
+              textTransform: 'uppercase', padding: '1rem', marginTop: '0.5rem',
+              backgroundColor: '#C9A882', color: '#2C2C2C', border: 'none',
+              cursor: mtoLoading ? 'default' : 'pointer', opacity: mtoLoading ? 0.6 : 1,
+            }}>
+              {mtoLoading ? 'Sending…' : 'Request this piece'}
+            </button>
+          </form>
+          )}
+        </div>
+      </section>
+      )}
 
       <style>{`
         .form-row { grid-template-columns: 1fr 1fr; }
@@ -312,4 +560,21 @@ const inputStyle: React.CSSProperties = {
   fontWeight: 300,
   outline: 'none',
   appearance: 'none',
+};
+
+// The form sits on the dark panel, so the native select needs its own chevron
+// (appearance:none strips it) and explicitly light option text — otherwise
+// options inherit white-on-white in several browsers.
+const selectStyle: React.CSSProperties = {
+  cursor: 'pointer',
+  backgroundImage:
+    "url(\"data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'><path d='M1 1l4 4 4-4' fill='none' stroke='%239A8F87' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/></svg>\")",
+  backgroundRepeat: 'no-repeat',
+  backgroundPosition: 'right 1rem center',
+  paddingRight: '2.5rem',
+};
+
+const optionStyle: React.CSSProperties = {
+  backgroundColor: '#2C2C2C',
+  color: '#FAF7F4',
 };

@@ -63,7 +63,7 @@ export async function POST(req: NextRequest) {
   // Acknowledge to the customer and notify the studio. Best-effort: the
   // enquiry is already saved, so a mail failure must not tell the customer
   // their request didn't go through.
-  if (type === 'custom') {
+  if (type === 'custom' || type === 'made-to-order') {
     try {
       await sendCustomRequestEmails({
         firstName,

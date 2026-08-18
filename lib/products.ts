@@ -1,4 +1,5 @@
 import { supabase } from './supabase';
+import { STOCKED_SIZES } from './sizes';
 
 export type Product = {
   id: number;
@@ -93,7 +94,7 @@ function normalise(data: any): Product {
     lead_time: data.lead_time,
     fabric: data.fabric || '',
     care_instructions: data.care_instructions || '',
-    sizes: data.sizes || ['6', '8', '10', '12', '14', '16', '18', '20'],
+    sizes: data.sizes || STOCKED_SIZES,
     has_colours: data.has_colours || false,
     colours: (data.product_colours || []).filter((c: any) => c.is_available).sort((a: any, b: any) => a.display_order - b.display_order),
     images: (data.product_images || []).sort((a: any, b: any) => a.position - b.position),
