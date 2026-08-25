@@ -567,7 +567,7 @@ function NewCollectionCard({ product }: { product: FeaturedProduct }) {
             <Image src={mainImage} alt={product.name} fill
               sizes="(max-width: 768px) 50vw, 25vw"
               style={{
-                objectFit: 'contain',
+                objectFit: 'cover', objectPosition: 'top',
                 transform: hovered ? 'scale(1.04)' : 'scale(1)', transition: 'transform 0.5s ease',
               }} />
           ) : (

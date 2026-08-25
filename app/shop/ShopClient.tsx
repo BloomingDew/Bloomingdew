@@ -177,7 +177,9 @@ function ProductCard({ product, priority = false }: { product: Product; priority
               fill
               priority={priority}
               sizes="(max-width: 600px) 50vw, (max-width: 1280px) 33vw, 300px"
-              style={{ objectFit: 'contain' }}
+              // Cards crop to fill; anchored to the top so faces stay in frame.
+              // The full uncropped photo remains on the product page.
+              style={{ objectFit: 'cover', objectPosition: 'top' }}
               onError={e => { (e.currentTarget as HTMLImageElement).style.display = 'none'; }}
             />
           ) : (
