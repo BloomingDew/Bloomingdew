@@ -5,17 +5,11 @@ const nextConfig: NextConfig = {
     root: __dirname,
   },
   images: {
-    remotePatterns: [
-      {
-        protocol: 'https',
-        hostname: 'images.unsplash.com',
-      },
-      {
-        protocol: 'https',
-        hostname: 'jcofnaozaeobahwuqzqt.supabase.co',
-        pathname: '/storage/v1/object/public/**',
-      },
-    ],
+    // All resizing happens in lib/image-loader.ts via Supabase's transformer.
+    // Vercel's own optimizer is bypassed entirely: its quota ran out in
+    // production (402) and blanked every product photo on the site.
+    loader: 'custom',
+    loaderFile: './lib/image-loader.ts',
   },
 };
 
