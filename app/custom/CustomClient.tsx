@@ -6,6 +6,7 @@ import { getProducts, type Product } from '../../lib/products';
 import { MADE_TO_ORDER_SIZES, STOCKED_SIZES } from '../../lib/sizes';
 import { useCart } from '../../context/CartContext';
 import { useCurrency } from '../../context/CurrencyContext';
+import { useFormToken, honeypotProps } from '../../lib/useFormToken';
 
 const steps = [
   {
@@ -33,6 +34,8 @@ const steps = [
 type Tab = 'custom' | 'made-to-order';
 
 export default function CustomPage() {
+  const formToken = useFormToken();
+  const [honeypot, setHoneypot] = useState('');
   const [tab, setTab] = useState<Tab>('custom');
   const [loading, setLoading] = useState(false);
   const [sent, setSent] = useState(false);
@@ -50,7 +53,7 @@ export default function CustomPage() {
       const res = await fetch('/api/enquiry', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ type: 'custom', first_name: form.firstName, last_name: form.lastName, email: form.email, occasion: form.occasion, message: form.vision, budget: form.budget, measurements: { bust: form.bust, waist: form.waist, hips: form.hips, height: form.height, shoulder: form.shoulder, inseam: form.inseam } }),
+        body: JSON.stringify({ formToken, website: honeypot, type: 'custom', first_name: form.firstName, last_name: form.lastName, email: form.email, occasion: form.occasion, message: form.vision, budget: form.budget, measurements: { bust: form.bust, waist: form.waist, hips: form.hips, height: form.height, shoulder: form.shoulder, inseam: form.inseam } }),
       });
       if (!res.ok) {
         const data = await res.json().catch(() => ({}));
@@ -153,7 +156,7 @@ export default function CustomPage() {
       const res = await fetch('/api/enquiry', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
+        body: JSON.stringify({ formToken, website: honeypot,
           type: 'made-to-order',
           first_name: mtoForm.firstName,
           last_name: mtoForm.lastName,
@@ -359,6 +362,7 @@ export default function CustomPage() {
             </div>
           ) : (
           <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '1.2rem' }}>
+            <input {...honeypotProps} value={honeypot} onChange={e => setHoneypot(e.target.value)} />
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1.2rem' }} className="form-row">
               <div>
                 <label style={labelStyle}>First Name</label>
@@ -469,6 +473,7 @@ export default function CustomPage() {
             </div>
           ) : (
           <form onSubmit={handleMtoSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '1.2rem' }}>
+            <input {...honeypotProps} value={honeypot} onChange={e => setHoneypot(e.target.value)} />
             <div>
               <label style={labelStyle}>Which piece?</label>
               <select

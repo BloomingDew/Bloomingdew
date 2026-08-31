@@ -2,11 +2,17 @@ import { createClient } from '@supabase/supabase-js';
 import { NextRequest, NextResponse } from 'next/server';
 import { rateLimit } from '../../../lib/rate-limit';
 import { sendCustomRequestEmails } from '../../../lib/email';
+import { issueFormToken, verifyFormToken } from '../../../lib/form-token';
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
   process.env.SUPABASE_SERVICE_ROLE_KEY!
 );
+
+// The page fetches a token on mount; POST requires it back, signed and aged.
+export async function GET() {
+  return NextResponse.json({ token: issueFormToken() });
+}
 
 export async function POST(req: NextRequest) {
   const ip = req.headers.get('x-forwarded-for') ?? req.headers.get('x-real-ip') ?? 'unknown';
@@ -21,6 +27,15 @@ export async function POST(req: NextRequest) {
     body = await req.json();
   } catch {
     return NextResponse.json({ error: 'Invalid request.' }, { status: 400 });
+  }
+
+  // Bot gate. Failures return success anyway: a bot that sees 200 keeps its
+  // working payload and never adapts, and a real (vanishingly rare) false
+  // positive is indistinguishable from a dropped email either way.
+  const honeypotTripped = typeof body.website === 'string' && body.website.trim() !== '';
+  if (honeypotTripped || !verifyFormToken(body.formToken)) {
+    console.warn('[enquiry] dropped bot submission:', honeypotTripped ? 'honeypot' : 'bad-token');
+    return NextResponse.json({ success: true });
   }
 
   const str = (v: unknown, max: number) =>
