@@ -564,12 +564,18 @@ function NewCollectionCard({ product }: { product: FeaturedProduct }) {
           display: 'flex', alignItems: 'center', justifyContent: 'center',
         }}>
           {mainImage ? (
-            <Image src={mainImage} alt={product.name} fill
-              sizes="(max-width: 768px) 50vw, 25vw"
-              style={{
-                objectFit: 'contain',
-                transform: hovered ? 'scale(1.04)' : 'scale(1)', transition: 'transform 0.5s ease',
-              }} />
+            <>
+              {/* Blurred echo fills the frame behind the full photo — no
+                  letterboxed strips, and the dress is never cropped. */}
+              <Image src={mainImage} alt="" aria-hidden fill sizes="60px"
+                style={{ objectFit: 'cover', filter: 'blur(24px) saturate(1.05)', transform: 'scale(1.15)', opacity: 0.55 }} />
+              <Image src={mainImage} alt={product.name} fill
+                sizes="(max-width: 768px) 50vw, 25vw"
+                style={{
+                  objectFit: 'contain',
+                  transform: hovered ? 'scale(1.04)' : 'scale(1)', transition: 'transform 0.5s ease',
+                }} />
+            </>
           ) : (
             <span style={{ fontFamily: "'Jost', sans-serif", fontSize: '0.7rem', letterSpacing: '0.15em', textTransform: 'uppercase', color: '#9A8F87' }}>
               Photo coming soon

@@ -171,15 +171,30 @@ function ProductCard({ product, priority = false }: { product: Product; priority
           display: 'flex', alignItems: 'center', justifyContent: 'center',
         }}>
           {mainImage ? (
-            <Image
-              src={mainImage}
-              alt={product.name}
-              fill
-              priority={priority}
-              sizes="(max-width: 600px) 50vw, (max-width: 1280px) 33vw, 300px"
-              style={{ objectFit: 'contain' }}
-              onError={e => { (e.currentTarget as HTMLImageElement).style.display = 'none'; }}
-            />
+            <>
+              {/* Blurred echo of the same photo fills the frame behind the real
+                  one, so narrow photos stop reading as letterboxed strips —
+                  without cropping a single stitch of the dress. */}
+              <Image
+                src={mainImage}
+                alt=""
+                aria-hidden
+                fill
+                sizes="60px"
+                style={{ objectFit: 'cover', filter: 'blur(24px) saturate(1.05)', transform: 'scale(1.15)', opacity: 0.55 }}
+              />
+              <Image
+                src={mainImage}
+                alt={product.name}
+                fill
+                priority={priority}
+                sizes="(max-width: 600px) 50vw, (max-width: 1280px) 33vw, 300px"
+                // contain, deliberately: the dress is the product, so the card
+                // must never crop it. The blur layer handles the empty space.
+                style={{ objectFit: 'contain' }}
+                onError={e => { (e.currentTarget as HTMLImageElement).style.display = 'none'; }}
+              />
+            </>
           ) : (
             <span style={{ fontFamily: "'Jost', sans-serif", fontSize: '0.65rem', letterSpacing: '0.15em', textTransform: 'uppercase', color: '#9A8F87' }}>
               Photo coming soon
