@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getAdminUser, getAdmin, supabaseService } from '../../../../lib/admin-server';
 import { logActivity } from '../../../../lib/activity';
+import { escapeLike } from '../../../../lib/orders-server';
 
 // Admin orders access. RLS gives orders no client write policy and gates
 // selects on the customer's own rows, so the admin list and status updates
@@ -50,10 +51,12 @@ export async function GET(req: NextRequest) {
       if (matching.length > 0) {
         query = query.in('id', matching.slice(0, 100));
       } else {
-        query = query.or(`customer_name.ilike.%${q}%,customer_email.ilike.%${q}%`);
+        const safeQ = escapeLike(q);
+        query = query.or(`customer_name.ilike.%${safeQ}%,customer_email.ilike.%${safeQ}%`);
       }
     } else {
-      query = query.or(`customer_name.ilike.%${q}%,customer_email.ilike.%${q}%`);
+      const safeQ = escapeLike(q);
+        query = query.or(`customer_name.ilike.%${safeQ}%,customer_email.ilike.%${safeQ}%`);
     }
   }
 

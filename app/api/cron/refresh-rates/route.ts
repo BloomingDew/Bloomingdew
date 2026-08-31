@@ -41,13 +41,17 @@ async function loadMargins(): Promise<Record<string, number>> {
 }
 
 export async function GET(req: NextRequest) {
-  // Vercel Cron sends `Authorization: Bearer <CRON_SECRET>` when the env var is set.
+  // Vercel Cron sends `Authorization: Bearer <CRON_SECRET>`. Fail CLOSED if the
+  // secret is unset — otherwise anyone could rewrite every FX rate (and thus
+  // every displayed and Paystack-charged price) by hitting this endpoint.
   const secret = process.env.CRON_SECRET;
-  if (secret) {
-    const auth = req.headers.get('authorization');
-    if (auth !== `Bearer ${secret}`) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
+  if (!secret) {
+    console.error('[cron/refresh-rates] CRON_SECRET not set — refusing to run');
+    return NextResponse.json({ error: 'Not configured' }, { status: 503 });
+  }
+  const auth = req.headers.get('authorization');
+  if (auth !== `Bearer ${secret}`) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
   try {

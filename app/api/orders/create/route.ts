@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { finalizeOrder, type Shipping } from '../../../../lib/orders-server';
+import { getSessionUserId } from '../../../../lib/admin-server';
 
 // Inline (non-redirect) success path: Stripe confirmed the payment on the client
 // and we finalize immediately so the customer gets an order reference. The Stripe
@@ -14,11 +15,15 @@ export async function POST(req: NextRequest) {
   }
 
   try {
+    // user_id comes from the verified session, never the body — a guest is
+    // null. This is the authoritative attribution regardless of what the
+    // client claims.
+    const userId = await getSessionUserId();
     const result = await finalizeOrder({
       paymentIntentId: body.paymentIntentId,
       items: body.items,
       shipping: body.shipping,
-      userId: body.userId ?? null,
+      userId,
     });
 
     if (!result.ok) {

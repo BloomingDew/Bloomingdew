@@ -16,6 +16,21 @@ export const supabaseService = createClient(
 // Uses getUser() (which verifies the JWT with Supabase) rather than getSession()
 // (which only reads the cookie), and checks membership in the locked-down
 // `admins` table via the service role so the check can't be bypassed client-side.
+// The verified auth-user id for the current request, or null for a guest.
+// Checkout must derive user_id from this — never from the request body — so an
+// attacker can't attribute an order (or inject a saved address) to a victim's
+// account by posting someone else's uuid.
+export async function getSessionUserId(): Promise<string | null> {
+  const cookieStore = await cookies();
+  const supabase = createServerClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+    { cookies: { getAll: () => cookieStore.getAll(), setAll: () => {} } },
+  );
+  const { data: { user } } = await supabase.auth.getUser();
+  return user?.id ?? null;
+}
+
 export async function getAdminUser(): Promise<User | null> {
   return (await getAdmin())?.user ?? null;
 }
@@ -48,11 +63,11 @@ export async function getAdmin(): Promise<{ user: User; role: AdminRole } | null
     .maybeSingle();
 
   if (error) {
-    // The role column may not exist yet (002 migration not applied) —
-    // fall back to the plain membership check rather than locking admins out.
-    const { data: fallback } = await supabaseService
-      .from('admins').select('user_id').eq('user_id', user.id).maybeSingle();
-    return fallback ? { user, role: 'owner' } : null;
+    // Fail CLOSED. A transient DB error must not silently promote a staff admin
+    // to owner (bypassing the owner-only gates). The role column has existed
+    // since migration 002; if the query genuinely errors, deny.
+    console.error('[getAdmin] role lookup failed — denying:', error.message);
+    return null;
   }
   if (!data) return null;
   return { user, role: (data.role === 'staff' ? 'staff' : 'owner') };
