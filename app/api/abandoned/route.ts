@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { supabaseService } from '../../../lib/admin-server';
 import { rateLimit } from '../../../lib/rate-limit';
 import { priceOrder } from '../../../lib/orders-server';
+import { escapeLike } from '../../../lib/orders-server';
 
 // Public, fire-and-forget capture of abandoned checkouts. Called from the
 // checkout page when the shopper advances past the shipping step. Never
@@ -22,6 +23,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ success: true });
     }
     const cleanEmail = email.trim().toLowerCase();
+    const emailPattern = escapeLike(cleanEmail);
 
     // Re-price server-side so stored subtotals are authoritative.
     let pricing;
@@ -40,7 +42,7 @@ export async function POST(req: NextRequest) {
       .from('abandoned_checkouts')
       .select('id')
       .eq('status', 'started')
-      .ilike('email', cleanEmail)
+      .ilike('email', emailPattern)
       .limit(1)
       .maybeSingle();
 

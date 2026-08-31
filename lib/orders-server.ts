@@ -358,3 +358,10 @@ export async function finalizeOrder(params: {
   await deletePendingOrder(paymentIntentId);
   return { ok: true, orderId: order.id, alreadyRecorded: false };
 }
+
+// Escape PostgREST/SQL LIKE wildcards in a user-supplied value before it is
+// used in .ilike()/.or(). Without this, an email like "a%@b.co" matches other
+// customers' rows.
+export function escapeLike(value: string): string {
+  return value.replace(/[\\%_]/g, '\\$&');
+}

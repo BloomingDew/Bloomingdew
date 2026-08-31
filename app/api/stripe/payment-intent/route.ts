@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import Stripe from 'stripe';
 import { priceOrder, savePendingOrder, type Shipping } from '../../../../lib/orders-server';
 import { validateDiscountCode } from '../../../../lib/discounts';
+import { getSessionUserId } from '../../../../lib/admin-server';
 
 // Creates a PaymentIntent for the SERVER-COMPUTED order total. The client sends
 // only the cart line items (id/size/quantity); the amount is recomputed from
@@ -25,13 +26,15 @@ export async function POST(req: NextRequest) {
 
   let items: unknown;
   let shipping: Shipping | undefined;
-  let userId: string | null = null;
+  let userId: string | null = null;  // set from the verified session, not the body
   let discountCode: string | null = null;
   try {
-    ({ items, shipping, userId = null, discountCode = null } = await req.json());
+    ({ items, shipping, discountCode = null } = await req.json());
   } catch {
     return NextResponse.json({ error: 'Invalid request.', code: 'bad_request' }, { status: 400 });
   }
+
+  userId = await getSessionUserId();
 
   // 1) Price the order from the DB (service role). Distinguish a customer-fixable
   //    cart problem (400) from an infrastructure failure (502).
