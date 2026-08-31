@@ -1,8 +1,11 @@
 'use client';
 
 import { useState } from 'react';
+import { useFormToken, honeypotProps } from '../../lib/useFormToken';
 
 export default function ContactPage() {
+  const formToken = useFormToken();
+  const [honeypot, setHoneypot] = useState('');
   const [form, setForm] = useState({ firstName: '', lastName: '', email: '', subject: '', message: '' });
   const [loading, setLoading] = useState(false);
   const [sent, setSent] = useState(false);
@@ -16,7 +19,7 @@ export default function ContactPage() {
       const res = await fetch('/api/enquiry', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ type: 'contact', first_name: form.firstName, last_name: form.lastName, email: form.email, subject: form.subject, message: form.message }),
+        body: JSON.stringify({ formToken, website: honeypot, type: 'contact', first_name: form.firstName, last_name: form.lastName, email: form.email, subject: form.subject, message: form.message }),
       });
       if (!res.ok) {
         const data = await res.json().catch(() => ({}));
@@ -87,6 +90,7 @@ export default function ContactPage() {
             </div>
           ) : (
           <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '1.2rem' }}>
+            <input {...honeypotProps} value={honeypot} onChange={e => setHoneypot(e.target.value)} />
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1.2rem' }} className="form-row">
               <div>
                 <label style={labelStyle}>First Name</label>

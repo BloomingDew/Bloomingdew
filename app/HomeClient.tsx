@@ -6,10 +6,13 @@ import Image from 'next/image';
 import { useWishlist } from '../context/WishlistContext';
 import { useCurrency } from '../context/CurrencyContext';
 import { supabase } from '../lib/supabase';
+import { useFormToken, honeypotProps } from '../lib/useFormToken';
 
 type FeaturedProduct = { id: number; name: string; price: number; discount: number; product_images: { url: string }[] };
 
 export default function Home() {
+  const formToken = useFormToken();
+  const [honeypot, setHoneypot] = useState('');
   const [featuredProducts, setFeaturedProducts] = useState<FeaturedProduct[]>([]);
   const [newCollectionTitle, setNewCollectionTitle] = useState('New Collection');
   const [newCollectionProducts, setNewCollectionProducts] = useState<FeaturedProduct[]>([]);
@@ -25,7 +28,7 @@ export default function Home() {
       const res = await fetch('/api/enquiry', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
+        body: JSON.stringify({ formToken, website: honeypot,
           type: 'newsletter',
           first_name: 'Newsletter',
           email: newsletterEmail,
@@ -450,6 +453,7 @@ export default function Home() {
             </p>
           ) : (
             <form onSubmit={handleNewsletterSubmit} style={{ display: 'flex', gap: '0', maxWidth: '440px', margin: '0 auto' }} className="newsletter-form">
+            <input {...honeypotProps} value={honeypot} onChange={e => setHoneypot(e.target.value)} />
               <input
                 type="email"
                 required
