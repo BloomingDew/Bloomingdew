@@ -16,10 +16,12 @@ const square = new SquareClient({
     : SquareEnvironment.Sandbox,
 });
 
-// The Square location's settlement currency. The order totals are USD-based;
-// if the Square account settles in another currency this charges that many
-// units of it (pre-existing behavior kept for GBP accounts).
-const SQUARE_CURRENCY = process.env.SQUARE_CURRENCY || 'GBP';
+// The Square location's settlement currency. The account is a US location
+// (Lawrenceville, GA), so it settles in USD — and the order totals are already
+// USD, so no conversion is needed. Defaulting to GBP previously meant the USD
+// total was billed as that many POUNDS (a ~26% overcharge) or rejected outright
+// by Square for not matching the location currency.
+const SQUARE_CURRENCY = process.env.SQUARE_CURRENCY || 'USD';
 
 export async function POST(req: NextRequest) {
   const ip = req.headers.get('x-forwarded-for')?.split(',')[0]?.trim() || 'unknown';
@@ -92,7 +94,7 @@ export async function POST(req: NextRequest) {
       idempotencyKey,
       amountMoney: {
         amount: amountCents,
-        currency: SQUARE_CURRENCY as 'GBP',
+        currency: SQUARE_CURRENCY as 'USD',
       },
       locationId: process.env.NEXT_PUBLIC_SQUARE_LOCATION_ID!,
       buyerEmailAddress: shipping.email,

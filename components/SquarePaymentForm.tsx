@@ -170,7 +170,7 @@ export default function SquarePaymentForm({ amount, items, shipping, userId, dis
           transition: 'background-color 0.2s',
         }}
       >
-        {loading ? 'Processing...' : `Pay £${amount.toFixed(2)}`}
+        {loading ? 'Processing...' : `Pay $${amount.toFixed(2)}`}
       </button>
     </div>
   );
